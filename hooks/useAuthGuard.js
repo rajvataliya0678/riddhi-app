@@ -19,16 +19,17 @@ export function useAuthGuard() {
       }
     } else {
       // User IS logged in
+      const role = userData?.role || 'customer';
       const isRegistrationCompleted = userData?.registrationCompleted;
 
-      if (isRegistrationCompleted === false) {
-        // User has not filled the Diagnosis form yet
+      // Only regular customers are required to fill diagnosis questionnaire
+      if (role === 'customer' && isRegistrationCompleted === false) {
         if (pathname !== '/diagnosis') {
           router.push('/diagnosis');
         }
       } else {
-        // User has completed registration or is coach/admin
-        if (pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname === '/diagnosis') {
+        // Coach, Admin, or completed customer
+        if (pathname === '/' || pathname === '/login' || pathname === '/signup') {
           router.push('/dashboard');
         }
       }

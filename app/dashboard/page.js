@@ -73,7 +73,11 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (user && userData?.registrationCompleted) fetchData();
+    if (user) {
+      fetchData();
+    } else {
+      setLoadingData(false);
+    }
   }, [user, userData]);
 
   // ── Derived values ────────────────────────────────────────
@@ -111,7 +115,10 @@ export default function DashboardPage() {
     }
   };
 
-  if (authLoading || !user || !userData?.registrationCompleted || loadingData) {
+  // Customers must complete diagnosis; Coaches and Admins can view dashboard directly
+  const requiresDiagnosis = role === 'customer' && userData?.registrationCompleted === false;
+
+  if (authLoading || !user || requiresDiagnosis || loadingData) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-main)' }}>
         <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
