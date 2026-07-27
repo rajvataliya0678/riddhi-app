@@ -5,7 +5,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import FollowUpFormModal from './FollowUpFormModal';
 
-// ── Build the customer object FollowUpFormModal expects ──
+// ── Build customer object for FollowUpFormModal ──────────
 function buildFollowUpCustomer(customer, followups) {
   const daysCompleted = followups.length > 0 ? Math.max(...followups.map(f => f.day)) : 0;
   const coachReadinessScore = followups.find(f => f.day === 10)?.coachReadinessScore ?? null;
@@ -28,19 +28,21 @@ function buildFollowUpCustomer(customer, followups) {
   };
 }
 
-// ── Mini Day Progress Bar ────────────────────────────────
+// ── Progress Bar Component ────────────────────────────────
 function DayProgressBar({ daysCompleted }) {
   if (daysCompleted >= 10) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)', background: '#f0fdf4', border: '1px solid var(--primary-mid)', padding: '2px 8px', borderRadius: '99px' }}>
-          🔄 Ongoing (Day {daysCompleted})
-        </span>
-      </div>
+      <span style={{
+        fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)',
+        background: '#f0fdf4', border: '1px solid var(--primary-mid)',
+        padding: '3px 10px', borderRadius: '99px', display: 'inline-flex', alignItems: 'center', gap: '4px'
+      }}>
+        🔄 Ongoing (Day {daysCompleted})
+      </span>
     );
   }
   return (
-    <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
       {Array.from({ length: 10 }, (_, i) => {
         const day = i + 1;
         const done = day <= daysCompleted;
@@ -49,7 +51,7 @@ function DayProgressBar({ daysCompleted }) {
             key={day}
             title={`Day ${day}`}
             style={{
-              width: '14px', height: '14px', borderRadius: '3px',
+              width: '16px', height: '16px', borderRadius: '4px',
               background: done ? 'var(--primary)' : 'var(--bg-tertiary)',
               border: done ? 'none' : '1px solid var(--border-color)',
               flexShrink: 0,
@@ -57,14 +59,14 @@ function DayProgressBar({ daysCompleted }) {
           />
         );
       })}
-      <span style={{ marginLeft: '6px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)' }}>
+      <span style={{ marginLeft: '6px', fontSize: '0.78rem', fontWeight: '800', color: daysCompleted > 0 ? 'var(--primary)' : 'var(--text-muted)' }}>
         {daysCompleted}/10
       </span>
     </div>
   );
 }
 
-// ── Status chip ──────────────────────────────────────────
+// ── Status Chip Component ─────────────────────────────────
 function StatusChip({ daysCompleted }) {
   if (daysCompleted >= 10) return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'99px', background:'#f0fdf4', color:'#16a34a', fontSize:'0.72rem', fontWeight:'700', whiteSpace:'nowrap' }}>
@@ -87,7 +89,10 @@ export default function MyCustomersTab({ coachUid, coachName }) {
   const [customers, setCustomers]       = useState([]);
   const [followupsMap, setFollowupsMap] = useState({});
   const [loading, setLoading]           = useState(true);
-  const [followUpCustomer, setFollowUpCustomer] = useState(null);
+  const [sortBy, setSortBy]             = useState('newest'); // 'newest' | 'oldest_pending' | 'name'
+  const [viewMode, setViewMode]         = useState('boxes');  // 'boxes' | 'table'
+
+  const [followUpCustomer, setFollowUpCustomer]   = useState(null);
   const [followUpFollowups, setFollowUpFollowups] = useState([]);
 
   useEffect(() => { fetchData(); }, [coachUid]);
@@ -96,7 +101,6 @@ export default function MyCustomersTab({ coachUid, coachName }) {
     try {
       setLoading(true);
 
-      // 1. All customers assigned to this coach
       const usersSnap = await getDocs(
         query(collection(db, 'users'), where('coachId', '==', coachUid))
       );
@@ -104,27 +108,21 @@ export default function MyCustomersTab({ coachUid, coachName }) {
       const customerList = [];
       for (const userDoc of usersSnap.docs) {
         const userData = userDoc.data();
-
-        // Diagnosis (for goal)
-        const diagSnap = await getDocs(
-          query(collection(db, 'diagnosis'), where('uid', '==', userData.uid))
-        );
-        const diagnosis = diagSnap.empty ? null : diagSnap.docs[0].data();
-
-        customerList.push({ ...userData, diagnosis });
+        const diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', userData.uid)));
+        userData.diagnosis = diagSnap.empty ? null : diagSnap.docs[0].data();
+        customerList.push(userData);
       }
 
-      // 2. All follow-ups for this coach
-      const fuSnap = await getDocs(
+      const followupsSnap = await getDocs(
         query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))
       );
       const grouped = {};
-      for (const fd of fuSnap.docs) {
-        const d = { id: fd.id, ...fd.data() };
-        const key = d.customerUid || d.customerProfileId;
+      followupsSnap.docs.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        const key = data.customerUid || data.customerProfileId;
         if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(d);
-      }
+        grouped[key].push(data);
+      });
 
       setCustomers(customerList);
       setFollowupsMap(grouped);
@@ -140,6 +138,7 @@ export default function MyCustomersTab({ coachUid, coachName }) {
     setFollowUpCustomer(buildFollowUpCustomer(customer, fus));
     setFollowUpFollowups(fus);
   };
+
   const closeFollowUp = () => { setFollowUpCustomer(null); setFollowUpFollowups([]); };
 
   if (loading) {
@@ -151,7 +150,9 @@ export default function MyCustomersTab({ coachUid, coachName }) {
     );
   }
 
-  // ── Compute per-customer stats ───────────────────────────
+  const today = new Date();
+
+  // ── Compute per-customer card data ───────────────────────
   const rows = customers.map(c => {
     const fus = followupsMap[c.uid] || [];
     const daysCompleted = fus.length > 0 ? Math.max(...fus.map(f => f.day)) : 0;
@@ -159,19 +160,60 @@ export default function MyCustomersTab({ coachUid, coachName }) {
     const nextDay = daysCompleted < 10
       ? daysCompleted + 1
       : (daysCompleted === 10 ? 13 : daysCompleted + 3);
+
     const pendingDays = daysCompleted < 10
       ? Array.from({ length: 10 }, (_, i) => i + 1).filter(d => !doneDays.includes(d))
       : [nextDay];
+
     const lastFu = fus.sort((a, b) => b.day - a.day)[0];
     const lastDate = lastFu?.followUpDate || null;
-    return { customer: c, daysCompleted, doneDays, pendingDays, lastDate, nextDay };
+
+    // Calculate joining timestamp for sorting
+    const joinTimestamp = c.createdAt?.toDate
+      ? c.createdAt.toDate().getTime()
+      : 0;
+
+    // Calculate days pending age (how long since last follow-up or joining date)
+    const baseDate = lastDate ? new Date(lastDate) : (c.createdAt?.toDate ? c.createdAt.toDate() : today);
+    const daysPendingAge = Math.floor((today - baseDate) / (1000 * 60 * 60 * 24));
+
+    return {
+      customer: c,
+      daysCompleted,
+      doneDays,
+      pendingDays,
+      lastDate,
+      nextDay,
+      joinTimestamp,
+      daysPendingAge,
+    };
   });
 
-  // Sort: in-progress first, then pending, then complete
+  // ── Apply Sorting ─────────────────────────────────────────
   rows.sort((a, b) => {
-    if (a.daysCompleted >= 10 && b.daysCompleted < 10) return 1;
-    if (b.daysCompleted >= 10 && a.daysCompleted < 10) return -1;
-    return b.daysCompleted - a.daysCompleted;
+    if (sortBy === 'newest') {
+      // Primary: Joined newest first
+      if (b.joinTimestamp !== a.joinTimestamp) {
+        return b.joinTimestamp - a.joinTimestamp;
+      }
+      // Secondary: Oldest pending task first
+      return b.daysPendingAge - a.daysPendingAge;
+    }
+
+    if (sortBy === 'oldest_pending') {
+      // Primary: Oldest pending task first (customers waiting longest)
+      if (b.daysPendingAge !== a.daysPendingAge) {
+        return b.daysPendingAge - a.daysPendingAge;
+      }
+      // Secondary: Joined newest first
+      return b.joinTimestamp - a.joinTimestamp;
+    }
+
+    if (sortBy === 'name') {
+      return (a.customer.name || '').localeCompare(b.customer.name || '');
+    }
+
+    return 0;
   });
 
   // Summary stats
@@ -182,20 +224,66 @@ export default function MyCustomersTab({ coachUid, coachName }) {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>My Customers</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-          {total} customer{total !== 1 ? 's' : ''} — 10-Day Follow-Up Tracker
-        </p>
+      {/* Header & Controls */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>My Customers</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+            {total} customer{total !== 1 ? 's' : ''} assigned to you
+          </p>
+        </div>
+
+        {/* Sort & View Mode Controls */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '4px 10px' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600' }}>Sort By:</span>
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value)}
+              style={{ border: 'none', background: 'transparent', fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-main)', cursor: 'pointer', outline: 'none' }}
+              id="sort-customers-select"
+            >
+              <option value="newest">🆕 Joined Newest First</option>
+              <option value="oldest_pending">⚠️ Oldest Pending Task First</option>
+              <option value="name">🔤 Name (A-Z)</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '2px' }}>
+            <button
+              onClick={() => setViewMode('boxes')}
+              id="view-mode-boxes"
+              style={{
+                padding: '6px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer',
+                fontSize: '0.78rem', fontWeight: '700',
+                background: viewMode === 'boxes' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'boxes' ? 'white' : 'var(--text-muted)',
+              }}
+            >
+              📦 Boxes
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              id="view-mode-table"
+              style={{
+                padding: '6px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer',
+                fontSize: '0.78rem', fontWeight: '700',
+                background: viewMode === 'table' ? 'var(--primary)' : 'transparent',
+                color: viewMode === 'table' ? 'white' : 'var(--text-muted)',
+              }}
+            >
+              📋 Table
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Quick summary pills */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      {/* Quick Summary Pills */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
         {[
           { label: 'Total',       value: total,   bg: '#f3f4f6', color: '#374151'  },
-          { label: 'Complete',    value: done,    bg: '#f0fdf4', color: '#16a34a'  },
-          { label: 'In Progress', value: inProg,  bg: '#fffbeb', color: '#d97706'  },
+          { label: '3-Day Phase', value: done,    bg: '#f0fdf4', color: '#16a34a'  },
+          { label: '10-Day Phase',value: inProg,  bg: '#fffbeb', color: '#d97706'  },
           { label: 'Pending',     value: pending, bg: '#eff6ff', color: '#2563eb'  },
         ].map(s => (
           <div key={s.label} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'8px 16px', borderRadius:'99px', background:s.bg, color:s.color }}>
@@ -211,17 +299,162 @@ export default function MyCustomersTab({ coachUid, coachName }) {
           <h4>No customers assigned yet</h4>
           <p>When customers are assigned to you, they will appear here.</p>
         </div>
+      ) : viewMode === 'boxes' ? (
+
+        /* ── BOX GRID VIEW ────────────────────────────────────── */
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+          {rows.map(({ customer, daysCompleted, doneDays, pendingDays, lastDate, nextDay, daysPendingAge }) => (
+            <div
+              key={customer.uid}
+              id={`customer-box-${customer.uid}`}
+              className="dashboard-card"
+              style={{
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+              }}
+            >
+              {/* Card Header: Avatar, Name, Join Date, Status */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0,
+                      background: 'linear-gradient(135deg, var(--primary), #2563eb)',
+                      color: 'white', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontSize: '1.1rem', fontWeight: '800',
+                    }}>
+                      {customer.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
+                        {customer.name}
+                      </h3>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                        Joined {customer.createdAt?.toDate
+                          ? new Date(customer.createdAt.toDate()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : 'Recent'}
+                      </p>
+                    </div>
+                  </div>
+                  <StatusChip daysCompleted={daysCompleted} />
+                </div>
+
+                {/* Goal Tag */}
+                <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '0.75rem', fontWeight: '700', padding: '3px 10px', borderRadius: '6px',
+                    background: 'var(--primary-light)', color: 'var(--primary)',
+                  }}>
+                    🏋️ {customer.diagnosis?.fitnessGoal || 'Fitness Goal'}
+                  </span>
+                  {customer.diagnosis?.goalWeight && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Target: {customer.diagnosis.goalWeight} kg
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress Bar Section */}
+                <div style={{
+                  background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: 'var(--radius-md)',
+                  marginBottom: '14px', border: '1px solid var(--border-color)',
+                }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Follow-Up Progress
+                  </div>
+                  <DayProgressBar daysCompleted={daysCompleted} />
+                </div>
+
+                {/* Days Done & Days Pending */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      DAYS DONE ({doneDays.length})
+                    </span>
+                    {doneDays.length === 0 ? (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>None yet</span>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                        {doneDays.map(d => (
+                          <span key={d} style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700', background: '#f0fdf4', color: '#16a34a' }}>
+                            D{d}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      NEXT PENDING
+                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                      {pendingDays.slice(0, 4).map(d => (
+                        <span key={d} style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700', background: '#fef2f2', color: '#dc2626' }}>
+                          D{d}
+                        </span>
+                      ))}
+                      {pendingDays.length > 4 && (
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
+                          +{pendingDays.length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Last Followup & Pending Task info */}
+                <div style={{
+                  padding: '10px 12px', borderRadius: '8px', background: '#fffbeb', border: '1px solid #fcd34d',
+                  marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#d97706' }}>
+                      📋 Next Action: Fill Day {nextDay}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#b45309', marginTop: '2px' }}>
+                      {lastDate ? `Last done: ${new Date(lastDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'No follow-ups done yet'}
+                    </div>
+                  </div>
+                  {daysPendingAge > 0 && (
+                    <span style={{ fontSize: '0.68rem', fontWeight: '800', background: '#fef2f2', color: '#dc2626', padding: '2px 6px', borderRadius: '4px' }}>
+                      {daysPendingAge}d pending
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Card Footer: Action Button */}
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '10px', fontSize: '0.85rem', fontWeight: '800', marginTop: '4px' }}
+                onClick={() => openFollowUp(customer)}
+                id={`box-open-followup-${customer.uid}`}
+              >
+                {daysCompleted === 0 ? '▶ Start Day 1 Follow-Up' : `✏️ Continue Day ${nextDay}`}
+              </button>
+            </div>
+          ))}
+        </div>
       ) : (
+
+        /* ── TABLE VIEW ───────────────────────────────────────── */
         <div className="crm-table-container">
           <table className="crm-table" id="my-customers-table" style={{ tableLayout: 'fixed', width: '100%' }}>
             <thead>
               <tr>
                 <th style={{ width: '160px' }}>Customer</th>
                 <th style={{ width: '120px' }}>Goal</th>
-                <th style={{ width: '200px' }}>10-Day Progress</th>
+                <th style={{ width: '180px' }}>Progress</th>
                 <th style={{ width: '110px' }}>Status</th>
-                <th style={{ width: '130px' }}>Days Done</th>
-                <th style={{ width: '130px' }}>Days Pending</th>
+                <th style={{ width: '120px' }}>Days Done</th>
+                <th style={{ width: '120px' }}>Days Pending</th>
                 <th style={{ width: '100px' }}>Last Follow-up</th>
                 <th style={{ width: '120px' }}>Next Action</th>
                 <th style={{ width: '110px' }}>Action</th>
@@ -230,92 +463,61 @@ export default function MyCustomersTab({ coachUid, coachName }) {
             <tbody>
               {rows.map(({ customer, daysCompleted, doneDays, pendingDays, lastDate, nextDay }) => (
                 <tr key={customer.uid} id={`customer-row-${customer.uid}`}>
-
-                  {/* Name */}
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{
-                        width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
+                        width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
                         background: 'linear-gradient(135deg, var(--primary), #2563eb)',
-                        color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.8rem', fontWeight: '800',
+                        color: 'white', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
                       }}>
                         {customer.name?.charAt(0)?.toUpperCase()}
                       </div>
-                      <span style={{ fontWeight: '600', fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {customer.name}
-                      </span>
+                      <div>
+                        <div style={{ fontWeight: '700', fontSize: '0.88rem' }}>{customer.name}</div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                          {customer.createdAt?.toDate
+                            ? new Date(customer.createdAt.toDate()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                            : 'Recent'}
+                        </div>
+                      </div>
                     </div>
                   </td>
-
-                  {/* Goal */}
                   <td>
                     <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: '600' }}>
                       {customer.diagnosis?.fitnessGoal || '—'}
                     </span>
                   </td>
-
-                  {/* Progress bar */}
+                  <td><DayProgressBar daysCompleted={daysCompleted} /></td>
+                  <td><StatusChip daysCompleted={daysCompleted} /></td>
                   <td>
-                    <DayProgressBar daysCompleted={daysCompleted} />
-                  </td>
-
-                  {/* Status */}
-                  <td>
-                    <StatusChip daysCompleted={daysCompleted} />
-                  </td>
-
-                  {/* Days Done */}
-                  <td>
-                    {doneDays.length === 0 ? (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>—</span>
-                    ) : (
+                    {doneDays.length === 0 ? '—' : (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
                         {doneDays.map(d => (
-                          <span key={d} style={{
-                            padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
-                            background: '#f0fdf4', color: '#16a34a',
-                          }}>D{d}</span>
+                          <span key={d} style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700', background: '#f0fdf4', color: '#16a34a' }}>D{d}</span>
                         ))}
                       </div>
                     )}
                   </td>
-
-                  {/* Days Pending */}
                   <td>
                     {pendingDays.length === 0 ? (
                       <span style={{ color: '#16a34a', fontSize: '0.78rem', fontWeight: '600' }}>All done ✅</span>
                     ) : (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
                         {pendingDays.map(d => (
-                          <span key={d} style={{
-                            padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
-                            background: '#fef2f2', color: '#dc2626',
-                          }}>D{d}</span>
+                          <span key={d} style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700', background: '#fef2f2', color: '#dc2626' }}>D{d}</span>
                         ))}
                       </div>
                     )}
                   </td>
-
-                  {/* Last follow-up date */}
                   <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {lastDate
-                      ? new Date(lastDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' })
-                      : '—'}
+                    {lastDate ? new Date(lastDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—'}
                   </td>
-
-                  {/* Next Action */}
                   <td>
-                    {nextDay ? (
-                      <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#d97706' }}>
-                        📋 Fill Day {nextDay}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Review / Re-follow</span>
-                    )}
+                    <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#d97706' }}>
+                      📋 Fill Day {nextDay}
+                    </span>
                   </td>
-
-                  {/* Open button */}
                   <td>
                     <button
                       className="btn btn-primary"
@@ -323,7 +525,7 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                       onClick={() => openFollowUp(customer)}
                       id={`open-followup-${customer.uid}`}
                     >
-                      {daysCompleted >= 10 ? '📖 View' : daysCompleted > 0 ? '✏️ Continue' : '▶ Start'}
+                      {daysCompleted === 0 ? '▶ Start' : '✏️ Continue'}
                     </button>
                   </td>
                 </tr>
@@ -333,7 +535,7 @@ export default function MyCustomersTab({ coachUid, coachName }) {
         </div>
       )}
 
-      {/* Follow-up Form Modal */}
+      {/* Follow-Up Form Modal */}
       {followUpCustomer && (
         <FollowUpFormModal
           customer={followUpCustomer}
