@@ -14,7 +14,6 @@ export function useAuthGuard() {
 
     if (!user) {
       // User is NOT logged in
-      // Redirect to /login if they try to access protected screens
       if (pathname !== '/login' && pathname !== '/signup') {
         router.push('/login');
       }
@@ -27,10 +26,9 @@ export function useAuthGuard() {
         if (pathname !== '/diagnosis') {
           router.push('/diagnosis');
         }
-      } else if (isRegistrationCompleted === true) {
-        // User has completed registration
-        // Redirect to dashboard if they try to access auth pages or the diagnosis questionnaire
-        if (pathname === '/login' || pathname === '/signup' || pathname === '/diagnosis') {
+      } else {
+        // User has completed registration or is coach/admin
+        if (pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname === '/diagnosis') {
           router.push('/dashboard');
         }
       }

@@ -1,11 +1,22 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 export default function IndexPage() {
-  // useAuthGuard automatically redirects the user depending on their login/profile state
-  const { loading } = useAuthGuard();
+  const { user, loading } = useAuthGuard();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        router.push('/dashboard');
+      } else {
+        router.push('/login');
+      }
+    }
+  }, [loading, user, router]);
 
   return (
     <div className="auth-wrapper">
