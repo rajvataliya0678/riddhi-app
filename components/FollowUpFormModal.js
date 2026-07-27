@@ -608,80 +608,54 @@ function Day10Form({ data, setData, customer, allFollowups, coachReadinessScore 
   );
 }
 
-// ── Common Daily Check-in Section ───────────────────────
-function CommonCheckinSection({ data, setData, startingWeight, dayNum }) {
+// ── Ongoing 3-Day Check-in Form (After Day 10) ────────────
+function Ongoing3DayForm({ data, setData, dayNum }) {
   const s = (k, v) => setData(d => ({ ...d, [k]: v }));
-  const weightChange = data.todaysWeight && startingWeight
-    ? (data.todaysWeight - startingWeight).toFixed(1)
-    : null;
-
   return (
-    <div style={{ background: 'linear-gradient(135deg, var(--primary-light), #eff6ff)', borderRadius: 'var(--radius-md)', padding: '20px', marginBottom: '16px', border: '1px solid var(--primary-mid)' }}>
-      <div className="followup-section-title" style={{ marginBottom: '12px' }}>📊 Daily Common Check-In — Day {dayNum}</div>
-
-      <div className="form-row-2">
-        <Field label="Video Call Completed?">
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {['Yes', 'No'].map(opt => (
-              <button key={opt} type="button" className={`multiselect-chip ${data.videoCallCompleted === opt ? 'selected' : ''}`} onClick={() => s('videoCallCompleted', opt)} id={`checkin-video-${opt.toLowerCase()}-day${dayNum}`}>{opt}</button>
-            ))}
-          </div>
-        </Field>
-        <Field label="Call Duration (minutes)">
-          <input type="number" className="form-input" min={0} max={180} placeholder="e.g. 20" value={data.callDuration || ''} onChange={e => s('callDuration', e.target.value)} id={`checkin-duration-day${dayNum}`} />
-        </Field>
+    <div>
+      <div style={{ background: '#f0fdf4', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', marginBottom: '16px' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '4px' }}>
+          🔄 Every 3rd Day Ongoing Maintenance Check-in — Day {dayNum}
+        </div>
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
+          Customer is in the 3-day ongoing maintenance phase. Track their 3-day progress, routine adjustments, and next commitments.
+        </p>
       </div>
 
-      <div className="form-row-2">
-        <Field label="Today's Weight (kg)">
-          <input type="number" step="0.1" className="form-input" placeholder="e.g. 76.5" value={data.todaysWeight || ''} onChange={e => s('todaysWeight', parseFloat(e.target.value) || '')} id={`checkin-weight-day${dayNum}`} />
+      <Field label="Overall 3-Day Progress & Adherence (1-10)">
+        <ScaleInput id={`d${dayNum}-progress`} value={data.adherenceScore} onChange={v => s('adherenceScore', v)} />
+      </Field>
+
+      <Field label="3-Day Key Wins / Progress Highlights">
+        <textarea className="form-input" rows={2} value={data.threeDayWins || ''} onChange={e => s('threeDayWins', e.target.value)} placeholder="What went well in the last 3 days?" style={{ resize: 'vertical' }} id={`d${dayNum}-wins`} />
+      </Field>
+
+      <Field label="3-Day Challenges / Obstacles">
+        <textarea className="form-input" rows={2} value={data.threeDayChallenges || ''} onChange={e => s('threeDayChallenges', e.target.value)} placeholder="Any diet, cravings, or routine issues?" style={{ resize: 'vertical' }} id={`d${dayNum}-challenges`} />
+      </Field>
+
+      <Field label="Diet / Program Adjustment">
+        <textarea className="form-input" rows={2} value={data.routineAdjustment || ''} onChange={e => s('routineAdjustment', e.target.value)} placeholder="Any changes made to meal plan, water, or exercise?" style={{ resize: 'vertical' }} id={`d${dayNum}-adjustment`} />
+      </Field>
+
+      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Ongoing Guidance</div>
+        <Field label="Coach Recommendation For Next 3 Days">
+          <textarea className="form-input" rows={2} value={data.coachRecommendation || ''} onChange={e => s('coachRecommendation', e.target.value)} style={{ resize: 'vertical' }} id={`d${dayNum}-recommendation`} />
         </Field>
-        <Field label="Weight Change From Start">
-          <div className="form-input" style={{ background: 'var(--bg-secondary)', color: weightChange !== null ? (weightChange < 0 ? '#16a34a' : weightChange > 0 ? '#dc2626' : 'var(--text-muted)') : 'var(--text-muted)', fontWeight: '700' }}>
-            {weightChange !== null ? (weightChange > 0 ? `+${weightChange} kg` : `${weightChange} kg`) : 'Enter weight above'}
-          </div>
+        <Field label="Customer Next 3-Day Commitment">
+          <input className="form-input" value={data.nextCommitment || ''} onChange={e => s('nextCommitment', e.target.value)} placeholder="e.g. 3L water daily, 8k steps" id={`d${dayNum}-commitment`} />
+        </Field>
+        <Field label="Next 3-Day Follow-Up Date">
+          <input type="date" className="form-input" value={data.nextFollowUpDate || ''} onChange={e => s('nextFollowUpDate', e.target.value)} id={`d${dayNum}-next-date`} />
         </Field>
       </div>
-
-      <div className="form-row-3">
-        <Field label="Energy Level (1-10)">
-          <ScaleInput id={`checkin-energy-day${dayNum}`} value={data.energyLevel} onChange={v => s('energyLevel', v)} />
-        </Field>
-        <Field label="Hunger / Craving (1-10)">
-          <ScaleInput id={`checkin-hunger-day${dayNum}`} value={data.hungerLevel} onChange={v => s('hungerLevel', v)} />
-        </Field>
-        <Field label="Sleep Quality (1-10)">
-          <ScaleInput id={`checkin-sleep-day${dayNum}`} value={data.sleepQuality} onChange={v => s('sleepQuality', v)} />
-        </Field>
-      </div>
-
-      <div className="form-row-2">
-        <Field label="Program Followed (0-100%)">
-          <input type="number" className="form-input" min={0} max={100} placeholder="e.g. 80" value={data.programFollowed || ''} onChange={e => s('programFollowed', e.target.value)} id={`checkin-program-day${dayNum}`} />
-        </Field>
-        <Field label="Water Intake (Litres)">
-          <input type="number" step="0.5" className="form-input" min={0} max={10} placeholder="e.g. 2.5" value={data.waterIntake || ''} onChange={e => s('waterIntake', e.target.value)} id={`checkin-water-day${dayNum}`} />
-        </Field>
-      </div>
-
-      <Field label="Today's Biggest Win">
-        <input className="form-input" value={data.biggestWin || ''} onChange={e => s('biggestWin', e.target.value)} id={`checkin-win-day${dayNum}`} />
-      </Field>
-      <Field label="Today's Biggest Challenge">
-        <input className="form-input" value={data.biggestChallenge || ''} onChange={e => s('biggestChallenge', e.target.value)} id={`checkin-challenge-day${dayNum}`} />
-      </Field>
-      <Field label="Coach Observation">
-        <textarea className="form-input" rows={2} value={data.coachObservation || ''} onChange={e => s('coachObservation', e.target.value)} style={{ resize: 'vertical' }} id={`checkin-obs-day${dayNum}`} />
-      </Field>
-      <Field label="Tomorrow Commitment">
-        <input className="form-input" value={data.tomorrowCommitment || ''} onChange={e => s('tomorrowCommitment', e.target.value)} id={`checkin-tomorrow-day${dayNum}`} />
-      </Field>
     </div>
   );
 }
 
 // ── Day Config ────────────────────────────────────────────
-const DAY_CONFIG = [
+const BASE_DAY_CONFIG = [
   { day: 1, icon: '📖', title: 'DAY 1 – Customer Story & WHY', purpose: 'Customer ને deeply સમજવો અને strong connection start કરવો.' },
   { day: 2, icon: '🕐', title: 'DAY 2 – Daily Routine Diagnosis', purpose: 'Customer ના daily lifestyle અને weak timings સમજવા.' },
   { day: 3, icon: '🍽️', title: 'DAY 3 – Food & Craving Diagnosis', purpose: 'Eating triggers અને habits સમજવા.' },
@@ -694,15 +668,41 @@ const DAY_CONFIG = [
   { day: 10, icon: '🎉', title: 'DAY 10 – Journey Review & Next Step', purpose: '10-day journey summarise કરીને next path decide કરવો.' },
 ];
 
+function buildDaysList(followups) {
+  const list = [...BASE_DAY_CONFIG];
+  const maxDay = followups.length > 0 ? Math.max(...followups.map(f => f.day)) : 0;
+
+  if (maxDay >= 10) {
+    const doneOngoing = followups.map(f => f.day).filter(d => d > 10).sort((a, b) => a - b);
+    const nextOngoing = doneOngoing.length > 0 ? Math.max(...doneOngoing) + 3 : 13;
+    const allOngoing = Array.from(new Set([...doneOngoing, nextOngoing])).sort((a, b) => a - b);
+
+    for (const d of allOngoing) {
+      list.push({
+        day: d,
+        icon: '🔄',
+        title: `DAY ${d} – 3-Day Ongoing Check-in`,
+        purpose: 'Every 3rd day maintenance, progress review & routine adjustment.',
+      });
+    }
+  }
+
+  return list;
+}
+
 // ── Main Modal ────────────────────────────────────────────
 export default function FollowUpFormModal({ customer, followups = [], coachUid, coachName, onClose, onSaved }) {
   const existingDays = followups.map(f => f.day);
-  const daysCompleted = customer.daysCompleted || 0;
+  const maxCompletedDay = followups.length > 0 ? Math.max(...followups.map(f => f.day)) : 0;
 
-  // Current day being edited = next day to fill (or last if all done)
-  const nextDayToFill = daysCompleted < 10 ? daysCompleted + 1 : 10;
+  // Next day to fill: if <10 then next sequential day, if >=10 then next 3rd day (13, 16, 19...)
+  const nextDayToFill = maxCompletedDay < 10
+    ? maxCompletedDay + 1
+    : (maxCompletedDay === 10 ? 13 : maxCompletedDay + 3);
+
   const [selectedDay, setSelectedDay] = useState(nextDayToFill);
 
+  const daysList = buildDaysList(followups);
   const existingFollowup = followups.find(f => f.day === selectedDay);
 
   const [commonCheckin, setCommonCheckin] = useState(existingFollowup?.commonCheckin || {});
@@ -715,7 +715,6 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
   const scoreKeys = ['scoreConsistency', 'scoreCommunication', 'scoreHelping', 'scorePositive', 'scoreLearning', 'scoreShares', 'scorePeople', 'scoreInterest'];
   const coachReadinessScore = scoreKeys.reduce((sum, k) => sum + (typeof dayData[k] === 'number' ? dayData[k] : 0), 0);
 
-  // When day changes, load existing data
   useEffect(() => {
     const existing = followups.find(f => f.day === selectedDay);
     setCommonCheckin(existing?.commonCheckin || {});
@@ -724,8 +723,15 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
     setError('');
   }, [selectedDay]);
 
-  const isLocked = (dayNum) => dayNum > daysCompleted + 1;
-  const isDone = (dayNum) => dayNum <= daysCompleted;
+  const isLocked = (dayNum) => {
+    if (dayNum <= 10) return dayNum > maxCompletedDay + 1;
+    // For post day 10: lock if > max completed day + 3
+    const maxOngoing = Math.max(10, maxCompletedDay);
+    return dayNum > maxOngoing + 3;
+  };
+
+  const isDone = (dayNum) => existingDays.includes(dayNum);
+
 
   const handleSave = async () => {
     if (!commonCheckin.todaysWeight) {
@@ -777,9 +783,10 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
       setSaveMsg(`✅ Day ${selectedDay} saved successfully!`);
       onSaved();
 
-      // Auto-advance to next day after 1 second
-      if (isNewDay && selectedDay < 10) {
-        setTimeout(() => setSelectedDay(selectedDay + 1), 1200);
+      // Auto-advance to next day after 1.2 seconds
+      if (isNewDay) {
+        const nextDay = selectedDay < 10 ? selectedDay + 1 : (selectedDay === 10 ? 13 : selectedDay + 3);
+        setTimeout(() => setSelectedDay(nextDay), 1200);
       }
     } catch (err) {
       console.error(err);
@@ -789,7 +796,8 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
     }
   };
 
-  const currentDayConfig = DAY_CONFIG.find(d => d.day === selectedDay);
+  const currentDayConfig = daysList.find(d => d.day === selectedDay);
+
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
@@ -804,7 +812,7 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{customer.customerId}</div>
           </div>
 
-          {DAY_CONFIG.map(({ day, icon, title }) => {
+          {daysList.map(({ day, icon, title }) => {
             const done = isDone(day);
             const locked = isLocked(day);
             const active = selectedDay === day;
@@ -875,7 +883,7 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
             {/* Day-specific section */}
             <div>
               <div className="followup-section-title" style={{ marginBottom: '12px' }}>
-                {currentDayConfig?.icon} Day {selectedDay} — Specific Questions
+                {currentDayConfig?.icon} Day {selectedDay} — {selectedDay > 10 ? 'Ongoing Maintenance Questions' : 'Specific Questions'}
               </div>
               {selectedDay === 1  && <Day1Form  data={dayData} setData={setDayData} />}
               {selectedDay === 2  && <Day2Form  data={dayData} setData={setDayData} />}
@@ -887,6 +895,7 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
               {selectedDay === 8  && <Day8Form  data={dayData} setData={setDayData} />}
               {selectedDay === 9  && <Day9Form  data={dayData} setData={setDayData} />}
               {selectedDay === 10 && <Day10Form data={dayData} setData={setDayData} customer={customer} allFollowups={followups} coachReadinessScore={coachReadinessScore} />}
+              {selectedDay > 10  && <Ongoing3DayForm data={dayData} setData={setDayData} dayNum={selectedDay} />}
             </div>
           </div>
 

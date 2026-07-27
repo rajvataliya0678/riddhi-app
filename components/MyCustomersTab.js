@@ -30,6 +30,15 @@ function buildFollowUpCustomer(customer, followups) {
 
 // ── Mini Day Progress Bar ────────────────────────────────
 function DayProgressBar({ daysCompleted }) {
+  if (daysCompleted >= 10) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)', background: '#f0fdf4', border: '1px solid var(--primary-mid)', padding: '2px 8px', borderRadius: '99px' }}>
+          🔄 Ongoing (Day {daysCompleted})
+        </span>
+      </div>
+    );
+  }
   return (
     <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
       {Array.from({ length: 10 }, (_, i) => {
@@ -48,7 +57,7 @@ function DayProgressBar({ daysCompleted }) {
           />
         );
       })}
-      <span style={{ marginLeft: '6px', fontSize: '0.75rem', fontWeight: '700', color: daysCompleted >= 10 ? 'var(--primary)' : 'var(--text-muted)' }}>
+      <span style={{ marginLeft: '6px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)' }}>
         {daysCompleted}/10
       </span>
     </div>
@@ -59,12 +68,12 @@ function DayProgressBar({ daysCompleted }) {
 function StatusChip({ daysCompleted }) {
   if (daysCompleted >= 10) return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'99px', background:'#f0fdf4', color:'#16a34a', fontSize:'0.72rem', fontWeight:'700', whiteSpace:'nowrap' }}>
-      ✅ Complete
+      🔄 3-Day Phase
     </span>
   );
   if (daysCompleted > 0) return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'99px', background:'#fffbeb', color:'#d97706', fontSize:'0.72rem', fontWeight:'700', whiteSpace:'nowrap' }}>
-      🟡 Day {daysCompleted}/10
+      🟡 10-Day Phase
     </span>
   );
   return (
@@ -147,10 +156,14 @@ export default function MyCustomersTab({ coachUid, coachName }) {
     const fus = followupsMap[c.uid] || [];
     const daysCompleted = fus.length > 0 ? Math.max(...fus.map(f => f.day)) : 0;
     const doneDays = fus.map(f => f.day).sort((a, b) => a - b);
-    const pendingDays = Array.from({ length: 10 }, (_, i) => i + 1).filter(d => !doneDays.includes(d));
+    const nextDay = daysCompleted < 10
+      ? daysCompleted + 1
+      : (daysCompleted === 10 ? 13 : daysCompleted + 3);
+    const pendingDays = daysCompleted < 10
+      ? Array.from({ length: 10 }, (_, i) => i + 1).filter(d => !doneDays.includes(d))
+      : [nextDay];
     const lastFu = fus.sort((a, b) => b.day - a.day)[0];
     const lastDate = lastFu?.followUpDate || null;
-    const nextDay = daysCompleted < 10 ? daysCompleted + 1 : null;
     return { customer: c, daysCompleted, doneDays, pendingDays, lastDate, nextDay };
   });
 
