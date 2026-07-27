@@ -108,8 +108,15 @@ export default function MyCustomersTab({ coachUid, coachName }) {
       const customerList = [];
       for (const userDoc of usersSnap.docs) {
         const userData = userDoc.data();
+
+        // Diagnosis
         const diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', userData.uid)));
         userData.diagnosis = diagSnap.empty ? null : diagSnap.docs[0].data();
+
+        // Weight logs
+        const weightSnap = await getDocs(query(collection(db, 'weight_history'), where('uid', '==', userData.uid)));
+        userData.weightLogs = weightSnap.docs.map(d => d.data());
+
         customerList.push(userData);
       }
 
@@ -168,14 +175,47 @@ export default function MyCustomersTab({ coachUid, coachName }) {
     const lastFu = fus.sort((a, b) => b.day - a.day)[0];
     const lastDate = lastFu?.followUpDate || null;
 
-    // Calculate joining timestamp for sorting
-    const joinTimestamp = c.createdAt?.toDate
-      ? c.createdAt.toDate().getTime()
-      : 0;
+    // Calculate joining timestamp for sorting & days joined count
+    const joinDate = c.createdAt?.toDate ? c.createdAt.toDate() : null;
+    const joinTimestamp = joinDate ? joinDate.getTime() : 0;
+    const daysJoined = joinDate ? Math.max(0, Math.floor((today - joinDate) / (1000 * 60 * 60 * 24))) : 0;
 
-    // Calculate days pending age (how long since last follow-up or joining date)
-    const baseDate = lastDate ? new Date(lastDate) : (c.createdAt?.toDate ? c.createdAt.toDate() : today);
+    // Calculate days pending age
+    const baseDate = lastDate ? new Date(lastDate) : (joinDate || today);
     const daysPendingAge = Math.floor((today - baseDate) / (1000 * 60 * 60 * 24));
+
+    // Calculate Result % Achieved
+    const initialWeight = c.diagnosis?.initialWeight || c.startingWeight || 0;
+    const goalWeight    = c.diagnosis?.goalWeight || c.targetWeight || 0;
+
+    let latestWeight = initialWeight;
+    const fusWithWeight = fus.filter(f => f.commonCheckin?.todaysWeight).sort((a, b) => b.day - a.day);
+    if (fusWithWeight.length > 0) {
+      latestWeight = fusWithWeight[0].commonCheckin.todaysWeight;
+    } else if (c.weightLogs && c.weightLogs.length > 0) {
+      latestWeight = c.weightLogs.sort((a, b) => new Date(b.date) - new Date(a.date))[0].weight;
+    }
+
+    let resultPct = 0;
+    let weightDiffText = '0 kg';
+
+    if (initialWeight > 0 && goalWeight > 0 && latestWeight > 0) {
+      const isWeightLoss = initialWeight > goalWeight;
+      const targetDiff = Math.abs(initialWeight - goalWeight);
+      if (isWeightLoss) {
+        const diff = initialWeight - latestWeight;
+        weightDiffText = diff > 0 ? `-${diff.toFixed(1)} kg` : `${diff.toFixed(1)} kg`;
+        if (targetDiff > 0) {
+          resultPct = Math.min(100, Math.max(0, Math.round((diff / targetDiff) * 100)));
+        }
+      } else {
+        const diff = latestWeight - initialWeight;
+        weightDiffText = diff > 0 ? `+${diff.toFixed(1)} kg` : `${diff.toFixed(1)} kg`;
+        if (targetDiff > 0) {
+          resultPct = Math.min(100, Math.max(0, Math.round((diff / targetDiff) * 100)));
+        }
+      }
+    }
 
     return {
       customer: c,
@@ -185,27 +225,29 @@ export default function MyCustomersTab({ coachUid, coachName }) {
       lastDate,
       nextDay,
       joinTimestamp,
+      daysJoined,
       daysPendingAge,
+      initialWeight,
+      goalWeight,
+      latestWeight,
+      resultPct,
+      weightDiffText,
     };
   });
 
   // ── Apply Sorting ─────────────────────────────────────────
   rows.sort((a, b) => {
     if (sortBy === 'newest') {
-      // Primary: Joined newest first
       if (b.joinTimestamp !== a.joinTimestamp) {
         return b.joinTimestamp - a.joinTimestamp;
       }
-      // Secondary: Oldest pending task first
       return b.daysPendingAge - a.daysPendingAge;
     }
 
     if (sortBy === 'oldest_pending') {
-      // Primary: Oldest pending task first (customers waiting longest)
       if (b.daysPendingAge !== a.daysPendingAge) {
         return b.daysPendingAge - a.daysPendingAge;
       }
-      // Secondary: Joined newest first
       return b.joinTimestamp - a.joinTimestamp;
     }
 
@@ -302,8 +344,11 @@ export default function MyCustomersTab({ coachUid, coachName }) {
       ) : viewMode === 'boxes' ? (
 
         /* ── BOX GRID VIEW ────────────────────────────────────── */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-          {rows.map(({ customer, daysCompleted, doneDays, pendingDays, lastDate, nextDay, daysPendingAge }) => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
+          {rows.map(({
+            customer, daysCompleted, doneDays, pendingDays, lastDate, nextDay,
+            daysJoined, daysPendingAge, resultPct, weightDiffText, latestWeight, goalWeight
+          }) => (
             <div
               key={customer.uid}
               id={`customer-box-${customer.uid}`}
@@ -319,12 +364,12 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                 transition: 'transform 0.2s, box-shadow 0.2s',
               }}
             >
-              {/* Card Header: Avatar, Name, Join Date, Status */}
+              {/* Card Top: Avatar, Name, Join Duration, Status */}
               <div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
-                      width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0,
+                      width: '46px', height: '46px', borderRadius: '50%', flexShrink: 0,
                       background: 'linear-gradient(135deg, var(--primary), #2563eb)',
                       color: 'white', display: 'flex', alignItems: 'center',
                       justifyContent: 'center', fontSize: '1.1rem', fontWeight: '800',
@@ -332,49 +377,69 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                       {customer.name?.charAt(0)?.toUpperCase()}
                     </div>
                     <div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
+                      <h3 style={{ fontSize: '1.02rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
                         {customer.name}
                       </h3>
-                      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-                        Joined {customer.createdAt?.toDate
-                          ? new Date(customer.createdAt.toDate()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                          : 'Recent'}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: '700', background: 'var(--primary-light)', padding: '1px 7px', borderRadius: '4px' }}>
+                          🗓️ Day {daysJoined + 1} ({daysJoined}d joined)
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <StatusChip daysCompleted={daysCompleted} />
                 </div>
 
-                {/* Goal Tag */}
-                <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Goal & Weight Target */}
+                <div style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
                   <span style={{
                     fontSize: '0.75rem', fontWeight: '700', padding: '3px 10px', borderRadius: '6px',
-                    background: 'var(--primary-light)', color: 'var(--primary)',
+                    background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe'
                   }}>
                     🏋️ {customer.diagnosis?.fitnessGoal || 'Fitness Goal'}
                   </span>
-                  {customer.diagnosis?.goalWeight && (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      Target: {customer.diagnosis.goalWeight} kg
-                    </span>
-                  )}
+                  <span style={{ fontSize: '0.74rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                    Weight: {latestWeight > 0 ? `${latestWeight}kg` : '—'} {goalWeight > 0 && `(Target: ${goalWeight}kg)`}
+                  </span>
                 </div>
 
-                {/* Progress Bar Section */}
+                {/* 🏆 Result Progress Insight Bar (% Achieved) */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #f0fdf4, #eff6ff)', padding: '12px 14px', borderRadius: 'var(--radius-md)',
+                  marginBottom: '14px', border: '1px solid var(--primary-mid)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--primary)' }}>
+                      🏆 Result Progress Insight
+                    </span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: '900', color: '#16a34a' }}>
+                      {resultPct}% Result ({weightDiffText})
+                    </span>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.06)', borderRadius: '99px', height: '8px', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${resultPct}%`, height: '100%',
+                      background: 'linear-gradient(90deg, #16a34a, #2563eb)',
+                      borderRadius: '99px', transition: 'width 0.4s ease'
+                    }} />
+                  </div>
+                </div>
+
+                {/* 10-Day Follow-up Progress Bar Section */}
                 <div style={{
                   background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: 'var(--radius-md)',
                   marginBottom: '14px', border: '1px solid var(--border-color)',
                 }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Follow-Up Progress
+                  <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    10-Day Follow-Up Tracker Bar
                   </div>
                   <DayProgressBar daysCompleted={daysCompleted} />
                 </div>
 
                 {/* Days Done & Days Pending */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
                   <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                       DAYS DONE ({doneDays.length})
                     </span>
                     {doneDays.length === 0 ? (
@@ -391,7 +456,7 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                   </div>
 
                   <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                       NEXT PENDING
                     </span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
@@ -450,18 +515,18 @@ export default function MyCustomersTab({ coachUid, coachName }) {
             <thead>
               <tr>
                 <th style={{ width: '160px' }}>Customer</th>
-                <th style={{ width: '120px' }}>Goal</th>
-                <th style={{ width: '180px' }}>Progress</th>
+                <th style={{ width: '100px' }}>Duration</th>
+                <th style={{ width: '120px' }}>Result %</th>
+                <th style={{ width: '160px' }}>Progress Bar</th>
                 <th style={{ width: '110px' }}>Status</th>
-                <th style={{ width: '120px' }}>Days Done</th>
-                <th style={{ width: '120px' }}>Days Pending</th>
-                <th style={{ width: '100px' }}>Last Follow-up</th>
-                <th style={{ width: '120px' }}>Next Action</th>
+                <th style={{ width: '110px' }}>Days Done</th>
+                <th style={{ width: '110px' }}>Days Pending</th>
+                <th style={{ width: '110px' }}>Next Action</th>
                 <th style={{ width: '110px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ customer, daysCompleted, doneDays, pendingDays, lastDate, nextDay }) => (
+              {rows.map(({ customer, daysCompleted, doneDays, pendingDays, lastDate, nextDay, daysJoined, resultPct, weightDiffText }) => (
                 <tr key={customer.uid} id={`customer-row-${customer.uid}`}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -475,18 +540,23 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                       </div>
                       <div>
                         <div style={{ fontWeight: '700', fontSize: '0.88rem' }}>{customer.name}</div>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                          {customer.createdAt?.toDate
-                            ? new Date(customer.createdAt.toDate()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-                            : 'Recent'}
+                        <div style={{ fontSize: '0.68rem', color: 'var(--primary)' }}>
+                          {customer.diagnosis?.fitnessGoal || 'Fitness'}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: '600' }}>
-                      {customer.diagnosis?.fitnessGoal || '—'}
+                    <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-main)' }}>
+                      Day {daysJoined + 1}
                     </span>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{daysJoined}d active</div>
+                  </td>
+                  <td>
+                    <span style={{ fontSize: '0.82rem', fontWeight: '900', color: '#16a34a' }}>
+                      {resultPct}%
+                    </span>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{weightDiffText}</div>
                   </td>
                   <td><DayProgressBar daysCompleted={daysCompleted} /></td>
                   <td><StatusChip daysCompleted={daysCompleted} /></td>
@@ -510,12 +580,9 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                       </div>
                     )}
                   </td>
-                  <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {lastDate ? new Date(lastDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—'}
-                  </td>
                   <td>
                     <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#d97706' }}>
-                      📋 Fill Day {nextDay}
+                      📋 Day {nextDay}
                     </span>
                   </td>
                   <td>
