@@ -6,21 +6,33 @@ import { db } from '@/lib/firebase';
 import FollowUpFormModal from './FollowUpFormModal';
 
 // ── Build customer object for FollowUpFormModal ──────────
-function buildFollowUpCustomer(customer, followups) {
-  const daysCompleted = followups.length > 0 ? Math.max(...followups.map(f => f.day)) : 0;
-  const coachReadinessScore = followups.find(f => f.day === 10)?.coachReadinessScore ?? null;
+function buildFollowUpCustomer(customer, followups = []) {
+  if (!customer) return {};
+  const uid = customer.uid || customer.id || 'CUSTOMER';
+  const daysCompleted = (followups && followups.length > 0) ? Math.max(...followups.map(f => f.day)) : 0;
+  const coachReadinessScore = followups ? (followups.find(f => f.day === 10)?.coachReadinessScore ?? null) : null;
+
+  let joiningDateStr = new Date().toISOString().split('T')[0];
+  if (customer.createdAt) {
+    if (typeof customer.createdAt.toDate === 'function') {
+      joiningDateStr = customer.createdAt.toDate().toISOString().split('T')[0];
+    } else if (typeof customer.createdAt === 'string') {
+      joiningDateStr = customer.createdAt.split('T')[0];
+    } else if (typeof customer.createdAt === 'number') {
+      joiningDateStr = new Date(customer.createdAt).toISOString().split('T')[0];
+    }
+  }
+
   return {
-    id: customer.uid,
-    uid: customer.uid,
+    id: uid,
+    uid: uid,
     isUserBased: true,
-    fullName: customer.name,
-    customerId: customer.uid.substring(0, 8).toUpperCase(),
+    fullName: customer.name || customer.fullName || 'Customer',
+    customerId: uid.substring(0, 8).toUpperCase(),
     primaryGoal: customer.diagnosis?.fitnessGoal || 'Fitness',
     startingWeight: customer.diagnosis?.initialWeight || 0,
     targetWeight: customer.diagnosis?.goalWeight || 0,
-    joiningDate: customer.createdAt?.toDate
-      ? customer.createdAt.toDate().toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0],
+    joiningDate: joiningDateStr,
     mainWhy: '',
     status: 'Active Customer',
     daysCompleted,
@@ -107,7 +119,8 @@ export default function MyCustomersTab({ coachUid, coachName }) {
 
       const customerList = [];
       for (const userDoc of usersSnap.docs) {
-        const userData = userDoc.data();
+        const data = userDoc.data();
+        const userData = { id: userDoc.id, uid: data.uid || userDoc.id, ...data };
 
         // Diagnosis
         const diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', userData.uid)));
