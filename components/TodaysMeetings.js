@@ -221,16 +221,29 @@ const STATUS_CONFIG = {
 };
 
 // ── Build Customized Zoom URL ──────────────────────────────
-function buildCustomizedZoomUrl(baseUrl, userName) {
+function buildCustomizedZoomUrl(baseUrl, user, userData) {
   if (!baseUrl) return '';
 
-  // Extract first name (e.g. "Rajkumar" from "Rajkumar Vataliya" or "Vidhi" from "Vidhi Kapopara")
-  let firstName = (userName || 'Member').trim().split(' ')[0];
-  if (!firstName) firstName = 'Member';
+  const role = userData?.role || 'customer';
+  const fullName = userData?.name || user?.displayName || 'Member';
+
+  // Extract member first name
+  let firstName = fullName.trim().split(' ')[0] || 'Member';
   firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
 
-  // Construct parameter: uname=PRV%2F<FirstName>%2FRamesh
-  const unameParam = `uname=PRV%2F${encodeURIComponent(firstName)}%2FRamesh`;
+  // Extract coach first name
+  let coachFullName = userData?.coachName || (role !== 'customer' ? fullName : 'Coach');
+  let coachFirstName = coachFullName.trim().split(' ')[0] || 'Coach';
+  coachFirstName = coachFirstName.charAt(0).toUpperCase() + coachFirstName.slice(1);
+
+  // Role tag: CM = Customer, CH = Coach/Admin
+  const roleTag = role === 'customer' ? 'CM' : 'CH';
+
+  // Construct parameter: PRV/<RoleTag>/<FirstName>/<CoachFirstName>
+  // Customer: PRV/CM/<FirstName>/<CoachName> -> encoded: PRV%2FCM%2F<First_Name>%2F<Coach_Name>
+  // Coach:    PRV/CH/<FirstName>/<CoachName> -> encoded: PRV%2FCH%2F<First_Name>%2F<Coach_Name>
+  const unameRaw = `PRV/${roleTag}/${firstName}/${coachFirstName}`;
+  const unameParam = `uname=${encodeURIComponent(unameRaw)}`;
 
   // Avoid duplicating if already present
   if (baseUrl.includes('uname=')) {
@@ -432,7 +445,8 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
                         onClick={() => {
                           const finalUrl = buildCustomizedZoomUrl(
                             m.meetingUrl,
-                            userData?.name || user?.displayName || 'Member'
+                            user,
+                            userData
                           );
                           window.open(finalUrl, '_blank');
                         }}
