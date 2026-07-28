@@ -21,7 +21,6 @@ import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
 const NAV_ITEMS = [
   { id: 'dashboard', icon: '🏠', label: 'My Dashboard', roles: ['customer', 'coach', 'admin'] },
   { id: 'customers', icon: '👥', label: 'My Customers', roles: ['coach', 'admin'] },
-  { id: 'followup', icon: '📅', label: '10-Day Follow-Up', roles: ['coach', 'admin'] },
   { id: 'crm', icon: '📋', label: 'CRM', roles: ['coach', 'admin'] },
   { id: 'crm_analytics', icon: '📊', label: 'CRM Analytics', roles: ['coach', 'admin'] },
   { id: 'admin', icon: '⚙️', label: 'Club Owner Panel', roles: ['admin'] },
