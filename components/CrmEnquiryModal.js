@@ -82,23 +82,17 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
         id: l.id || `log-${i}-${Date.now()}`,
         ...l,
       }));
-      setCallLogs(existingLogs);
 
       if (autoCallLogFocus) {
-        handleCallClick(existingLogs);
+        punchAutoCallLog(enquiry, existingLogs);
+      } else {
+        setCallLogs(existingLogs);
       }
     }
   }, [enquiry, autoCallLogFocus]);
 
-  // ── Auto-Create Call Entry on Call Click ──────────────────────
-  const handleCallClick = async (passedLogs) => {
-    const activePhone = (typeof passedLogs === 'string' ? passedLogs : null) || phone || enquiry?.phone;
-    const baseLogs = Array.isArray(passedLogs) ? passedLogs : (enquiry?.callLogs || callLogs);
-
-    if (activePhone) {
-      window.open(`tel:${activePhone}`);
-    }
-
+  // ── Bulletproof Auto-Punch Call Log Entry ──────────────────────
+  const punchAutoCallLog = async (targetEnquiry, currentLogs) => {
     const newLogId = `call-${Date.now()}`;
     const autoEntry = {
       id: newLogId,
@@ -107,30 +101,29 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
       calledAt: new Date().toISOString(),
     };
 
+    const baseLogs = currentLogs || callLogs || [];
     const updatedLogs = [autoEntry, ...baseLogs];
     setCallLogs(updatedLogs);
 
-    // Set auto-created log into editing mode
     setEditingLogId(newLogId);
     setEditingOutcome(autoEntry.outcome);
     setEditingNotes('');
 
-    // Instant save to Firestore
-    if (isEditing && enquiry?.id) {
+    if (targetEnquiry?.id) {
       try {
         await onSave({
-          name: enquiry.name || name.trim(),
-          phone: activePhone || phone || '',
-          address: enquiry.address || address.trim(),
-          healthCondition: enquiry.healthCondition || healthCondition,
-          source: enquiry.source || source,
-          status: enquiry.status || status,
-          followUpDate: enquiry.followUpDate || followUpDate,
-          notes: enquiry.notes || notes.trim(),
+          name: targetEnquiry.name || name || '',
+          phone: targetEnquiry.phone || phone || '',
+          address: targetEnquiry.address || address || '',
+          healthCondition: targetEnquiry.healthCondition || healthCondition || 'Weight Loss / Overweight',
+          source: targetEnquiry.source || source || 'Referral',
+          status: targetEnquiry.status || status || 'New Lead',
+          followUpDate: targetEnquiry.followUpDate || followUpDate || '',
+          notes: targetEnquiry.notes || notes || '',
           callLogs: updatedLogs,
-        }, enquiry.id, true);
+        }, targetEnquiry.id, true);
       } catch (err) {
-        console.error('Instant auto call log save error:', err);
+        console.error('Punch auto log save error:', err);
       }
     }
 
@@ -140,7 +133,15 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
         notesInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
         notesInput.focus();
       }
-    }, 400);
+    }, 300);
+  };
+
+  const handleCallClick = async () => {
+    const activePhone = phone || enquiry?.phone;
+    if (activePhone) {
+      window.open(`tel:${activePhone}`);
+    }
+    await punchAutoCallLog(enquiry || { phone: activePhone }, callLogs);
   };
 
   const handleStartEditLog = (log) => {

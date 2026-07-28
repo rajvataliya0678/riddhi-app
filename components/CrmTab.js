@@ -332,24 +332,27 @@ export default function CrmTab({ coachUid }) {
                           {enquiry.phone}
                         </span>
                         {enquiry.phone && (
-                          <a
-                            href={`tel:${enquiry.phone}`}
+                          <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (enquiry.phone) {
+                                window.open(`tel:${enquiry.phone}`);
+                              }
                               openEditModal(enquiry, true);
                             }}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: '4px',
                               padding: '2px 8px', borderRadius: '6px',
                               background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
-                              fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
+                              fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer',
                               boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                             }}
                             title={`Call ${enquiry.name} (${enquiry.phone}) & log response`}
                             id={`crm-call-btn-${enquiry.id}`}
                           >
                             📞 Call
-                          </a>
+                          </button>
                         )}
                       </div>
                     </td>
