@@ -204,7 +204,7 @@ export default function TodaysMeetings({ userRole, userId }) {
 
   return (
     <>
-      <div className="dashboard-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="dashboard-card" style={{ padding: 0, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
         {/* ── Header ── */}
         <div style={{
@@ -248,7 +248,7 @@ export default function TodaysMeetings({ userRole, userId }) {
         </div>
 
         {/* ── Meeting List ── */}
-        <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+        <div style={{ maxHeight: '320px', overflowY: 'auto', flex: 1 }}>
           {loading ? (
             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               ⏳ Loading meetings...

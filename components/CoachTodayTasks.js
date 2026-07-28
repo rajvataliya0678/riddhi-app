@@ -195,7 +195,7 @@ export default function CoachTodayTasks({ coachUid, coachName }) {
 
   return (
     <>
-      <div className="dashboard-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="dashboard-card" style={{ padding: 0, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
         {/* Header */}
         <div style={{
@@ -228,7 +228,7 @@ export default function CoachTodayTasks({ coachUid, coachName }) {
         </div>
 
         {/* Task List */}
-        <div style={{ maxHeight: '340px', overflowY: 'auto' }}>
+        <div style={{ maxHeight: '320px', overflowY: 'auto', flex: 1 }}>
           {loading ? (
             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               ⏳ Loading tasks...

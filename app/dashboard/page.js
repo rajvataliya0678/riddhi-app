@@ -252,13 +252,18 @@ export default function DashboardPage() {
           {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-              {/* ── COACH: Today's Tasks ── */}
-              {isCoach && (
-                <CoachTodayTasks coachUid={user.uid} coachName={userData?.name || ''} />
-              )}
-
-              {/* ── TODAY'S MEETINGS ── */}
-              <TodaysMeetings user={user} userData={userData} />
+              {/* ── TODAY'S TASKS & TODAY'S MEETINGS (SIDE BY SIDE IN 1 ROW) ── */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isCoach ? 'repeat(auto-fit, minmax(350px, 1fr))' : '1fr',
+                gap: '20px',
+                alignItems: 'stretch',
+              }}>
+                {isCoach && (
+                  <CoachTodayTasks coachUid={user.uid} coachName={userData?.name || ''} />
+                )}
+                <TodaysMeetings user={user} userData={userData} />
+              </div>
 
               {/* Hero stats bar */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
