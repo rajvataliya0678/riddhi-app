@@ -15,6 +15,7 @@ import ProfileModal from '@/components/ProfileModal';
 import FollowUpTab from '@/components/FollowUpTab';
 import CoachTodayTasks from '@/components/CoachTodayTasks';
 import TodaysMeetings from '@/components/TodaysMeetings';
+import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
 
 // ── Sidebar nav items ────────────────────────────────────
 const NAV_ITEMS = [
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { id: 'customers', icon: '👥', label: 'My Customers', roles: ['coach', 'admin'] },
   { id: 'followup', icon: '📅', label: '10-Day Follow-Up', roles: ['coach', 'admin'] },
   { id: 'crm', icon: '📋', label: 'CRM', roles: ['coach', 'admin'] },
+  { id: 'crm_analytics', icon: '📊', label: 'CRM Analytics', roles: ['coach', 'admin'] },
   { id: 'admin', icon: '⚙️', label: 'Club Owner Panel', roles: ['admin'] },
 ];
 
@@ -131,12 +133,13 @@ export default function DashboardPage() {
     );
   }
 
-  const pageTitles = { dashboard: 'My Dashboard', customers: 'My Customers', followup: '10-Day Follow-Up', crm: 'CRM — Enquiries', admin: 'Club Owner Panel' };
+  const pageTitles = { dashboard: 'My Dashboard', customers: 'My Customers', followup: '10-Day Follow-Up', crm: 'CRM — Pipeline', crm_analytics: 'CRM Analytics & Ratios', admin: 'Club Owner Panel' };
   const pageSubtitles = {
     dashboard: `Today is ${dateStr}`,
     customers: 'Customers assigned to you',
     followup: 'Track each new customer through their 10-day journey',
-    crm: 'Manage your leads and prospects',
+    crm: 'Manage your leads across 6 pipeline stages',
+    crm_analytics: 'Analyze conversion rates, ratios and performance insights',
     admin: 'Manage all users, roles and assignments as Club Owner',
   };
 
@@ -405,6 +408,9 @@ export default function DashboardPage() {
 
           {/* ── CRM TAB ── */}
           {activeTab === 'crm' && isCoach && <CrmTab coachUid={user.uid} />}
+
+          {/* ── CRM ANALYTICS TAB ── */}
+          {activeTab === 'crm_analytics' && isCoach && <CrmAnalyticsTab coachUid={user.uid} />}
 
           {/* ── ADMIN TAB ── */}
           {activeTab === 'admin' && isAdmin && <AdminTab currentAdminUid={user.uid} />}

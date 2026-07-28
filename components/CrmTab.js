@@ -4,30 +4,54 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
+import BulkAddLeadsModal from './BulkAddLeadsModal';
+import ConvertLeadModal from './ConvertLeadModal';
 
-const STATUS_OPTIONS = ['All', 'New', 'Contacted', 'Interested', 'Converted', 'Not Interested'];
+const STATUS_OPTIONS = [
+  'All',
+  'New Lead',
+  '1 Session',
+  '2 Session',
+  'Closing',
+  'Waiting List',
+  'Rejected'
+];
 
-function getStatusBadgeClass(status) {
-  const map = {
-    'New': 'status-new',
-    'Contacted': 'status-contacted',
-    'Interested': 'status-interested',
-    'Converted': 'status-converted',
-    'Not Interested': 'status-not-interested',
-  };
-  return map[status] || 'status-new';
+function getStatusBadgeStyle(status) {
+  switch (status) {
+    case 'New Lead':
+    case 'New':
+      return { bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' };
+    case '1 Session':
+      return { bg: '#f3e8ff', color: '#6b21a8', border: '#c084fc' };
+    case '2 Session':
+      return { bg: '#fce7f3', color: '#9d174d', border: '#f472b6' };
+    case 'Closing':
+    case 'Converted':
+      return { bg: '#d1fae5', color: '#065f46', border: '#34d399' };
+    case 'Waiting List':
+    case 'Interested':
+      return { bg: '#fef3c7', color: '#92400e', border: '#fbbf24' };
+    case 'Rejected':
+    case 'Not Interested':
+      return { bg: '#fee2e2', color: '#991b1b', border: '#f87171' };
+    default:
+      return { bg: '#f3f4f6', color: '#374151', border: '#d1d5db' };
+  }
 }
 
 export default function CrmTab({ coachUid }) {
-  const [enquiries, setEnquiries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [enquiries, setEnquiries]   = useState([]);
+  const [loading, setLoading]       = useState(true);
 
   // Filters
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [filterFollowUp, setFilterFollowUp] = useState(''); // 'overdue', 'today', 'upcoming', ''
+  const [filterStatus, setFilterStatus]     = useState('All');
+  const [filterFollowUp, setFilterFollowUp] = useState('');
 
-  // Modal state
-  const [showModal, setShowModal] = useState(false);
+  // Modals
+  const [showModal, setShowModal]           = useState(false);
+  const [showBulkModal, setShowBulkModal]   = useState(false);
+  const [convertLead, setConvertLead]       = useState(null);
   const [editingEnquiry, setEditingEnquiry] = useState(null);
 
   useEffect(() => {
@@ -41,7 +65,6 @@ export default function CrmTab({ coachUid }) {
         query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
       );
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Sort by createdAt descending (newest first)
       list.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
         const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
@@ -58,7 +81,6 @@ export default function CrmTab({ coachUid }) {
   const handleSaveEnquiry = async (data, existingId) => {
     try {
       if (existingId) {
-        // Update existing enquiry
         const docRef = doc(db, 'crm_enquiries', existingId);
         const updateData = {
           name: data.name,
@@ -70,7 +92,6 @@ export default function CrmTab({ coachUid }) {
           updatedAt: serverTimestamp(),
         };
 
-        // If status changed, append to statusHistory
         if (data.statusChanged) {
           const existingEnquiry = enquiries.find(e => e.id === existingId);
           const currentHistory = existingEnquiry?.statusHistory || [];
@@ -86,18 +107,17 @@ export default function CrmTab({ coachUid }) {
 
         await updateDoc(docRef, updateData);
       } else {
-        // Add new enquiry
         await addDoc(collection(db, 'crm_enquiries'), {
           coachId: coachUid,
           name: data.name,
           phone: data.phone,
           source: data.source,
-          status: data.status,
+          status: data.status || 'New Lead',
           followUpDate: data.followUpDate,
           notes: data.notes,
           statusHistory: [
             {
-              status: data.status,
+              status: data.status || 'New Lead',
               note: 'Enquiry created',
               changedAt: new Date().toISOString(),
             },
@@ -112,35 +132,20 @@ export default function CrmTab({ coachUid }) {
       setEditingEnquiry(null);
     } catch (error) {
       console.error('Error saving enquiry:', error);
-      throw error; // Let the modal handle the error display
+      throw error;
     }
   };
 
-  const openAddModal = () => {
-    setEditingEnquiry(null);
-    setShowModal(true);
-  };
+  const openAddModal = () => { setEditingEnquiry(null); setShowModal(true); };
+  const openEditModal = (enquiry) => { setEditingEnquiry(enquiry); setShowModal(true); };
 
-  const openEditModal = (enquiry) => {
-    setEditingEnquiry(enquiry);
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingEnquiry(null);
-  };
-
-  // Apply filters
   const getFilteredEnquiries = () => {
     let filtered = [...enquiries];
 
-    // Filter by status
     if (filterStatus !== 'All') {
       filtered = filtered.filter(e => e.status === filterStatus);
     }
 
-    // Filter by follow-up date
     if (filterFollowUp) {
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -159,12 +164,12 @@ export default function CrmTab({ coachUid }) {
 
   const filteredEnquiries = getFilteredEnquiries();
 
-  // Stats summary
   const stats = {
     total: enquiries.length,
-    new: enquiries.filter(e => e.status === 'New').length,
-    interested: enquiries.filter(e => e.status === 'Interested').length,
-    converted: enquiries.filter(e => e.status === 'Converted').length,
+    newLead: enquiries.filter(e => e.status === 'New Lead' || e.status === 'New').length,
+    sess1: enquiries.filter(e => e.status === '1 Session').length,
+    sess2: enquiries.filter(e => e.status === '2 Session').length,
+    closing: enquiries.filter(e => e.status === 'Closing' || e.status === 'Converted').length,
   };
 
   if (loading) {
@@ -177,45 +182,69 @@ export default function CrmTab({ coachUid }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem' }}>CRM — Enquiries</h2>
+          <h2 style={{ fontSize: '1.5rem' }}>CRM — Pipeline & Leads</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Manage and track your leads and prospects
+            Track leads across 6 pipeline stages and convert them into active customers
           </p>
         </div>
+
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => setShowBulkModal(true)}
+            className="btn btn-secondary"
+            id="crm-bulk-add-btn"
+            style={{ width: 'auto', fontSize: '0.85rem', fontWeight: '800' }}
+          >
+            ⚡ Bulk Add Leads
+          </button>
+          <button
+            onClick={openAddModal}
+            className="btn btn-primary"
+            id="crm-add-enquiry-btn"
+            style={{ width: 'auto', fontSize: '0.85rem', fontWeight: '800' }}
+          >
+            + Add Single Lead
+          </button>
+        </div>
       </div>
 
-      {/* Quick Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-        <div className="dashboard-card" style={{ padding: '16px', textAlign: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--text-main)' }}>{stats.total}</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>Total</span>
+      {/* Pipeline Quick Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '24px' }}>
+        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
+          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--text-main)' }}>{stats.total}</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Total</span>
         </div>
-        <div className="dashboard-card" style={{ padding: '16px', textAlign: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '1.8rem', fontWeight: '800', color: '#0ea5e9' }}>{stats.new}</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>New</span>
+        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
+          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#0ea5e9' }}>{stats.newLead}</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>New Lead</span>
         </div>
-        <div className="dashboard-card" style={{ padding: '16px', textAlign: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '1.8rem', fontWeight: '800', color: '#a855f7' }}>{stats.interested}</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>Interested</span>
+        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
+          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#8b5cf6' }}>{stats.sess1}</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>1 Session</span>
         </div>
-        <div className="dashboard-card" style={{ padding: '16px', textAlign: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '1.8rem', fontWeight: '800', color: '#10b981' }}>{stats.converted}</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>Converted</span>
+        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
+          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#ec4899' }}>{stats.sess2}</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>2 Session</span>
+        </div>
+        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
+          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#10b981' }}>{stats.closing}</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Closing</span>
         </div>
       </div>
 
-      {/* Toolbar: Filters + Add Button */}
-      <div className="crm-toolbar">
+      {/* Toolbar: Filters */}
+      <div className="crm-toolbar" style={{ marginBottom: '20px' }}>
         <select
           className="crm-filter-select"
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           id="crm-filter-status"
+          style={{ fontWeight: '700' }}
         >
           {STATUS_OPTIONS.map(s => (
-            <option key={s} value={s}>{s === 'All' ? 'All Statuses' : s}</option>
+            <option key={s} value={s}>{s === 'All' ? 'All Stages' : s}</option>
           ))}
         </select>
 
@@ -230,73 +259,112 @@ export default function CrmTab({ coachUid }) {
           <option value="today">Today</option>
           <option value="upcoming">Upcoming</option>
         </select>
-
-        <button
-          onClick={openAddModal}
-          className="btn btn-primary crm-add-btn"
-          id="crm-add-enquiry-btn"
-        >
-          + Add Enquiry
-        </button>
       </div>
 
       {/* Enquiries Table */}
       {filteredEnquiries.length === 0 ? (
         <div className="empty-state">
           <span className="empty-state-icon">📋</span>
-          <h4>{enquiries.length === 0 ? 'No enquiries yet' : 'No results match your filters'}</h4>
-          <p>{enquiries.length === 0 ? 'Click "Add Enquiry" to create your first lead.' : 'Try changing your filter criteria.'}</p>
+          <h4>{enquiries.length === 0 ? 'No leads in CRM pipeline' : 'No leads match your filter'}</h4>
+          <p>{enquiries.length === 0 ? 'Click "+ Bulk Add Leads" or "+ Add Single Lead" to start your pipeline.' : 'Try changing your status filter.'}</p>
         </div>
       ) : (
         <div className="crm-table-container">
           <table className="crm-table" id="crm-enquiries-table">
             <thead>
               <tr>
-                <th>Name</th>
+                <th>Lead Name</th>
                 <th>Phone</th>
                 <th>Source</th>
-                <th>Status</th>
+                <th>Pipeline Stage</th>
                 <th>Follow-up</th>
-                <th>Notes</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {filteredEnquiries.map((enquiry) => (
-                <tr
-                  key={enquiry.id}
-                  onClick={() => openEditModal(enquiry)}
-                  id={`crm-row-${enquiry.id}`}
-                >
-                  <td style={{ fontWeight: '600' }}>{enquiry.name}</td>
-                  <td>{enquiry.phone}</td>
-                  <td>{enquiry.source}</td>
-                  <td>
-                    <span className={`status-badge ${getStatusBadgeClass(enquiry.status)}`}>
-                      {enquiry.status}
-                    </span>
-                  </td>
-                  <td>
-                    {enquiry.followUpDate
-                      ? new Date(enquiry.followUpDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-                      : '—'
-                    }
-                  </td>
-                  <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {enquiry.notes || '—'}
-                  </td>
-                </tr>
-              ))}
+              {filteredEnquiries.map((enquiry) => {
+                const badge = getStatusBadgeStyle(enquiry.status);
+                const isConverted = enquiry.status === 'Closing' || enquiry.status === 'Converted';
+
+                return (
+                  <tr key={enquiry.id} id={`crm-row-${enquiry.id}`}>
+                    <td
+                      style={{ fontWeight: '700', cursor: 'pointer' }}
+                      onClick={() => openEditModal(enquiry)}
+                    >
+                      {enquiry.name}
+                    </td>
+                    <td>{enquiry.phone}</td>
+                    <td>{enquiry.source}</td>
+                    <td>
+                      <span style={{
+                        padding: '3px 10px', borderRadius: '99px',
+                        fontSize: '0.74rem', fontWeight: '800',
+                        background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
+                      }}>
+                        {enquiry.status}
+                      </span>
+                    </td>
+                    <td>
+                      {enquiry.followUpDate
+                        ? new Date(enquiry.followUpDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+                        : '—'
+                      }
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          onClick={() => openEditModal(enquiry)}
+                          className="btn btn-secondary btn-sm"
+                          style={{ width: 'auto', padding: '4px 10px', fontSize: '0.72rem' }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        {!isConverted && (
+                          <button
+                            onClick={() => setConvertLead(enquiry)}
+                            className="btn btn-primary btn-sm"
+                            style={{ width: 'auto', padding: '4px 10px', fontSize: '0.72rem', fontWeight: '800' }}
+                            id={`convert-btn-${enquiry.id}`}
+                          >
+                            🔄 Convert
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* CRM Modal */}
+      {/* CRM Edit Modal */}
       {showModal && (
         <CrmEnquiryModal
           enquiry={editingEnquiry}
           onSave={handleSaveEnquiry}
-          onClose={closeModal}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+
+      {/* Bulk Add Leads Modal */}
+      {showBulkModal && (
+        <BulkAddLeadsModal
+          coachUid={coachUid}
+          onClose={() => setShowBulkModal(false)}
+          onSaved={fetchEnquiries}
+        />
+      )}
+
+      {/* Convert Lead to Customer Modal */}
+      {convertLead && (
+        <ConvertLeadModal
+          lead={convertLead}
+          coachUid={coachUid}
+          onClose={() => setConvertLead(null)}
+          onConverted={fetchEnquiries}
         />
       )}
     </div>
