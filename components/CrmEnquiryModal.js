@@ -92,10 +92,12 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
 
   // ── Auto-Create Call Entry on Call Click ──────────────────────
   const handleCallClick = async (passedLogs) => {
-    if (!phone) return;
-    window.open(`tel:${phone}`);
+    const activePhone = (typeof passedLogs === 'string' ? passedLogs : null) || phone || enquiry?.phone;
+    const baseLogs = Array.isArray(passedLogs) ? passedLogs : (enquiry?.callLogs || callLogs);
 
-    const baseLogs = Array.isArray(passedLogs) ? passedLogs : callLogs;
+    if (activePhone) {
+      window.open(`tel:${activePhone}`);
+    }
 
     const newLogId = `call-${Date.now()}`;
     const autoEntry = {
@@ -117,14 +119,14 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
     if (isEditing && enquiry?.id) {
       try {
         await onSave({
-          name: name.trim(),
-          phone: phone.trim(),
-          address: address.trim(),
-          healthCondition,
-          source,
-          status,
-          followUpDate,
-          notes: notes.trim(),
+          name: enquiry.name || name.trim(),
+          phone: activePhone || phone || '',
+          address: enquiry.address || address.trim(),
+          healthCondition: enquiry.healthCondition || healthCondition,
+          source: enquiry.source || source,
+          status: enquiry.status || status,
+          followUpDate: enquiry.followUpDate || followUpDate,
+          notes: enquiry.notes || notes.trim(),
           callLogs: updatedLogs,
         }, enquiry.id, true);
       } catch (err) {
