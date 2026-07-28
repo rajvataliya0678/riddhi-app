@@ -20,7 +20,7 @@ function getStatusBadgeClass(status) {
   return map[status] || 'status-new';
 }
 
-export default function CrmEnquiryModal({ enquiry, onSave, onClose }) {
+export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert }) {
   const isEditing = !!enquiry;
 
   const [name, setName] = useState('');
@@ -237,6 +237,32 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose }) {
               {submitting ? 'Saving...' : (isEditing ? 'Update Enquiry' : 'Add Enquiry')}
             </button>
           </div>
+
+          {/* Convert to Active Customer Action at bottom of Lead Box */}
+          {isEditing && onConvert && (enquiry.status !== 'Closing' && enquiry.status !== 'Converted') && (
+            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed var(--border-color)', textAlign: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  onClose();
+                  onConvert(enquiry);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  fontSize: '0.85rem',
+                  fontWeight: '800',
+                  background: 'linear-gradient(135deg, #d1fae5, #ecfdf5)',
+                  color: '#065f46',
+                  border: '1px solid #a7f3d0',
+                }}
+                id="crm-modal-convert-btn"
+              >
+                🔄 Convert to Active Customer
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

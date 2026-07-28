@@ -274,16 +274,14 @@ export default function CrmTab({ coachUid }) {
             <thead>
               <tr>
                 <th style={{ width: '50px' }}>#</th>
-                <th style={{ width: '320px' }}>Lead Name & Status</th>
-                <th style={{ width: '160px' }}>Phone</th>
-                <th style={{ width: '140px' }}>Follow-up</th>
-                <th style={{ width: '120px' }}>Action</th>
+                <th style={{ width: '340px' }}>Lead Name & Status</th>
+                <th style={{ width: '220px' }}>Phone</th>
+                <th style={{ width: '160px' }}>Follow-up</th>
               </tr>
             </thead>
             <tbody>
               {filteredEnquiries.map((enquiry, index) => {
                 const badge = getStatusBadgeStyle(enquiry.status);
-                const isConverted = enquiry.status === 'Closing' || enquiry.status === 'Converted';
 
                 return (
                   <tr
@@ -347,24 +345,6 @@ export default function CrmTab({ coachUid }) {
                         : '—'
                       }
                     </td>
-
-                    {/* Convert Button Action */}
-                    <td onClick={e => e.stopPropagation()}>
-                      {!isConverted ? (
-                        <button
-                          onClick={() => setConvertLead(enquiry)}
-                          className="btn btn-primary btn-sm"
-                          style={{ width: 'auto', padding: '5px 12px', fontSize: '0.75rem', fontWeight: '800' }}
-                          id={`convert-btn-${enquiry.id}`}
-                        >
-                          🔄 Convert
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#10b981' }}>
-                          ✅ Converted
-                        </span>
-                      )}
-                    </td>
                   </tr>
                 );
               })}
@@ -379,6 +359,7 @@ export default function CrmTab({ coachUid }) {
           enquiry={editingEnquiry}
           onSave={handleSaveEnquiry}
           onClose={() => setShowModal(false)}
+          onConvert={(enquiry) => setConvertLead(enquiry)}
         />
       )}
 
