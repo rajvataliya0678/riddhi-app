@@ -448,6 +448,26 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
                             user,
                             userData
                           );
+
+                          // Determine session type (Morning < 14:00, Evening >= 14:00)
+                          const hour = parseInt(m.time?.split(':')[0] || '12', 10);
+                          const sessionType = (hour < 14) ? 'morning' : 'evening';
+
+                          // Auto-mark Attendance in Firestore for this customer & date
+                          if (uid) {
+                            const todayStr = new Date().toISOString().split('T')[0];
+                            addDoc(collection(db, 'meeting_attendance'), {
+                              uid: uid,
+                              customerName: userData?.name || 'Customer',
+                              coachId: userData?.coachId || '',
+                              date: todayStr,
+                              sessionType,
+                              meetingId: m.id,
+                              meetingTitle: m.title,
+                              attendedAt: serverTimestamp(),
+                            }).catch(err => console.error('Attendance mark error:', err));
+                          }
+
                           window.open(finalUrl, '_blank');
                         }}
                         id={`join-meeting-btn-${m.id}`}

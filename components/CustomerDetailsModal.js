@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const CALL_OUTCOME_OPTIONS = [
@@ -28,6 +28,8 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
   const [newCallNotes, setNewCallNotes]       = useState('');
   const [saving, setSaving]                   = useState(false);
 
+  const [attendance, setAttendance]           = useState({ morning: {}, evening: {} });
+
   useEffect(() => {
     if (customer) {
       setPhone(customer.phone || '');
@@ -41,8 +43,42 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
       } else {
         setCallLogs(existingLogs);
       }
+
+      fetchCustomerAttendance();
     }
   }, [customer, autoCallLogFocus]);
+
+  const fetchCustomerAttendance = async () => {
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+      const attSnap = await getDocs(
+        query(
+          collection(db, 'meeting_attendance'),
+          where('uid', '==', uid),
+          where('date', '>=', sevenDaysAgoStr)
+        )
+      );
+
+      const morningMap = {};
+      const eveningMap = {};
+
+      attSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.sessionType === 'evening') {
+          eveningMap[data.date] = true;
+        } else {
+          morningMap[data.date] = true;
+        }
+      });
+
+      setAttendance({ morning: morningMap, evening: eveningMap });
+    } catch (err) {
+      console.error('Error fetching customer attendance:', err);
+    }
+  };
 
   // Save updated logs to Firestore users doc
   const saveLogsToFirestore = async (updatedLogs) => {
@@ -225,6 +261,77 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
             <span style={{ fontSize: '0.68rem', color: '#b45309', fontWeight: '800', display: 'block' }}>AGE / HEIGHT</span>
             <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#92400e' }}>{diag.age ? `${diag.age} yrs` : '—'} {diag.height ? `(${diag.height} cm)` : ''}</span>
           </div>
+        </div>
+
+        {/* ──────────────── 📅 LIVE SESSION ATTENDANCE TRACKER BARS ──────────────── */}
+        <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '10px' }}>
+            📅 Live Session Attendance Trackers (Last 7 Days)
+          </div>
+
+          {(() => {
+            const dates = [];
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date();
+              d.setDate(d.getDate() - i);
+              dates.push(d.toISOString().split('T')[0]);
+            }
+
+            const morningCount = dates.filter(d => attendance.morning[d]).length;
+            const eveningCount = dates.filter(d => attendance.evening[d]).length;
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {/* Morning Bar */}
+                <div style={{ background: 'var(--card-bg)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#0369a1' }}>
+                      🌅 Morning Live Session
+                    </span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '900', color: morningCount >= 5 ? '#16a34a' : '#d97706' }}>
+                      {morningCount}/7 Days ({Math.round((morningCount / 7) * 100)}%)
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between' }}>
+                    {dates.map(dateStr => {
+                      const isAtt = !!attendance.morning[dateStr];
+                      const dayName = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'narrow' });
+                      return (
+                        <div key={dateStr} style={{ flex: 1, textAlign: 'center', padding: '4px 2px', borderRadius: '4px', background: isAtt ? '#f0fdf4' : '#f9fafb', border: isAtt ? '1px solid #bbf7d0' : '1px solid var(--border-color)' }}>
+                          <div style={{ fontSize: '0.6rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{dayName}</div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: '800', marginTop: '1px', color: isAtt ? '#16a34a' : 'var(--text-muted)' }}>{isAtt ? '✅' : '⚪'}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Evening Bar */}
+                <div style={{ background: 'var(--card-bg)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#7e22ce' }}>
+                      🌇 Evening Live Session
+                    </span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '900', color: eveningCount >= 5 ? '#16a34a' : '#d97706' }}>
+                      {eveningCount}/7 Days ({Math.round((eveningCount / 7) * 100)}%)
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between' }}>
+                    {dates.map(dateStr => {
+                      const isAtt = !!attendance.evening[dateStr];
+                      const dayName = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'narrow' });
+                      return (
+                        <div key={dateStr} style={{ flex: 1, textAlign: 'center', padding: '4px 2px', borderRadius: '4px', background: isAtt ? '#f0fdf4' : '#f9fafb', border: isAtt ? '1px solid #bbf7d0' : '1px solid var(--border-color)' }}>
+                          <div style={{ fontSize: '0.6rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{dayName}</div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: '800', marginTop: '1px', color: isAtt ? '#16a34a' : 'var(--text-muted)' }}>{isAtt ? '✅' : '⚪'}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ──────────────── 📞 CALL LOG & INTERACTION SECTION ──────────────── */}

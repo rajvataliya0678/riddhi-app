@@ -41,6 +41,69 @@ function buildFollowUpCustomer(customer, followups = []) {
   };
 }
 
+// ── Get Last 7 Days Date Strings ─────────────────────────────
+function getLast7DaysDates() {
+  const dates = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
+// ── 7-Day Live Session Attendance Tracker Bar ──────────────
+function SessionAttendanceBar({ label, icon, attendanceMap = {}, dates }) {
+  const attendedCount = dates.filter(d => attendanceMap[d]).length;
+  const pct = Math.round((attendedCount / 7) * 100);
+
+  return (
+    <div style={{
+      background: 'var(--bg-secondary)', padding: '10px 12px',
+      borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)',
+      marginBottom: '10px'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-main)' }}>
+          {icon} {label} (Last 7 Days)
+        </span>
+        <span style={{ fontSize: '0.72rem', fontWeight: '900', color: attendedCount >= 5 ? '#16a34a' : attendedCount >= 3 ? '#d97706' : '#dc2626' }}>
+          {attendedCount}/7 Days ({pct}%)
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between' }}>
+        {dates.map(dateStr => {
+          const isAttended = !!attendanceMap[dateStr];
+          const dateObj = new Date(dateStr + 'T00:00:00');
+          const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'narrow' });
+
+          return (
+            <div
+              key={dateStr}
+              title={`${dateStr} (${dayName}): ${isAttended ? 'Attended ✅' : 'Missed ⚪'}`}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                padding: '4px 2px',
+                borderRadius: '6px',
+                background: isAttended ? '#f0fdf4' : '#f9fafb',
+                border: isAttended ? '1px solid #bbf7d0' : '1px solid var(--border-color)',
+                color: isAttended ? '#16a34a' : 'var(--text-muted)',
+              }}
+            >
+              <div style={{ fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase' }}>{dayName}</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: '800', marginTop: '1px' }}>
+                {isAttended ? '✅' : '⚪'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Progress Bar Component ────────────────────────────────
 function DayProgressBar({ daysCompleted }) {
   if (daysCompleted >= 10) {
@@ -101,6 +164,7 @@ function StatusChip({ daysCompleted }) {
 export default function MyCustomersTab({ coachUid, coachName }) {
   const [customers, setCustomers]       = useState([]);
   const [followupsMap, setFollowupsMap] = useState({});
+  const [attendanceMap, setAttendanceMap] = useState({});
   const [loading, setLoading]           = useState(true);
   const [sortBy, setSortBy]             = useState('newest'); // 'newest' | 'oldest_pending' | 'name'
   const [viewMode, setViewMode]         = useState('boxes');  // 'boxes' | 'table'
@@ -158,8 +222,30 @@ export default function MyCustomersTab({ coachUid, coachName }) {
         grouped[key].push(data);
       });
 
+      // Fetch meeting attendance for last 7 days
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+      const attSnap = await getDocs(
+        query(collection(db, 'meeting_attendance'), where('date', '>=', sevenDaysAgoStr))
+      );
+
+      const attMap = {};
+      attSnap.docs.forEach(d => {
+        const data = d.data();
+        const u = data.uid;
+        const date = data.date;
+        const type = data.sessionType || 'morning';
+
+        if (!attMap[u]) attMap[u] = { morning: {}, evening: {} };
+        if (!attMap[u][type]) attMap[u][type] = {};
+        attMap[u][type][date] = true;
+      });
+
       setCustomers(customerList);
       setFollowupsMap(grouped);
+      setAttendanceMap(attMap);
     } catch (err) {
       console.error('Error fetching customers:', err);
     } finally {
@@ -491,13 +577,35 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                 {/* 10-Day Follow-up Progress Bar Section */}
                 <div style={{
                   background: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: 'var(--radius-md)',
-                  marginBottom: '14px', border: '1px solid var(--border-color)',
+                  marginBottom: '10px', border: '1px solid var(--border-color)',
                 }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     10-Day Follow-Up Tracker Bar
                   </div>
                   <DayProgressBar daysCompleted={daysCompleted} />
                 </div>
+
+                {/* 🌅 Morning & 🌇 Evening 7-Day Live Session Attendance Tracker Bars */}
+                {(() => {
+                  const uAtt = attendanceMap[customer.uid] || { morning: {}, evening: {} };
+                  const dates = getLast7DaysDates();
+                  return (
+                    <div style={{ marginBottom: '6px' }}>
+                      <SessionAttendanceBar
+                        label="Morning Live Session"
+                        icon="🌅"
+                        attendanceMap={uAtt.morning}
+                        dates={dates}
+                      />
+                      <SessionAttendanceBar
+                        label="Evening Live Session"
+                        icon="🌇"
+                        attendanceMap={uAtt.evening}
+                        dates={dates}
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* Days Done & Days Pending */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
