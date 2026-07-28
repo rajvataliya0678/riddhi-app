@@ -2,15 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 
-const STATUS_OPTIONS = ['New', 'Contacted', 'Interested', 'Converted', 'Not Interested'];
-const SOURCE_OPTIONS = ['Referral', 'Social Media', 'Walk-in', 'Other'];
+const STATUS_OPTIONS = ['New Lead', '1 Session', '2 Session', 'Closing', 'Waiting List', 'Rejected'];
+const SOURCE_OPTIONS = ['Referral', 'Social Media', 'Walk-in', 'Bulk Import', 'Other'];
 
 function getStatusBadgeClass(status) {
   const map = {
+    'New Lead': 'status-new',
     'New': 'status-new',
-    'Contacted': 'status-contacted',
-    'Interested': 'status-interested',
+    '1 Session': 'status-interested',
+    '2 Session': 'status-contacted',
+    'Closing': 'status-converted',
     'Converted': 'status-converted',
+    'Waiting List': 'status-interested',
+    'Rejected': 'status-not-interested',
     'Not Interested': 'status-not-interested',
   };
   return map[status] || 'status-new';
@@ -101,7 +105,23 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose }) {
               />
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="crm-phone">Phone Number</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <label className="form-label" htmlFor="crm-phone" style={{ margin: 0 }}>Phone Number</label>
+                {phone && (
+                  <a
+                    href={`tel:${phone}`}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      padding: '2px 8px', borderRadius: '4px',
+                      background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+                      fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none'
+                    }}
+                    title={`Call ${name} (${phone})`}
+                  >
+                    📞 Call Lead
+                  </a>
+                )}
+              </div>
               <input
                 type="tel"
                 id="crm-phone"

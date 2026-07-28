@@ -314,9 +314,30 @@ export default function CrmTab({ coachUid }) {
                       </div>
                     </td>
 
-                    {/* Phone */}
-                    <td style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '0.88rem' }}>
-                      {enquiry.phone}
+                    {/* Phone + Call Button */}
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '0.88rem' }}>
+                          {enquiry.phone}
+                        </span>
+                        {enquiry.phone && (
+                          <a
+                            href={`tel:${enquiry.phone}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              padding: '2px 8px', borderRadius: '6px',
+                              background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+                              fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                            title={`Call ${enquiry.name} (${enquiry.phone})`}
+                            id={`crm-call-btn-${enquiry.id}`}
+                          >
+                            📞 Call
+                          </a>
+                        )}
+                      </div>
                     </td>
 
                     {/* Follow-up Date */}
