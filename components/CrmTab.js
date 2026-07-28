@@ -79,7 +79,7 @@ export default function CrmTab({ coachUid }) {
     }
   };
 
-  const handleSaveEnquiry = async (data, existingId) => {
+  const handleSaveEnquiry = async (data, existingId, keepOpen = false) => {
     try {
       if (existingId) {
         const docRef = doc(db, 'crm_enquiries', existingId);
@@ -135,8 +135,10 @@ export default function CrmTab({ coachUid }) {
       }
 
       await fetchEnquiries();
-      setShowModal(false);
-      setEditingEnquiry(null);
+      if (!keepOpen) {
+        setShowModal(false);
+        setEditingEnquiry(null);
+      }
     } catch (error) {
       console.error('Error saving enquiry:', error);
       throw error;

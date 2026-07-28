@@ -100,7 +100,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
     }, 300);
   };
 
-  const handleAddCallLog = (e) => {
+  const handleAddCallLog = async (e) => {
     e.preventDefault();
     if (!newCallNotes.trim()) {
       alert('Please enter call answer/discussion notes.');
@@ -113,8 +113,28 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
       calledAt: new Date().toISOString(),
     };
 
-    setCallLogs(prev => [entry, ...prev]);
+    const updatedLogs = [entry, ...callLogs];
+    setCallLogs(updatedLogs);
     setNewCallNotes('');
+
+    // Instant save to Firestore so data is 100% persisted immediately!
+    if (isEditing && enquiry?.id) {
+      try {
+        await onSave({
+          name: name.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          healthCondition,
+          source,
+          status,
+          followUpDate,
+          notes: notes.trim(),
+          callLogs: updatedLogs,
+        }, enquiry.id, true); // true = keepOpen
+      } catch (err) {
+        console.error('Instant save call log error:', err);
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
