@@ -40,10 +40,11 @@ function getStatusBadgeClass(status) {
   return map[status] || 'status-new';
 }
 
-export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert }) {
+export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, autoCallLogFocus = false }) {
   const isEditing = !!enquiry;
 
   const [showMenu, setShowMenu]               = useState(false);
+  const [callLogHighlight, setCallLogHighlight] = useState(false);
   const [name, setName]                       = useState('');
   const [phone, setPhone]                     = useState('');
   const [address, setAddress]                 = useState('');
@@ -72,8 +73,32 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert })
       setFollowUpDate(enquiry.followUpDate || '');
       setNotes(enquiry.notes || '');
       setCallLogs(enquiry.callLogs || []);
+
+      if (autoCallLogFocus) {
+        setCallLogHighlight(true);
+        setTimeout(() => {
+          const notesInput = document.getElementById('crm-call-log-notes');
+          if (notesInput) {
+            notesInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            notesInput.focus();
+          }
+        }, 400);
+      }
     }
-  }, [enquiry]);
+  }, [enquiry, autoCallLogFocus]);
+
+  const handleCallClick = () => {
+    if (!phone) return;
+    window.open(`tel:${phone}`);
+    setCallLogHighlight(true);
+    setTimeout(() => {
+      const notesInput = document.getElementById('crm-call-log-notes');
+      if (notesInput) {
+        notesInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        notesInput.focus();
+      }
+    }, 300);
+  };
 
   const handleAddCallLog = (e) => {
     e.preventDefault();
@@ -240,18 +265,20 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert })
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <label className="form-label" htmlFor="crm-phone" style={{ margin: 0 }}>Mobile Number *</label>
                 {phone && (
-                  <a
-                    href={`tel:${phone}`}
+                  <button
+                    type="button"
+                    onClick={handleCallClick}
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: '4px',
-                      padding: '2px 8px', borderRadius: '4px',
+                      padding: '3px 10px', borderRadius: '4px',
                       background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
-                      fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none'
+                      fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer',
                     }}
-                    title={`Call ${name} (${phone})`}
+                    title={`Call ${name} (${phone}) & Auto-log entry`}
+                    id="crm-modal-call-lead-btn"
                   >
-                    📞 Call Lead
-                  </a>
+                    📞 Call & Log Response
+                  </button>
                 )}
               </div>
               <input
@@ -379,14 +406,21 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert })
               </div>
 
               <div className="form-group" style={{ marginBottom: '10px' }}>
-                <label className="form-label" style={{ fontSize: '0.75rem' }}>Answer / Discussion Notes *</label>
+                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: '800', color: callLogHighlight ? '#16a34a' : 'var(--text-main)' }}>
+                  {callLogHighlight ? '👉 Record Call Answer / Discussion Notes *' : 'Answer / Discussion Notes *'}
+                </label>
                 <textarea
+                  id="crm-call-log-notes"
                   className="form-input"
                   rows={2}
                   placeholder="Record prospect's answer, questions asked, or agreed next steps..."
                   value={newCallNotes}
                   onChange={e => setNewCallNotes(e.target.value)}
-                  style={{ fontSize: '0.82rem', resize: 'vertical' }}
+                  style={{
+                    fontSize: '0.82rem', resize: 'vertical',
+                    border: callLogHighlight ? '2px solid #16a34a' : '1px solid var(--border-color)',
+                    boxShadow: callLogHighlight ? '0 0 0 3px rgba(22, 163, 74, 0.15)' : 'none',
+                  }}
                 />
               </div>
 

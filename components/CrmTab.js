@@ -53,6 +53,7 @@ export default function CrmTab({ coachUid }) {
   const [showBulkModal, setShowBulkModal]   = useState(false);
   const [convertLead, setConvertLead]       = useState(null);
   const [editingEnquiry, setEditingEnquiry] = useState(null);
+  const [autoCallLogFocus, setAutoCallLogFocus] = useState(false);
 
   useEffect(() => {
     fetchEnquiries();
@@ -142,8 +143,12 @@ export default function CrmTab({ coachUid }) {
     }
   };
 
-  const openAddModal = () => { setEditingEnquiry(null); setShowModal(true); };
-  const openEditModal = (enquiry) => { setEditingEnquiry(enquiry); setShowModal(true); };
+  const openAddModal = () => { setEditingEnquiry(null); setAutoCallLogFocus(false); setShowModal(true); };
+  const openEditModal = (enquiry, callFocus = false) => {
+    setEditingEnquiry(enquiry);
+    setAutoCallLogFocus(callFocus);
+    setShowModal(true);
+  };
 
   const getFilteredEnquiries = () => {
     let filtered = [...enquiries];
@@ -327,7 +332,10 @@ export default function CrmTab({ coachUid }) {
                         {enquiry.phone && (
                           <a
                             href={`tel:${enquiry.phone}`}
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditModal(enquiry, true);
+                            }}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: '4px',
                               padding: '2px 8px', borderRadius: '6px',
@@ -335,7 +343,7 @@ export default function CrmTab({ coachUid }) {
                               fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
                               boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                             }}
-                            title={`Call ${enquiry.name} (${enquiry.phone})`}
+                            title={`Call ${enquiry.name} (${enquiry.phone}) & log response`}
                             id={`crm-call-btn-${enquiry.id}`}
                           >
                             📞 Call
@@ -366,6 +374,7 @@ export default function CrmTab({ coachUid }) {
           onSave={handleSaveEnquiry}
           onClose={() => setShowModal(false)}
           onConvert={(enquiry) => setConvertLead(enquiry)}
+          autoCallLogFocus={autoCallLogFocus}
         />
       )}
 
