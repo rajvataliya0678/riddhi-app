@@ -55,7 +55,11 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
   const [notes, setNotes]                     = useState('');
   const [callLogs, setCallLogs]               = useState([]);
 
-  // New Call Log Form
+  // New & Editing Call Log States
+  const [editingLogId, setEditingLogId]       = useState(null);
+  const [editingOutcome, setEditingOutcome]   = useState('📞 Answered & Interested');
+  const [editingNotes, setEditingNotes]       = useState('');
+
   const [newCallOutcome, setNewCallOutcome]   = useState('📞 Answered & Interested');
   const [newCallNotes, setNewCallNotes]       = useState('');
 
@@ -72,52 +76,42 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
       setStatus(enquiry.status || 'New Lead');
       setFollowUpDate(enquiry.followUpDate || '');
       setNotes(enquiry.notes || '');
-      setCallLogs(enquiry.callLogs || []);
+
+      // Ensure each call log entry has an id
+      const existingLogs = (enquiry.callLogs || []).map((l, i) => ({
+        id: l.id || `log-${i}-${Date.now()}`,
+        ...l,
+      }));
+      setCallLogs(existingLogs);
 
       if (autoCallLogFocus) {
-        setCallLogHighlight(true);
-        setTimeout(() => {
-          const notesInput = document.getElementById('crm-call-log-notes');
-          if (notesInput) {
-            notesInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            notesInput.focus();
-          }
-        }, 400);
+        handleCallClick(existingLogs);
       }
     }
   }, [enquiry, autoCallLogFocus]);
 
-  const handleCallClick = () => {
+  // ── Auto-Create Call Entry on Call Click ──────────────────────
+  const handleCallClick = async (currentLogs = callLogs) => {
     if (!phone) return;
     window.open(`tel:${phone}`);
-    setCallLogHighlight(true);
-    setTimeout(() => {
-      const notesInput = document.getElementById('crm-call-log-notes');
-      if (notesInput) {
-        notesInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        notesInput.focus();
-      }
-    }, 300);
-  };
 
-  const handleAddCallLog = async (e) => {
-    e.preventDefault();
-    if (!newCallNotes.trim()) {
-      alert('Please enter call answer/discussion notes.');
-      return;
-    }
-
-    const entry = {
-      outcome: newCallOutcome,
-      notes: newCallNotes.trim(),
+    const newLogId = `call-${Date.now()}`;
+    const autoEntry = {
+      id: newLogId,
+      outcome: '📞 Answered & Interested',
+      notes: '',
       calledAt: new Date().toISOString(),
     };
 
-    const updatedLogs = [entry, ...callLogs];
+    const updatedLogs = [autoEntry, ...currentLogs];
     setCallLogs(updatedLogs);
-    setNewCallNotes('');
 
-    // Instant save to Firestore so data is 100% persisted immediately!
+    // Set auto-created log into editing mode
+    setEditingLogId(newLogId);
+    setEditingOutcome(autoEntry.outcome);
+    setEditingNotes('');
+
+    // Instant save to Firestore
     if (isEditing && enquiry?.id) {
       try {
         await onSave({
@@ -130,7 +124,94 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
           followUpDate,
           notes: notes.trim(),
           callLogs: updatedLogs,
-        }, enquiry.id, true); // true = keepOpen
+        }, enquiry.id, true);
+      } catch (err) {
+        console.error('Instant auto call log save error:', err);
+      }
+    }
+
+    setTimeout(() => {
+      const notesInput = document.getElementById(`call-log-edit-notes-${newLogId}`);
+      if (notesInput) {
+        notesInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        notesInput.focus();
+      }
+    }, 400);
+  };
+
+  const handleStartEditLog = (log) => {
+    setEditingLogId(log.id);
+    setEditingOutcome(log.outcome || '📞 Answered & Interested');
+    setEditingNotes(log.notes || '');
+  };
+
+  const handleSaveEditedLog = async (logId) => {
+    const updatedLogs = callLogs.map(log => {
+      if (log.id === logId) {
+        return {
+          ...log,
+          outcome: editingOutcome,
+          notes: editingNotes.trim(),
+        };
+      }
+      return log;
+    });
+
+    setCallLogs(updatedLogs);
+    setEditingLogId(null);
+
+    // Save to Firestore
+    if (isEditing && enquiry?.id) {
+      try {
+        await onSave({
+          name: name.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          healthCondition,
+          source,
+          status,
+          followUpDate,
+          notes: notes.trim(),
+          callLogs: updatedLogs,
+        }, enquiry.id, true);
+      } catch (err) {
+        console.error('Update call log error:', err);
+      }
+    }
+  };
+
+  const handleAddCallLog = async (e) => {
+    e.preventDefault();
+    if (!newCallNotes.trim()) {
+      alert('Please enter call answer/discussion notes.');
+      return;
+    }
+
+    const entry = {
+      id: `call-${Date.now()}`,
+      outcome: newCallOutcome,
+      notes: newCallNotes.trim(),
+      calledAt: new Date().toISOString(),
+    };
+
+    const updatedLogs = [entry, ...callLogs];
+    setCallLogs(updatedLogs);
+    setNewCallNotes('');
+
+    // Instant save to Firestore
+    if (isEditing && enquiry?.id) {
+      try {
+        await onSave({
+          name: name.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          healthCondition,
+          source,
+          status,
+          followUpDate,
+          notes: notes.trim(),
+          callLogs: updatedLogs,
+        }, enquiry.id, true);
       } catch (err) {
         console.error('Instant save call log error:', err);
       }
@@ -457,35 +538,120 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
 
             {/* Call Log History Cards */}
             {callLogs && callLogs.length > 0 && (
-              <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)' }}>
-                  Call History ({callLogs.length} entries):
+              <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--text-main)' }}>
+                  📞 Call History ({callLogs.length} entries):
                 </span>
-                {callLogs.map((log, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      background: 'var(--card-bg)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '10px 12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#2563eb' }}>
-                        {log.outcome}
-                      </span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        {log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : ''}
-                      </span>
-                    </div>
-                    {log.notes && (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-main)', margin: 0, lineHeight: 1.4 }}>
-                        💬 {log.notes}
+                {callLogs.map((log) => {
+                  const logId = log.id || log.calledAt;
+                  const isEditingThis = editingLogId === logId;
+
+                  if (isEditingThis) {
+                    return (
+                      <div
+                        key={logId}
+                        style={{
+                          background: '#f0fdf4',
+                          border: '2px solid #16a34a',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          boxShadow: '0 2px 8px rgba(22, 163, 74, 0.15)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#16a34a' }}>
+                            📝 Editing Call Entry ({log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { timeStyle: 'short', dateStyle: 'short' }) : 'Just now'})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingLogId(null)}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--text-muted)' }}
+                          >
+                            ✖ Cancel
+                          </button>
+                        </div>
+
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.72rem' }}>Call Outcome</label>
+                          <select
+                            className="form-input"
+                            value={editingOutcome}
+                            onChange={e => setEditingOutcome(e.target.value)}
+                            style={{ fontSize: '0.8rem', fontWeight: '700', padding: '4px 8px' }}
+                          >
+                            {CALL_OUTCOME_OPTIONS.map(opt => (
+                              <option key={opt.label} value={opt.label}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.72rem' }}>Discussion / Answer Notes *</label>
+                          <textarea
+                            id={`call-log-edit-notes-${logId}`}
+                            className="form-input"
+                            rows={2}
+                            placeholder="Type prospect's answer or notes here..."
+                            value={editingNotes}
+                            onChange={e => setEditingNotes(e.target.value)}
+                            style={{ fontSize: '0.82rem', resize: 'vertical' }}
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEditedLog(logId)}
+                          className="btn btn-primary btn-sm"
+                          style={{ width: '100%', fontSize: '0.78rem', fontWeight: '800', padding: '6px 12px' }}
+                          id={`save-call-log-edit-btn-${logId}`}
+                        >
+                          💾 Save Call Details
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={logId}
+                      style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '10px 14px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#2563eb' }}>
+                          {log.outcome || '📞 Call Placed'}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            {log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditLog(log)}
+                            style={{
+                              padding: '2px 8px', fontSize: '0.72rem', fontWeight: '800',
+                              background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe',
+                              borderRadius: '4px', cursor: 'pointer',
+                            }}
+                            title="Edit notes & outcome for this call"
+                          >
+                            ✏️ Edit Log
+                          </button>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: log.notes ? 'var(--text-main)' : 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                        💬 {log.notes || <em>(No notes recorded yet — click Edit Log to add)</em>}
                       </p>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
