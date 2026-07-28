@@ -13,6 +13,8 @@ import StreakBadges from '@/components/StreakBadges';
 import WeeklyInsight from '@/components/WeeklyInsight';
 import ProfileModal from '@/components/ProfileModal';
 import FollowUpTab from '@/components/FollowUpTab';
+import CoachTodayTasks from '@/components/CoachTodayTasks';
+import TodaysMeetings from '@/components/TodaysMeetings';
 
 // ── Sidebar nav items ────────────────────────────────────
 const NAV_ITEMS = [
@@ -249,6 +251,14 @@ export default function DashboardPage() {
           {/* ── MY DASHBOARD TAB ── */}
           {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+              {/* ── COACH: Today's Tasks ── */}
+              {isCoach && (
+                <CoachTodayTasks coachUid={user.uid} coachName={userData?.name || ''} />
+              )}
+
+              {/* ── TODAY'S MEETINGS ── */}
+              <TodaysMeetings user={user} userData={userData} />
 
               {/* Hero stats bar */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
