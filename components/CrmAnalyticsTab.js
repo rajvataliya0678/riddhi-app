@@ -53,6 +53,21 @@ export default function CrmAnalyticsTab({ coachUid }) {
     : 0;
   const rejectionRate = total > 0 ? Math.round((countRejected / total) * 100) : 0;
 
+  // Call Activity Classification: Invitations (New Lead calls) vs Follow-ups (Other stage calls)
+  let totalCalls = 0;
+  let invitationCalls = 0;
+  let followUpCalls = 0;
+
+  enquiries.forEach(e => {
+    const logs = e.callLogs || [];
+    logs.forEach(l => {
+      totalCalls++;
+      const isInv = l.callType === 'Invitation' || (!l.callType && (e.status === 'New Lead' || e.status === 'New'));
+      if (isInv) invitationCalls++;
+      else followUpCalls++;
+    });
+  });
+
   // Weak Point & Recommendation Generation
   const insights = [];
 
@@ -165,6 +180,59 @@ export default function CrmAnalyticsTab({ coachUid }) {
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
             {countRejected} rejected leads
+          </div>
+        </div>
+      </div>
+
+      {/* Call Activity Breakdown: Invitation vs Follow-up */}
+      <div className="dashboard-card" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
+            📞 Call Activity Breakdown: Invitations vs Follow-ups
+          </h3>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700' }}>
+            Total Calls: {totalCalls}
+          </span>
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '16px' }}>
+          Calls to <strong>New Leads</strong> count as <strong>📩 Invitations</strong>. Calls to 1/2 Session, Closing & Customers count as <strong>📞 Follow-ups</strong>.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)', padding: '16px' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#16a34a', textTransform: 'uppercase' }}>
+              📩 INVITATION CALLS
+            </span>
+            <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#15803d', marginTop: '4px' }}>
+              {invitationCalls}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '700' }}>
+              Calls to New Leads
+            </span>
+          </div>
+
+          <div style={{ background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius-md)', padding: '16px' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#7e22ce', textTransform: 'uppercase' }}>
+              📞 FOLLOW-UP CALLS
+            </span>
+            <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#6b21a8', marginTop: '4px' }}>
+              {followUpCalls}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: '#7e22ce', fontWeight: '700' }}>
+              Calls to 1/2 Session, Closing & Customers
+            </span>
+          </div>
+
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-md)', padding: '16px' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#2563eb', textTransform: 'uppercase' }}>
+              📊 INVITATION % RATIO
+            </span>
+            <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#1d4ed8', marginTop: '4px' }}>
+              {totalCalls > 0 ? Math.round((invitationCalls / totalCalls) * 100) : 0}%
+            </div>
+            <span style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: '700' }}>
+              New lead outreach effort
+            </span>
           </div>
         </div>
       </div>

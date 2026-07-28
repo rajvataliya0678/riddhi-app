@@ -93,9 +93,15 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
 
   // ── Bulletproof Auto-Punch Call Log Entry ──────────────────────
   const punchAutoCallLog = async (targetEnquiry, currentLogs) => {
+    const currentStatus = targetEnquiry?.status || status || 'New Lead';
+    const isNewLead = currentStatus === 'New Lead' || currentStatus === 'New';
+    const callType = isNewLead ? 'Invitation' : 'Follow-up';
+
     const newLogId = `call-${Date.now()}`;
     const autoEntry = {
       id: newLogId,
+      callType,
+      statusAtCall: currentStatus,
       outcome: '📞 Answered & Interested',
       notes: '',
       calledAt: new Date().toISOString(),
@@ -192,8 +198,13 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
       return;
     }
 
+    const isNewLead = status === 'New Lead' || status === 'New';
+    const callType = isNewLead ? 'Invitation' : 'Follow-up';
+
     const entry = {
       id: `call-${Date.now()}`,
+      callType,
+      statusAtCall: status,
       outcome: newCallOutcome,
       notes: newCallNotes.trim(),
       calledAt: new Date().toISOString(),
@@ -630,9 +641,19 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#2563eb' }}>
-                          {log.outcome || '📞 Call Placed'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#2563eb' }}>
+                            {log.outcome || '📞 Call Placed'}
+                          </span>
+                          <span style={{
+                            fontSize: '0.68rem', fontWeight: '800', padding: '2px 7px', borderRadius: '4px',
+                            background: (log.callType === 'Invitation' || (!log.callType && (status === 'New Lead' || status === 'New'))) ? '#f0fdf4' : '#fdf4ff',
+                            color: (log.callType === 'Invitation' || (!log.callType && (status === 'New Lead' || status === 'New'))) ? '#16a34a' : '#7e22ce',
+                            border: (log.callType === 'Invitation' || (!log.callType && (status === 'New Lead' || status === 'New'))) ? '1px solid #bbf7d0' : '1px solid #e9d5ff'
+                          }}>
+                            {(log.callType === 'Invitation' || (!log.callType && (status === 'New Lead' || status === 'New'))) ? '📩 Invitation Call' : '📞 Follow-up Call'}
+                          </span>
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                             {log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : ''}
