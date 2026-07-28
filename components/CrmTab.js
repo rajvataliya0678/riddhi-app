@@ -85,10 +85,13 @@ export default function CrmTab({ coachUid }) {
         const updateData = {
           name: data.name,
           phone: data.phone,
+          address: data.address || '',
+          healthCondition: data.healthCondition || '',
           source: data.source,
           status: data.status,
           followUpDate: data.followUpDate,
           notes: data.notes,
+          callLogs: data.callLogs || [],
           updatedAt: serverTimestamp(),
         };
 
@@ -111,10 +114,13 @@ export default function CrmTab({ coachUid }) {
           coachId: coachUid,
           name: data.name,
           phone: data.phone,
+          address: data.address || '',
+          healthCondition: data.healthCondition || '',
           source: data.source || 'Direct Entry',
           status: data.status || 'New Lead',
           followUpDate: data.followUpDate,
           notes: data.notes,
+          callLogs: data.callLogs || [],
           statusHistory: [
             {
               status: data.status || 'New Lead',
