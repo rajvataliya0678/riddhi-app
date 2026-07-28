@@ -111,7 +111,7 @@ export default function CrmTab({ coachUid }) {
           coachId: coachUid,
           name: data.name,
           phone: data.phone,
-          source: data.source,
+          source: data.source || 'Direct Entry',
           status: data.status || 'New Lead',
           followUpDate: data.followUpDate,
           notes: data.notes,
@@ -186,7 +186,7 @@ export default function CrmTab({ coachUid }) {
         <div>
           <h2 style={{ fontSize: '1.5rem' }}>CRM — Pipeline & Leads</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Track leads across 6 pipeline stages and convert them into active customers
+            Click any lead row to open details, update stage, or convert to active customer
           </p>
         </div>
 
@@ -273,64 +273,76 @@ export default function CrmTab({ coachUid }) {
           <table className="crm-table" id="crm-enquiries-table">
             <thead>
               <tr>
-                <th>Lead Name</th>
-                <th>Phone</th>
-                <th>Source</th>
-                <th>Pipeline Stage</th>
-                <th>Follow-up</th>
-                <th>Action</th>
+                <th style={{ width: '50px' }}>#</th>
+                <th style={{ width: '320px' }}>Lead Name & Status</th>
+                <th style={{ width: '160px' }}>Phone</th>
+                <th style={{ width: '140px' }}>Follow-up</th>
+                <th style={{ width: '120px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {filteredEnquiries.map((enquiry) => {
+              {filteredEnquiries.map((enquiry, index) => {
                 const badge = getStatusBadgeStyle(enquiry.status);
                 const isConverted = enquiry.status === 'Closing' || enquiry.status === 'Converted';
 
                 return (
-                  <tr key={enquiry.id} id={`crm-row-${enquiry.id}`}>
-                    <td
-                      style={{ fontWeight: '700', cursor: 'pointer' }}
-                      onClick={() => openEditModal(enquiry)}
-                    >
-                      {enquiry.name}
+                  <tr
+                    key={enquiry.id}
+                    id={`crm-row-${enquiry.id}`}
+                    onClick={() => openEditModal(enquiry)}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to view lead details & history"
+                  >
+                    {/* Index Number */}
+                    <td style={{ fontWeight: '800', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      #{index + 1}
                     </td>
-                    <td>{enquiry.phone}</td>
-                    <td>{enquiry.source}</td>
+
+                    {/* Black Lead Name + Status Badge next to it */}
                     <td>
-                      <span style={{
-                        padding: '3px 10px', borderRadius: '99px',
-                        fontSize: '0.74rem', fontWeight: '800',
-                        background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
-                      }}>
-                        {enquiry.status}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span style={{ color: '#000000', fontWeight: '900', fontSize: '0.92rem' }}>
+                          {enquiry.name}
+                        </span>
+                        <span style={{
+                          padding: '2px 9px', borderRadius: '99px',
+                          fontSize: '0.72rem', fontWeight: '800', whiteSpace: 'nowrap',
+                          background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
+                        }}>
+                          {enquiry.status}
+                        </span>
+                      </div>
                     </td>
-                    <td>
+
+                    {/* Phone */}
+                    <td style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '0.88rem' }}>
+                      {enquiry.phone}
+                    </td>
+
+                    {/* Follow-up Date */}
+                    <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: '600' }}>
                       {enquiry.followUpDate
-                        ? new Date(enquiry.followUpDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+                        ? new Date(enquiry.followUpDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
                         : '—'
                       }
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '6px' }}>
+
+                    {/* Convert Button Action */}
+                    <td onClick={e => e.stopPropagation()}>
+                      {!isConverted ? (
                         <button
-                          onClick={() => openEditModal(enquiry)}
-                          className="btn btn-secondary btn-sm"
-                          style={{ width: 'auto', padding: '4px 10px', fontSize: '0.72rem' }}
+                          onClick={() => setConvertLead(enquiry)}
+                          className="btn btn-primary btn-sm"
+                          style={{ width: 'auto', padding: '5px 12px', fontSize: '0.75rem', fontWeight: '800' }}
+                          id={`convert-btn-${enquiry.id}`}
                         >
-                          ✏️ Edit
+                          🔄 Convert
                         </button>
-                        {!isConverted && (
-                          <button
-                            onClick={() => setConvertLead(enquiry)}
-                            className="btn btn-primary btn-sm"
-                            style={{ width: 'auto', padding: '4px 10px', fontSize: '0.72rem', fontWeight: '800' }}
-                            id={`convert-btn-${enquiry.id}`}
-                          >
-                            🔄 Convert
-                          </button>
-                        )}
-                      </div>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#10b981' }}>
+                          ✅ Converted
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -340,7 +352,7 @@ export default function CrmTab({ coachUid }) {
         </div>
       )}
 
-      {/* CRM Edit Modal */}
+      {/* CRM Details / Edit Modal */}
       {showModal && (
         <CrmEnquiryModal
           enquiry={editingEnquiry}
