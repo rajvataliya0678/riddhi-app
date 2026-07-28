@@ -390,9 +390,27 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                       {customer.name?.charAt(0)?.toUpperCase()}
                     </div>
                     <div>
-                      <h3 style={{ fontSize: '1.02rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
-                        {customer.name}
-                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 style={{ fontSize: '1.02rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
+                          {customer.name}
+                        </h3>
+                        {customer.phone && (
+                          <a
+                            href={`tel:${customer.phone}`}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              padding: '3px 10px', borderRadius: '6px',
+                              background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+                              fontSize: '0.74rem', fontWeight: '800', textDecoration: 'none',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                            title={`Call ${customer.name} (${customer.phone})`}
+                            id={`call-btn-${customer.uid}`}
+                          >
+                            📞 Call
+                          </a>
+                        )}
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
                         <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: '700', background: 'var(--primary-light)', padding: '1px 7px', borderRadius: '4px' }}>
                           🗓️ Day {daysJoined + 1} ({daysJoined}d joined)
@@ -552,7 +570,21 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                         {customer.name?.charAt(0)?.toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontWeight: '700', fontSize: '0.88rem' }}>{customer.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: '700', fontSize: '0.88rem' }}>{customer.name}</span>
+                          {customer.phone && (
+                            <a
+                              href={`tel:${customer.phone}`}
+                              style={{
+                                color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
+                                background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1px 6px', borderRadius: '4px'
+                              }}
+                              title={`Call ${customer.phone}`}
+                            >
+                              📞 Call
+                            </a>
+                          )}
+                        </div>
                         <div style={{ fontSize: '0.68rem', color: 'var(--primary)' }}>
                           {customer.diagnosis?.fitnessGoal || 'Fitness'}
                         </div>

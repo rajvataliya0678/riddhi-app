@@ -149,6 +149,7 @@ export default function CoachTodayTasks({ coachUid, coachName }) {
         generatedTasks.push({
           uid: customer.uid,
           customerName: customer.name,
+          phone: customer.phone,
           goal: customer.diagnosis?.fitnessGoal || '',
           nextDay,
           daysCompleted,
@@ -270,6 +271,18 @@ export default function CoachTodayTasks({ coachUid, coachName }) {
                       <span style={{ fontWeight: '700', fontSize: '0.88rem', color: 'var(--text-main)' }}>
                         {task.customerName}
                       </span>
+                      {task.phone && (
+                        <a
+                          href={`tel:${task.phone}`}
+                          style={{
+                            color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
+                            background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1px 6px', borderRadius: '4px'
+                          }}
+                          title={`Call ${task.phone}`}
+                        >
+                          📞 Call
+                        </a>
+                      )}
                       {/* Urgency badge */}
                       <span style={{
                         padding: '2px 8px', borderRadius: '99px', fontSize: '0.66rem', fontWeight: '800',
