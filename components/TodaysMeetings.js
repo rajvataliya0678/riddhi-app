@@ -220,6 +220,27 @@ const STATUS_CONFIG = {
   ended:    { label: '✅ Ended', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
 };
 
+// ── Build Customized Zoom URL ──────────────────────────────
+function buildCustomizedZoomUrl(baseUrl, userName) {
+  if (!baseUrl) return '';
+
+  // Extract first name (e.g. "Rajkumar" from "Rajkumar Vataliya" or "Vidhi" from "Vidhi Kapopara")
+  let firstName = (userName || 'Member').trim().split(' ')[0];
+  if (!firstName) firstName = 'Member';
+  firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+
+  // Construct parameter: uname=PRV%2F<FirstName>%2FRamesh
+  const unameParam = `uname=PRV%2F${encodeURIComponent(firstName)}%2FRamesh`;
+
+  // Avoid duplicating if already present
+  if (baseUrl.includes('uname=')) {
+    return baseUrl;
+  }
+
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  return `${baseUrl}${separator}${unameParam}`;
+}
+
 // ── Main Component ────────────────────────────────────────
 export default function TodaysMeetings({ user, userData, userRole, userId }) {
   const [meetings, setMeetings] = useState([]);
@@ -408,7 +429,13 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
                           justify: 'center',
                           gap: '6px',
                         }}
-                        onClick={() => window.open(m.meetingUrl, '_blank')}
+                        onClick={() => {
+                          const finalUrl = buildCustomizedZoomUrl(
+                            m.meetingUrl,
+                            userData?.name || user?.displayName || 'Member'
+                          );
+                          window.open(finalUrl, '_blank');
+                        }}
                         id={`join-meeting-btn-${m.id}`}
                       >
                         📹 Join Meeting
