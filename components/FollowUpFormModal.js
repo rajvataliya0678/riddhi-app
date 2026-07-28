@@ -65,6 +65,95 @@ function Field({ label, required, hint, children }) {
   );
 }
 
+// ── Common Check-in Section ──────────────────────────────
+function CommonCheckinSection({ data = {}, setData, startingWeight, dayNum }) {
+  const setField = (field, val) => setData(prev => ({ ...prev, [field]: val }));
+
+  const currentWeight = parseFloat(data.todaysWeight) || 0;
+  const startW = parseFloat(startingWeight) || 0;
+  let weightDiffText = '';
+  if (currentWeight > 0 && startW > 0) {
+    const diff = (startW - currentWeight).toFixed(1);
+    weightDiffText = diff > 0 ? `🔥 -${diff} kg lost since start` : diff < 0 ? `💪 +${Math.abs(diff)} kg gained` : `⚖️ Same as starting weight`;
+  }
+
+  return (
+    <div style={{
+      background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+      borderRadius: 'var(--radius-md)', padding: '16px 20px', marginBottom: '20px'
+    }}>
+      <div className="followup-section-title" style={{ marginBottom: '12px', fontSize: '0.88rem' }}>
+        📊 Day {dayNum} Daily Check-In
+      </div>
+
+      <div className="form-row-2">
+        <div className="form-group">
+          <label className="form-label">Today's Weight (kg)</label>
+          <input
+            type="number"
+            step="0.1"
+            className="form-input"
+            placeholder="e.g. 72.5"
+            value={data.todaysWeight || ''}
+            onChange={e => setField('todaysWeight', e.target.value)}
+            id="checkin-weight-input"
+          />
+          {weightDiffText && (
+            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--primary)', marginTop: '4px', display: 'block' }}>
+              {weightDiffText}
+            </span>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Water Intake Today</label>
+          <select
+            className="form-input"
+            value={data.waterIntake || ''}
+            onChange={e => setField('waterIntake', e.target.value)}
+            id="checkin-water-select"
+          >
+            <option value="">Select Water Intake</option>
+            <option value="1-2 Liters">💧 1-2 Liters</option>
+            <option value="2-3 Liters">💧💧 2-3 Liters</option>
+            <option value="3-4 Liters">💧💧💧 3-4 Liters</option>
+            <option value="4+ Liters">💧💧💧💧 4+ Liters</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="form-row-2" style={{ marginTop: '10px' }}>
+        <div className="form-group">
+          <label className="form-label">Meal Plan Adherence</label>
+          <select
+            className="form-input"
+            value={data.mealAdherence || ''}
+            onChange={e => setField('mealAdherence', e.target.value)}
+            id="checkin-meal-select"
+          >
+            <option value="">Select Adherence</option>
+            <option value="100% Followed">🥗 100% Followed</option>
+            <option value="80% Followed">🥗 80% Followed</option>
+            <option value="50% Followed">🥗 50% Followed</option>
+            <option value="Cheated / Off Plan">🍕 Off Plan</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Energy Level (1-10)</label>
+          <ScaleInput
+            id="checkin-energy"
+            value={data.energyLevel || 7}
+            onChange={val => setField('energyLevel', val)}
+            min={1}
+            max={10}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Day-Specific Form Sections ─────────────────────────
 
 function Day1Form({ data, setData }) {
