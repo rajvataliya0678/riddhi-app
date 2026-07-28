@@ -23,6 +23,7 @@ function getStatusBadgeClass(status) {
 export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert }) {
   const isEditing = !!enquiry;
 
+  const [showMenu, setShowMenu] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [source, setSource] = useState('Referral');
@@ -80,9 +81,77 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert })
   return (
     <div className="modal-overlay">
       <div className="detail-modal-card" style={{ maxWidth: '540px' }}>
-        <div className="modal-header">
-          <h3>{isEditing ? 'Edit Enquiry' : 'New Enquiry'}</h3>
-          <button onClick={onClose} className="modal-close">&times;</button>
+        <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3>{isEditing ? 'Edit Lead Details' : 'New Lead'}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {isEditing && onConvert && (enquiry.status !== 'Closing' && enquiry.status !== 'Converted') && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowMenu(!showMenu)}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '1.2rem',
+                    fontWeight: '900',
+                    borderRadius: '6px',
+                    background: showMenu ? 'var(--primary-light)' : 'transparent',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-main)',
+                    cursor: 'pointer',
+                    lineHeight: 1,
+                  }}
+                  title="Lead Options"
+                  id="crm-lead-three-dots-btn"
+                >
+                  ⋮
+                </button>
+
+                {showMenu && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      top: '36px',
+                      background: 'var(--card-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      boxShadow: 'var(--shadow-md)',
+                      zIndex: 100,
+                      minWidth: '200px',
+                      padding: '6px 0',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenu(false);
+                        onClose();
+                        onConvert(enquiry);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '10px 14px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#10b981',
+                        fontSize: '0.84rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                      id="crm-menu-convert-action"
+                    >
+                      🔄 Convert to Customer
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <button onClick={onClose} className="modal-close">&times;</button>
+          </div>
         </div>
 
         {error && (
@@ -237,32 +306,6 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert })
               {submitting ? 'Saving...' : (isEditing ? 'Update Enquiry' : 'Add Enquiry')}
             </button>
           </div>
-
-          {/* Convert to Active Customer Action at bottom of Lead Box */}
-          {isEditing && onConvert && (enquiry.status !== 'Closing' && enquiry.status !== 'Converted') && (
-            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed var(--border-color)', textAlign: 'center' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  onClose();
-                  onConvert(enquiry);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '10px 16px',
-                  fontSize: '0.85rem',
-                  fontWeight: '800',
-                  background: 'linear-gradient(135deg, #d1fae5, #ecfdf5)',
-                  color: '#065f46',
-                  border: '1px solid #a7f3d0',
-                }}
-                id="crm-modal-convert-btn"
-              >
-                🔄 Convert to Active Customer
-              </button>
-            </div>
-          )}
         </form>
       </div>
     </div>
