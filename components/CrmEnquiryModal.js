@@ -91,9 +91,11 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
   }, [enquiry, autoCallLogFocus]);
 
   // ── Auto-Create Call Entry on Call Click ──────────────────────
-  const handleCallClick = async (currentLogs = callLogs) => {
+  const handleCallClick = async (passedLogs) => {
     if (!phone) return;
     window.open(`tel:${phone}`);
+
+    const baseLogs = Array.isArray(passedLogs) ? passedLogs : callLogs;
 
     const newLogId = `call-${Date.now()}`;
     const autoEntry = {
@@ -103,7 +105,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
       calledAt: new Date().toISOString(),
     };
 
-    const updatedLogs = [autoEntry, ...currentLogs];
+    const updatedLogs = [autoEntry, ...baseLogs];
     setCallLogs(updatedLogs);
 
     // Set auto-created log into editing mode
