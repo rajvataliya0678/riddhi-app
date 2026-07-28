@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import FollowUpFormModal from './FollowUpFormModal';
+import CustomerDetailsModal from './CustomerDetailsModal';
 
 // ── Build customer object for FollowUpFormModal ──────────
 function buildFollowUpCustomer(customer, followups = []) {
@@ -106,6 +107,19 @@ export default function MyCustomersTab({ coachUid, coachName }) {
 
   const [followUpCustomer, setFollowUpCustomer]   = useState(null);
   const [followUpFollowups, setFollowUpFollowups] = useState([]);
+
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [autoCallLogFocus, setAutoCallLogFocus] = useState(false);
+
+  const openCustomerDetails = (customer, callFocus = false) => {
+    setSelectedCustomer(customer);
+    setAutoCallLogFocus(callFocus);
+  };
+
+  const closeCustomerDetails = () => {
+    setSelectedCustomer(null);
+    setAutoCallLogFocus(false);
+  };
 
   useEffect(() => { fetchData(); }, [coachUid]);
 
@@ -381,34 +395,52 @@ export default function MyCustomersTab({ coachUid, coachName }) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                      width: '46px', height: '46px', borderRadius: '50%', flexShrink: 0,
-                      background: 'linear-gradient(135deg, var(--primary), #2563eb)',
-                      color: 'white', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: '1.1rem', fontWeight: '800',
-                    }}>
+                    <div
+                      onClick={() => openCustomerDetails(customer)}
+                      style={{
+                        width: '46px', height: '46px', borderRadius: '50%', flexShrink: 0,
+                        background: 'linear-gradient(135deg, var(--primary), #2563eb)',
+                        color: 'white', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: '1.1rem', fontWeight: '800',
+                        cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                      }}
+                      title="Click to view customer details & call log"
+                      id={`cust-avatar-${customer.uid}`}
+                    >
                       {customer.name?.charAt(0)?.toUpperCase()}
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <h3 style={{ fontSize: '1.02rem', fontWeight: '800', margin: 0, color: 'var(--text-main)' }}>
+                        <h3
+                          onClick={() => openCustomerDetails(customer)}
+                          style={{ fontSize: '1.02rem', fontWeight: '800', margin: 0, color: 'var(--text-main)', cursor: 'pointer' }}
+                          title="Click to view customer details"
+                          id={`cust-name-${customer.uid}`}
+                        >
                           {customer.name}
                         </h3>
                         {customer.phone && (
-                          <a
-                            href={`tel:${customer.phone}`}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (customer.phone) {
+                                window.open(`tel:${customer.phone}`);
+                              }
+                              openCustomerDetails(customer, true);
+                            }}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: '4px',
-                              padding: '3px 10px', borderRadius: '6px',
+                              padding: '3px 10px', borderRadius: '6px', cursor: 'pointer',
                               background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
-                              fontSize: '0.74rem', fontWeight: '800', textDecoration: 'none',
+                              fontSize: '0.74rem', fontWeight: '800',
                               boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
                             }}
-                            title={`Call ${customer.name} (${customer.phone})`}
+                            title={`Call ${customer.name} (${customer.phone}) & log notes`}
                             id={`call-btn-${customer.uid}`}
                           >
                             📞 Call
-                          </a>
+                          </button>
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
@@ -561,28 +593,46 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                 <tr key={customer.uid} id={`customer-row-${customer.uid}`}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{
-                        width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                        background: 'linear-gradient(135deg, var(--primary), #2563eb)',
-                        color: 'white', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
-                      }}>
+                      <div
+                        onClick={() => openCustomerDetails(customer)}
+                        style={{
+                          width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+                          background: 'linear-gradient(135deg, var(--primary), #2563eb)',
+                          color: 'white', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
+                          cursor: 'pointer',
+                        }}
+                        title="Click to view customer details"
+                      >
                         {customer.name?.charAt(0)?.toUpperCase()}
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontWeight: '700', fontSize: '0.88rem' }}>{customer.name}</span>
+                          <span
+                            onClick={() => openCustomerDetails(customer)}
+                            style={{ fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer' }}
+                            title="Click to view customer details"
+                          >
+                            {customer.name}
+                          </span>
                           {customer.phone && (
-                            <a
-                              href={`tel:${customer.phone}`}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (customer.phone) {
+                                  window.open(`tel:${customer.phone}`);
+                                }
+                                openCustomerDetails(customer, true);
+                              }}
                               style={{
-                                color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
+                                color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer',
                                 background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1px 6px', borderRadius: '4px'
                               }}
                               title={`Call ${customer.phone}`}
                             >
                               📞 Call
-                            </a>
+                            </button>
                           )}
                         </div>
                         <div style={{ fontSize: '0.68rem', color: 'var(--primary)' }}>
@@ -656,6 +706,16 @@ export default function MyCustomersTab({ coachUid, coachName }) {
           coachName={coachName}
           onClose={closeFollowUp}
           onSaved={fetchData}
+        />
+      )}
+
+      {/* Customer Details & Call Log Modal */}
+      {selectedCustomer && (
+        <CustomerDetailsModal
+          customer={selectedCustomer}
+          onClose={closeCustomerDetails}
+          autoCallLogFocus={autoCallLogFocus}
+          onCustomerUpdate={fetchData}
         />
       )}
     </div>
