@@ -16,6 +16,7 @@ import FollowUpTab from '@/components/FollowUpTab';
 import CoachTodayTasks from '@/components/CoachTodayTasks';
 import TodaysMeetings from '@/components/TodaysMeetings';
 import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
+import MyCoachesTab from '@/components/MyCoachesTab';
 
 // ── Sidebar nav items ────────────────────────────────────
 const NAV_ITEMS = [
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { id: 'customers', icon: '👥', label: 'My Customers', roles: ['coach', 'admin'] },
   { id: 'crm', icon: '📋', label: 'CRM', roles: ['coach', 'admin'] },
   { id: 'crm_analytics', icon: '📊', label: 'CRM Analytics', roles: ['coach', 'admin'] },
+  { id: 'my_coaches', icon: '👨‍🏫', label: 'My Coaches', roles: ['coach', 'admin'] },
   { id: 'admin', icon: '⚙️', label: 'Club Owner Panel', roles: ['admin'] },
 ];
 
@@ -410,6 +412,9 @@ export default function DashboardPage() {
 
           {/* ── CRM ANALYTICS TAB ── */}
           {activeTab === 'crm_analytics' && isCoach && <CrmAnalyticsTab coachUid={user.uid} />}
+
+          {/* ── MY COACHES TAB ── */}
+          {activeTab === 'my_coaches' && isCoach && <MyCoachesTab coachUid={user.uid} />}
 
           {/* ── ADMIN TAB ── */}
           {activeTab === 'admin' && isAdmin && <AdminTab currentAdminUid={user.uid} />}
