@@ -56,7 +56,7 @@ export function AuthContextProvider({ children }) {
   }, []);
 
   // Sign Up function
-  const signUp = async (email, password, name, phone) => {
+  const signUp = async (email, password, name, phone, language = 'en') => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -68,6 +68,7 @@ export function AuthContextProvider({ children }) {
         name,
         email,
         phone,
+        preferredLanguage: language || 'en',
         role: 'customer',
         registrationCompleted: false,
         createdAt: serverTimestamp(),
@@ -80,6 +81,19 @@ export function AuthContextProvider({ children }) {
     } catch (error) {
       setLoading(false);
       return { success: false, error: error.message };
+    }
+  };
+
+  // Change Language function
+  const changeLanguage = async (lang) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        preferredLanguage: lang
+      });
+      setUserData(prev => prev ? { ...prev, preferredLanguage: lang } : null);
+    } catch (err) {
+      console.error('Error updating language preference:', err);
     }
   };
 
@@ -164,8 +178,10 @@ export function AuthContextProvider({ children }) {
     }
   };
 
+  const language = userData?.preferredLanguage || 'en';
+
   return (
-    <AuthContext.Provider value={{ user, userData, loading, signUp, login, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ user, userData, loading, language, changeLanguage, signUp, login, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

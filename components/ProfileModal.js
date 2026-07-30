@@ -3,13 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAuth } from '@/context/AuthContext';
 
 const FITNESS_GOALS = ['Weight Loss', 'Weight Gain', 'Maintenance', 'General Fitness'];
 
 export default function ProfileModal({ user, userData, diagnosis, onClose, onSaved }) {
+  const { changeLanguage } = useAuth();
+
   // User fields
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [preferredLang, setPreferredLang] = useState('en');
 
   // Diagnosis fields
   const [age, setAge] = useState('');
@@ -32,6 +36,7 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
     if (userData) {
       setName(userData.name || '');
       setPhone(userData.phone || '');
+      setPreferredLang(userData.preferredLanguage || 'en');
     }
     if (diagnosis) {
       setAge(diagnosis.age?.toString() || '');
@@ -68,6 +73,7 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
       await updateDoc(doc(db, 'users', user.uid), {
         name: name.trim(),
         phone: phone.trim(),
+        preferredLanguage: preferredLang,
       });
 
       // 2. Update diagnosis collection
@@ -88,11 +94,11 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
         submittedAt: diagnosis?.submittedAt,
       });
 
-      setSuccess('Profile updated successfully!');
+      setSuccess('Profile & Settings updated successfully!');
       setTimeout(() => {
         onSaved();
         onClose();
-      }, 1000);
+      }, 800);
     } catch (err) {
       console.error(err);
       setError('Failed to save. Please try again.');
@@ -105,6 +111,7 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
     { id: 'personal', label: '👤 Personal' },
     { id: 'health', label: '💪 Health' },
     { id: 'routine', label: '🕐 Routine' },
+    { id: 'settings', label: '⚙️ Settings' },
   ];
 
   return (
@@ -117,7 +124,7 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
               {name ? name.charAt(0).toUpperCase() : '?'}
             </div>
             <div>
-              <h3 style={{ margin: 0 }}>Edit Profile</h3>
+              <h3 style={{ margin: 0 }}>Edit Profile & Settings</h3>
               <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>{userData?.email}</p>
             </div>
           </div>
@@ -125,7 +132,7 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
         </div>
 
         {/* Section Tabs */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', overflowX: 'auto' }}>
           {sections.map(s => (
             <button
               key={s.id}
@@ -141,6 +148,7 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
                 fontWeight: '600',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
               }}
             >
               {s.label}
@@ -239,6 +247,46 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
                 <label className="form-label" htmlFor="edit-dinner">🍽️ Dinner</label>
                 <input id="edit-dinner" type="time" className="form-input" value={dinnerTime}
                   onChange={e => setDinnerTime(e.target.value)} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings / Language Section */}
+        {activeSection === 'settings' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label" style={{ fontWeight: '700' }}>🌐 Preferred App Language / પસંદગીની ભાષા</label>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 12px' }}>
+                Choose your preferred language for the Vriddhi App
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setPreferredLang('en'); changeLanguage('en'); }}
+                  style={{
+                    padding: '12px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '800',
+                    border: preferredLang === 'en' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                    background: preferredLang === 'en' ? 'var(--primary-light)' : 'var(--card-bg)',
+                    color: preferredLang === 'en' ? 'var(--primary)' : 'var(--text-main)',
+                    cursor: 'pointer', textAlign: 'center',
+                  }}
+                >
+                  🇬🇧 English
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPreferredLang('gu'); changeLanguage('gu'); }}
+                  style={{
+                    padding: '12px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '800',
+                    border: preferredLang === 'gu' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                    background: preferredLang === 'gu' ? 'var(--primary-light)' : 'var(--card-bg)',
+                    color: preferredLang === 'gu' ? 'var(--primary)' : 'var(--text-main)',
+                    cursor: 'pointer', textAlign: 'center',
+                  }}
+                >
+                  🇮🇳 ગુજરાતી (Gujarati)
+                </button>
               </div>
             </div>
           </div>

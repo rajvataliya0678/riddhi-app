@@ -199,10 +199,25 @@ export default function DashboardPage() {
             </button>
           )}
 
+          <button
+            type="button"
+            onClick={() => setShowProfile(true)}
+            style={{
+              background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '50%',
+              width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.95rem', cursor: 'pointer'
+            }}
+            title="Settings & Profile"
+            id="top-bar-settings-btn"
+          >
+            ⚙️
+          </button>
+
           <div
             className="profile-avatar-btn"
             style={{ width: '32px', height: '32px', fontSize: '0.85rem' }}
             onClick={() => setShowProfile(true)}
+            title="Edit Profile & Language Settings"
           >
             {userData?.name ? userData.name.charAt(0).toUpperCase() : '?'}
           </div>

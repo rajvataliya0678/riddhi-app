@@ -11,12 +11,13 @@ export default function SignupPage() {
   
   const { signUp } = useAuth();
   
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [name, setName]         = useState('');
+  const [phone, setPhone]       = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [language, setLanguage] = useState('en');
   
-  const [error, setError] = useState('');
+  const [error, setError]       = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -35,7 +36,7 @@ export default function SignupPage() {
     }
 
     setSubmitting(true);
-    const result = await signUp(email, password, name, phone);
+    const result = await signUp(email, password, name, phone, language);
     
     if (!result.success) {
       setError(result.error || 'Failed to create an account. Please try again.');
@@ -72,6 +73,41 @@ export default function SignupPage() {
         )}
 
         <form onSubmit={handleSubmit} id="signup-form">
+          {/* Language Selection */}
+          <div className="form-group" style={{ marginBottom: '14px' }}>
+            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: '700' }}>
+              🌐 Preferred Language / ભાષા પસંદ કરો
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setLanguage('en')}
+                style={{
+                  padding: '9px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800',
+                  border: language === 'en' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  background: language === 'en' ? 'var(--primary-light)' : 'var(--card-bg)',
+                  color: language === 'en' ? 'var(--primary)' : 'var(--text-main)',
+                  cursor: 'pointer',
+                }}
+              >
+                🇬🇧 English
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage('gu')}
+                style={{
+                  padding: '9px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800',
+                  border: language === 'gu' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  background: language === 'gu' ? 'var(--primary-light)' : 'var(--card-bg)',
+                  color: language === 'gu' ? 'var(--primary)' : 'var(--text-main)',
+                  cursor: 'pointer',
+                }}
+              >
+                🇮🇳 ગુજરાતી (Gujarati)
+              </button>
+            </div>
+          </div>
+
           <div className="form-group">
             <label className="form-label" htmlFor="signup-name">Full Name</label>
             <input
@@ -92,7 +128,7 @@ export default function SignupPage() {
               type="tel"
               id="signup-phone"
               className="form-input"
-              placeholder="+1 (555) 000-0000"
+              placeholder="+91 9876543210"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
