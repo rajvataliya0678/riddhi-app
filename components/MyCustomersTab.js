@@ -5,7 +5,6 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import FollowUpFormModal from './FollowUpFormModal';
 import CustomerDetailsModal from './CustomerDetailsModal';
-import { MonthAttendanceCalendar } from './AttendanceTab';
 
 // ── Build customer object for FollowUpFormModal ──────────
 function buildFollowUpCustomer(customer, followups = []) {
@@ -586,26 +585,7 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                   <DayProgressBar daysCompleted={daysCompleted} />
                 </div>
 
-                {/* 🌅 Morning & 🌇 Evening Monthly Attendance Calendars */}
-                {(() => {
-                  const uAtt = attendanceMap[customer.uid] || { morning: {}, evening: {} };
-                  return (
-                    <div style={{ marginBottom: '6px' }}>
-                      <MonthAttendanceCalendar
-                        label="Morning Live Session"
-                        icon="🌅"
-                        attendanceMap={uAtt.morning}
-                        colorScheme="green"
-                      />
-                      <MonthAttendanceCalendar
-                        label="Evening Live Session"
-                        icon="🌇"
-                        attendanceMap={uAtt.evening}
-                        colorScheme="purple"
-                      />
-                    </div>
-                  );
-                })()}
+
 
                 {/* Days Done & Days Pending */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>

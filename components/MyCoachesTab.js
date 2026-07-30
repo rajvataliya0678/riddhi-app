@@ -5,69 +5,6 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import CustomerDetailsModal from './CustomerDetailsModal';
 
-// ── Get Last 7 Days Date Strings ─────────────────────────────
-function getLast7DaysDates() {
-  const dates = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split('T')[0]);
-  }
-  return dates;
-}
-
-// ── 7-Day Live Session Attendance Tracker Bar ──────────────
-function SessionAttendanceBar({ label, icon, attendanceMap = {}, dates }) {
-  const attendedCount = dates.filter(d => attendanceMap[d]).length;
-  const pct = Math.round((attendedCount / 7) * 100);
-
-  return (
-    <div style={{
-      background: 'var(--bg-secondary)', padding: '10px 12px',
-      borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)',
-      marginBottom: '8px'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        <span style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--text-main)' }}>
-          {icon} {label} (Last 7 Days)
-        </span>
-        <span style={{ fontSize: '0.72rem', fontWeight: '900', color: attendedCount >= 5 ? '#16a34a' : attendedCount >= 3 ? '#d97706' : '#dc2626' }}>
-          {attendedCount}/7 Days ({pct}%)
-        </span>
-      </div>
-
-      <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between' }}>
-        {dates.map(dateStr => {
-          const isAttended = !!attendanceMap[dateStr];
-          const dateObj = new Date(dateStr + 'T00:00:00');
-          const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'narrow' });
-
-          return (
-            <div
-              key={dateStr}
-              title={`${dateStr} (${dayName}): ${isAttended ? 'Attended ✅' : 'Missed ⚪'}`}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                padding: '4px 2px',
-                borderRadius: '6px',
-                background: isAttended ? '#f0fdf4' : '#f9fafb',
-                border: isAttended ? '1px solid #bbf7d0' : '1px solid var(--border-color)',
-                color: isAttended ? '#16a34a' : 'var(--text-muted)',
-              }}
-            >
-              <div style={{ fontSize: '0.62rem', fontWeight: '700', textTransform: 'uppercase' }}>{dayName}</div>
-              <div style={{ fontSize: '0.75rem', fontWeight: '800', marginTop: '1px' }}>
-                {isAttended ? '✅' : '⚪'}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function MyCoachesTab({ coachUid }) {
   const [coaches, setCoaches]           = useState([]);
   const [customers, setCustomers]       = useState([]);
@@ -436,30 +373,7 @@ export default function MyCoachesTab({ coachUid }) {
                   </div>
                 </div>
 
-                {/* 🌅 Morning & 🌇 Evening 7-Day Live Session Attendance Tracker Bars for Coach */}
-                {(() => {
-                  const coachAtt = attendanceMap[st.cUid] || { morning: {}, evening: {} };
-                  const dates = getLast7DaysDates();
-                  return (
-                    <div>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-main)', display: 'block', marginBottom: '8px' }}>
-                        📅 COACH LIVE SESSION ATTENDANCE
-                      </span>
-                      <SessionAttendanceBar
-                        label="Morning Live Session"
-                        icon="🌅"
-                        attendanceMap={coachAtt.morning}
-                        dates={dates}
-                      />
-                      <SessionAttendanceBar
-                        label="Evening Live Session"
-                        icon="🌇"
-                        attendanceMap={coachAtt.evening}
-                        dates={dates}
-                      />
-                    </div>
-                  );
-                })()}
+
 
                 {/* Expand Button for Customer List */}
                 <button
