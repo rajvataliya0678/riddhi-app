@@ -187,6 +187,8 @@ export default function CrmTab({ coachUid }) {
     sess1: enquiries.filter(e => e.status === '1 Session').length,
     sess2: enquiries.filter(e => e.status === '2 Session').length,
     closing: enquiries.filter(e => e.status === 'Closing' || e.status === 'Converted').length,
+    waiting: enquiries.filter(e => e.status === 'Waiting List').length,
+    rejected: enquiries.filter(e => e.status === 'Rejected' || e.status === 'Not Interested').length,
   };
 
   if (loading) {
@@ -227,27 +229,104 @@ export default function CrmTab({ coachUid }) {
         </div>
       </div>
 
-      {/* Pipeline Quick Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '24px' }}>
-        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
-          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--text-main)' }}>{stats.total}</span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Total</span>
+      {/* Pipeline Quick Stats (Interactive cards for all 7 stages) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginBottom: '24px' }}>
+        <div
+          className="dashboard-card"
+          onClick={() => setFilterStatus('All')}
+          style={{
+            padding: '12px 10px', textAlign: 'center', gap: '2px', cursor: 'pointer',
+            border: filterStatus === 'All' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+            background: filterStatus === 'All' ? 'var(--primary-light)' : 'var(--card-bg)',
+          }}
+          title="Click to view All leads"
+        >
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-main)' }}>{stats.total}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>TOTAL</span>
         </div>
-        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
-          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#0ea5e9' }}>{stats.newLead}</span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>New Lead</span>
+
+        <div
+          className="dashboard-card"
+          onClick={() => setFilterStatus('New Lead')}
+          style={{
+            padding: '12px 10px', textAlign: 'center', gap: '2px', cursor: 'pointer',
+            border: filterStatus === 'New Lead' ? '2px solid #0ea5e9' : '1px solid var(--border-color)',
+            background: filterStatus === 'New Lead' ? '#f0f9ff' : 'var(--card-bg)',
+          }}
+          title="Click to view New Leads"
+        >
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#0ea5e9' }}>{stats.newLead}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>NEW LEAD</span>
         </div>
-        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
-          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#8b5cf6' }}>{stats.sess1}</span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>1 Session</span>
+
+        <div
+          className="dashboard-card"
+          onClick={() => setFilterStatus('1 Session')}
+          style={{
+            padding: '12px 10px', textAlign: 'center', gap: '2px', cursor: 'pointer',
+            border: filterStatus === '1 Session' ? '2px solid #8b5cf6' : '1px solid var(--border-color)',
+            background: filterStatus === '1 Session' ? '#f5f3ff' : 'var(--card-bg)',
+          }}
+          title="Click to view 1 Session leads"
+        >
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#8b5cf6' }}>{stats.sess1}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>1 SESSION</span>
         </div>
-        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
-          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#ec4899' }}>{stats.sess2}</span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>2 Session</span>
+
+        <div
+          className="dashboard-card"
+          onClick={() => setFilterStatus('2 Session')}
+          style={{
+            padding: '12px 10px', textAlign: 'center', gap: '2px', cursor: 'pointer',
+            border: filterStatus === '2 Session' ? '2px solid #ec4899' : '1px solid var(--border-color)',
+            background: filterStatus === '2 Session' ? '#fdf2f8' : 'var(--card-bg)',
+          }}
+          title="Click to view 2 Session leads"
+        >
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#ec4899' }}>{stats.sess2}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>2 SESSION</span>
         </div>
-        <div className="dashboard-card" style={{ padding: '14px', textAlign: 'center', gap: '2px' }}>
-          <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#10b981' }}>{stats.closing}</span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Closing</span>
+
+        <div
+          className="dashboard-card"
+          onClick={() => setFilterStatus('Closing')}
+          style={{
+            padding: '12px 10px', textAlign: 'center', gap: '2px', cursor: 'pointer',
+            border: filterStatus === 'Closing' ? '2px solid #10b981' : '1px solid var(--border-color)',
+            background: filterStatus === 'Closing' ? '#f0fdf4' : 'var(--card-bg)',
+          }}
+          title="Click to view Closing leads"
+        >
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#10b981' }}>{stats.closing}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>CLOSING</span>
+        </div>
+
+        <div
+          className="dashboard-card"
+          onClick={() => setFilterStatus('Waiting List')}
+          style={{
+            padding: '12px 10px', textAlign: 'center', gap: '2px', cursor: 'pointer',
+            border: filterStatus === 'Waiting List' ? '2px solid #f59e0b' : '1px solid var(--border-color)',
+            background: filterStatus === 'Waiting List' ? '#fffbeb' : 'var(--card-bg)',
+          }}
+          title="Click to view Waiting List leads"
+        >
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f59e0b' }}>{stats.waiting}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>WAITING LIST</span>
+        </div>
+
+        <div
+          className="dashboard-card"
+          onClick={() => setFilterStatus('Rejected')}
+          style={{
+            padding: '12px 10px', textAlign: 'center', gap: '2px', cursor: 'pointer',
+            border: filterStatus === 'Rejected' ? '2px solid #ef4444' : '1px solid var(--border-color)',
+            background: filterStatus === 'Rejected' ? '#fef2f2' : 'var(--card-bg)',
+          }}
+          title="Click to view Rejected leads"
+        >
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#ef4444' }}>{stats.rejected}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>REJECTED</span>
         </div>
       </div>
 
