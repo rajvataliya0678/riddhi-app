@@ -5,11 +5,11 @@ import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } fr
 import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
 
-// Quick Reschedule Modal Component
+// Quick Reschedule / Schedule Next Meeting Modal Component
 function QuickRescheduleModal({ lead, onClose, onSaved }) {
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
   const [meetingDate, setMeetingDate] = useState(tomorrowStr);
-  const [meetingSession, setMeetingSession] = useState('morning');
+  const [meetingSession, setMeetingSession] = useState('evening');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (e) => {
@@ -37,10 +37,10 @@ function QuickRescheduleModal({ lead, onClose, onSaved }) {
         <div className="modal-header">
           <div>
             <h3 style={{ fontSize: '1.05rem', fontWeight: '800', margin: 0 }}>
-              📅 Reschedule Session: {lead.name}
+              📅 {lead.modalTitle || 'Schedule Next Session'}: {lead.name}
             </h3>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-              Set new meeting date & session for this prospect
+              Set date & session time for the prospect's next live meeting
             </p>
           </div>
           <button onClick={onClose} className="modal-close">&times;</button>
@@ -48,7 +48,7 @@ function QuickRescheduleModal({ lead, onClose, onSaved }) {
 
         <form onSubmit={handleSave} style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div className="form-group">
-            <label className="form-label" style={{ fontSize: '0.78rem' }}>Next Meeting Date</label>
+            <label className="form-label" style={{ fontSize: '0.78rem' }}>Next Meeting Date *</label>
             <input
               type="date"
               className="form-input"
@@ -59,41 +59,41 @@ function QuickRescheduleModal({ lead, onClose, onSaved }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label" style={{ fontSize: '0.78rem' }}>Session Time</label>
+            <label className="form-label" style={{ fontSize: '0.78rem' }}>Session Time *</label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => setMeetingSession('morning')}
                 style={{
-                  flex: 1, padding: '7px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800',
+                  flex: 1, padding: '8px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800',
                   border: meetingSession === 'morning' ? '2px solid #0284c7' : '1px solid var(--border-color)',
                   background: meetingSession === 'morning' ? '#e0f2fe' : 'white',
                   color: meetingSession === 'morning' ? '#0369a1' : 'var(--text-muted)',
                   cursor: 'pointer',
                 }}
               >
-                🌅 Morning
+                🌅 Morning (11:00 AM)
               </button>
               <button
                 type="button"
                 onClick={() => setMeetingSession('evening')}
                 style={{
-                  flex: 1, padding: '7px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800',
+                  flex: 1, padding: '8px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800',
                   border: meetingSession === 'evening' ? '2px solid #7e22ce' : '1px solid var(--border-color)',
                   background: meetingSession === 'evening' ? '#faf5ff' : 'white',
                   color: meetingSession === 'evening' ? '#6b21a8' : 'var(--text-muted)',
                   cursor: 'pointer',
                 }}
               >
-                🌇 Evening
+                🌇 Evening (07:45 PM)
               </button>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px' }}>
-            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ width: 'auto' }}>Cancel</button>
+            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ width: 'auto' }}>Skip</button>
             <button type="submit" className="btn btn-primary" disabled={saving} style={{ width: 'auto' }}>
-              {saving ? '⏳ Saving...' : '💾 Update Meeting Date'}
+              {saving ? '⏳ Saving...' : '💾 Schedule & Save'}
             </button>
           </div>
         </form>
@@ -106,9 +106,6 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
   const [leads, setLeads]               = useState([]);
   const [loading, setLoading]           = useState(true);
 
-  // Auto-switch based on current time of day:
-  // Before 2:00 PM (14:00) -> default 'morning'
-  // After 2:00 PM (14:00)  -> default 'evening'
   const currentHour = new Date().getHours();
   const defaultSession = currentHour >= 14 ? 'evening' : 'morning';
   const [activeSession, setActiveSession] = useState(defaultSession);
@@ -148,6 +145,46 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
   const eveningLeads = todayLeads.filter(l => l.nextMeetingSession === 'evening');
 
   const currentList = activeSession === 'morning' ? morningLeads : eveningLeads;
+
+  const handleMarkAttended = async (lead) => {
+    let nextStatus = '1 Session';
+    let modalTitle = 'Schedule 2nd Live Meeting';
+
+    if (lead.status === '1 Session') {
+      nextStatus = '2 Session';
+      modalTitle = 'Schedule Next / Closing Session';
+    } else if (lead.status === '2 Session') {
+      nextStatus = 'Closing';
+      modalTitle = 'Schedule Closing Follow-up';
+    } else if (lead.status === 'Closing') {
+      nextStatus = 'Converted / Active Customer';
+    }
+
+    try {
+      const docRef = doc(db, 'crm_enquiries', lead.id);
+      const newHistory = [
+        ...(lead.statusHistory || []),
+        { from: lead.status || 'New Lead', to: nextStatus, timestamp: new Date().toISOString() }
+      ];
+
+      await updateDoc(docRef, {
+        status: nextStatus,
+        statusHistory: newHistory,
+        updatedAt: serverTimestamp(),
+      });
+
+      fetchLeads();
+
+      // Open schedule modal for next meeting
+      setSelectedLeadForReschedule({
+        ...lead,
+        status: nextStatus,
+        modalTitle,
+      });
+    } catch (err) {
+      console.error('Error updating lead stage on attended:', err);
+    }
+  };
 
   const handleCrmSave = async (updatedData, leadId) => {
     if (leadId) {
@@ -284,13 +321,13 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                     </a>
                   )}
 
-                  {/* Attended -> Update Status */}
+                  {/* Attended -> Auto Stage Progression */}
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
                     style={{ padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', width: 'auto' }}
-                    onClick={() => setSelectedLeadForEdit(lead)}
-                    title="Mark attended and update stage (1 Session / 2 Session / Converted)"
+                    onClick={() => handleMarkAttended(lead)}
+                    title="Mark attended: Advances lead stage (New Lead -> 1 Session -> 2 Session) & schedules next meeting!"
                   >
                     ✅ Attended
                   </button>
@@ -302,7 +339,7 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                       padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', borderRadius: '6px',
                       background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', cursor: 'pointer'
                     }}
-                    onClick={() => setSelectedLeadForReschedule(lead)}
+                    onClick={() => setSelectedLeadForReschedule({ ...lead, modalTitle: 'Reschedule Missed Session' })}
                     title="Reschedule next meeting date if lead missed today"
                   >
                     📅 Reschedule
