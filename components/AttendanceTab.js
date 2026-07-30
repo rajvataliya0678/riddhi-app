@@ -83,24 +83,24 @@ export function MonthAttendanceCalendar({
   return (
     <div style={{
       background: 'var(--card-bg)',
-      padding: '12px 14px',
+      padding: '8px 10px',
       borderRadius: 'var(--radius-md)',
       border: '1px solid var(--border-color)',
-      marginBottom: '14px',
+      marginBottom: '6px',
     }}>
       {/* Calendar Bar Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.9rem' }}>{icon}</span>
-          <span style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--text-main)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '0.8rem' }}>{icon}</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-main)' }}>
             {label} ({monthName} {year})
           </span>
         </div>
         <span style={{
-          fontSize: '0.75rem', fontWeight: '900',
+          fontSize: '0.68rem', fontWeight: '900',
           color: attendedCount >= Math.ceil(totalTrackable * 0.7) ? '#16a34a' : attendedCount >= Math.ceil(totalTrackable * 0.4) ? '#d97706' : '#dc2626'
         }}>
-          {attendedCount}/{totalTrackable} Days ({pct}%)
+          {attendedCount}/{totalTrackable} ({pct}%)
         </span>
       </div>
 
@@ -108,31 +108,31 @@ export function MonthAttendanceCalendar({
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: '4px',
+        gap: '2px',
         textAlign: 'center',
-        marginBottom: '4px',
+        marginBottom: '2px',
       }}>
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((dayName, idx) => (
           <div key={idx} style={{
-            fontSize: '0.6rem',
+            fontSize: '0.55rem',
             fontWeight: '800',
             color: idx === 4 && isTrainingOnly ? '#2563eb' : 'var(--text-muted)',
-            padding: '2px 0',
+            padding: '1px 0',
           }}>
             {dayName}
           </div>
         ))}
       </div>
 
-      {/* Month Calendar Grid (Small Boxes) */}
+      {/* Month Calendar Grid (Small Compact Boxes) */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: '4px',
+        gap: '2px',
       }}>
         {cells.map(cell => {
           if (cell.isOffset) {
-            return <div key={cell.key} style={{ minHeight: '34px' }} />;
+            return <div key={cell.key} style={{ minHeight: '22px' }} />;
           }
 
           const isAttended = !!attendanceMap[cell.dateStr];
@@ -154,24 +154,24 @@ export function MonthAttendanceCalendar({
               key={cell.key}
               title={`${cell.dateStr}: ${isAttended ? 'Present ✅' : isDisabled ? 'No Training Scheduled' : 'Absent ⚪'}`}
               style={{
-                borderRadius: '6px',
+                borderRadius: '4px',
                 background: bg,
                 border: border,
-                padding: '3px 2px',
+                padding: '2px 1px',
                 textAlign: 'center',
-                minHeight: '34px',
+                minHeight: '22px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 position: 'relative',
-                boxShadow: cell.isToday ? '0 0 0 2px rgba(37, 99, 235, 0.15)' : 'none',
+                boxShadow: cell.isToday ? '0 0 0 1px rgba(37, 99, 235, 0.25)' : 'none',
               }}
             >
-              <span style={{ fontSize: '0.65rem', fontWeight: '800', color: textColor, lineHeight: 1 }}>
+              <span style={{ fontSize: '0.58rem', fontWeight: '800', color: textColor, lineHeight: 1 }}>
                 {cell.dayNum}
               </span>
-              <span style={{ fontSize: '0.62rem', marginTop: '2px', lineHeight: 1 }}>
+              <span style={{ fontSize: '0.5rem', marginTop: '1px', lineHeight: 1 }}>
                 {isAttended ? '✅' : isDisabled ? '•' : cell.isFuture ? '' : '⚪'}
               </span>
             </div>
@@ -187,22 +187,22 @@ function PersonAttendanceCard({ name, role, morningMap, eveningMap, trainingMap,
   return (
     <div style={{
       background: 'var(--card-bg)', border: '1px solid var(--border-color)',
-      borderRadius: 'var(--radius-lg)', padding: '16px', marginBottom: '16px',
+      borderRadius: 'var(--radius-lg)', padding: '12px',
     }}>
       {/* Person Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
         <div style={{
-          width: '38px', height: '38px', borderRadius: '50%', flexShrink: 0,
+          width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
           background: role === 'coach' ? 'linear-gradient(135deg, #10b981, #2563eb)' : 'linear-gradient(135deg, var(--primary), #2563eb)',
           color: 'white', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', fontSize: '0.95rem', fontWeight: '800',
+          justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
         }}>
           {name?.charAt(0)?.toUpperCase()}
         </div>
         <div>
-          <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: 'var(--text-main)' }}>{name}</h4>
+          <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-main)' }}>{name}</h4>
           <span style={{
-            fontSize: '0.68rem', fontWeight: '700', padding: '1px 8px', borderRadius: '4px',
+            fontSize: '0.64rem', fontWeight: '700', padding: '1px 6px', borderRadius: '4px',
             background: role === 'coach' ? '#eff6ff' : '#f0fdf4',
             color: role === 'coach' ? '#2563eb' : '#16a34a',
             border: role === 'coach' ? '1px solid #bfdbfe' : '1px solid #bbf7d0',
@@ -212,8 +212,8 @@ function PersonAttendanceCard({ name, role, morningMap, eveningMap, trainingMap,
         </div>
       </div>
 
-      {/* Month Calendar Grids */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+      {/* Month Calendar Grids (Side-by-side) */}
+      <div style={{ display: 'grid', gridTemplateColumns: showTraining ? 'repeat(auto-fit, minmax(180px, 1fr))' : '1fr 1fr', gap: '8px' }}>
         <MonthAttendanceCalendar
           label="Morning Session"
           icon="🌅"
@@ -497,22 +497,24 @@ export default function AttendanceTab({ user, userData }) {
             </h3>
           </div>
 
-          {coachUsers.map(coach => {
-            const cMaps = buildMaps(coach.uid);
-            return (
-              <PersonAttendanceCard
-                key={coach.uid}
-                name={coach.name}
-                role="coach"
-                morningMap={cMaps.morning}
-                eveningMap={cMaps.evening}
-                trainingMap={cMaps.training}
-                year={selectedYear}
-                month={selectedMonth}
-                showTraining={true}
-              />
-            );
-          })}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '14px' }}>
+            {coachUsers.map(coach => {
+              const cMaps = buildMaps(coach.uid);
+              return (
+                <PersonAttendanceCard
+                  key={coach.uid}
+                  name={coach.name}
+                  role="coach"
+                  morningMap={cMaps.morning}
+                  eveningMap={cMaps.evening}
+                  trainingMap={cMaps.training}
+                  year={selectedYear}
+                  month={selectedMonth}
+                  showTraining={true}
+                />
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -552,22 +554,24 @@ export default function AttendanceTab({ user, userData }) {
             </div>
           </div>
 
-          {assignedCustomers.map(cust => {
-            const cMaps = buildMaps(cust.uid);
-            return (
-              <PersonAttendanceCard
-                key={cust.uid}
-                name={cust.name}
-                role="customer"
-                morningMap={cMaps.morning}
-                eveningMap={cMaps.evening}
-                trainingMap={{}}
-                year={selectedYear}
-                month={selectedMonth}
-                showTraining={false}
-              />
-            );
-          })}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '14px' }}>
+            {assignedCustomers.map(cust => {
+              const cMaps = buildMaps(cust.uid);
+              return (
+                <PersonAttendanceCard
+                  key={cust.uid}
+                  name={cust.name}
+                  role="customer"
+                  morningMap={cMaps.morning}
+                  eveningMap={cMaps.evening}
+                  trainingMap={{}}
+                  year={selectedYear}
+                  month={selectedMonth}
+                  showTraining={false}
+                />
+              );
+            })}
+          </div>
         </div>
       )}
 
