@@ -5,6 +5,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import FollowUpFormModal from './FollowUpFormModal';
 import CustomerDetailsModal from './CustomerDetailsModal';
+import { MonthAttendanceCalendar } from './AttendanceTab';
 
 // ── Build customer object for FollowUpFormModal ──────────
 function buildFollowUpCustomer(customer, followups = []) {
@@ -222,13 +223,13 @@ export default function MyCustomersTab({ coachUid, coachName }) {
         grouped[key].push(data);
       });
 
-      // Fetch meeting attendance for last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+      // Fetch meeting attendance for last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
       const attSnap = await getDocs(
-        query(collection(db, 'meeting_attendance'), where('date', '>=', sevenDaysAgoStr))
+        query(collection(db, 'meeting_attendance'), where('date', '>=', thirtyDaysAgoStr))
       );
 
       const attMap = {};
@@ -585,23 +586,22 @@ export default function MyCustomersTab({ coachUid, coachName }) {
                   <DayProgressBar daysCompleted={daysCompleted} />
                 </div>
 
-                {/* 🌅 Morning & 🌇 Evening 7-Day Live Session Attendance Tracker Bars */}
+                {/* 🌅 Morning & 🌇 Evening Monthly Attendance Calendars */}
                 {(() => {
                   const uAtt = attendanceMap[customer.uid] || { morning: {}, evening: {} };
-                  const dates = getLast7DaysDates();
                   return (
                     <div style={{ marginBottom: '6px' }}>
-                      <SessionAttendanceBar
+                      <MonthAttendanceCalendar
                         label="Morning Live Session"
                         icon="🌅"
                         attendanceMap={uAtt.morning}
-                        dates={dates}
+                        colorScheme="green"
                       />
-                      <SessionAttendanceBar
+                      <MonthAttendanceCalendar
                         label="Evening Live Session"
                         icon="🌇"
                         attendanceMap={uAtt.evening}
-                        dates={dates}
+                        colorScheme="purple"
                       />
                     </div>
                   );
