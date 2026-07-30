@@ -183,31 +183,71 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
     try {
       setLoading(true);
 
-      // 1. Fetch Users
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const allUsersList = usersSnap.docs.map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }));
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
 
-      // Assigned customers for coach, or all customers for admin
+      // Parallelize ALL Firestore queries simultaneously!
+      const [
+        usersSnap,
+        diagSnap,
+        fuSnap,
+        crmSnap,
+        attSnap,
+        weightSnap,
+        completedSnap,
+        customTasksSnap
+      ] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'diagnosis')),
+        getDocs(
+          isAdmin
+            ? collection(db, 'customer_followups')
+            : query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))
+        ),
+        getDocs(
+          isAdmin
+            ? collection(db, 'crm_enquiries')
+            : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
+        ),
+        getDocs(
+          query(collection(db, 'meeting_attendance'), where('date', '>=', threeDaysAgoStr))
+        ),
+        getDocs(
+          query(collection(db, 'weight_history'), where('date', '>=', threeDaysAgoStr))
+        ),
+        getDocs(
+          query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid), where('date', '==', todayStr))
+        ),
+        getDocs(
+          isAdmin
+            ? collection(db, 'coach_custom_tasks')
+            : query(collection(db, 'coach_custom_tasks'), where('coachUid', '==', coachUid))
+        )
+      ]);
+
+      // Diagnosis map in memory
+      const diagMap = {};
+      diagSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.uid) diagMap[data.uid] = data;
+      });
+
+      const allUsersList = usersSnap.docs.map(d => {
+        const uData = d.data();
+        const uUid = uData.uid || d.id;
+        return { id: d.id, uid: uUid, ...uData, diagnosis: diagMap[uUid] || null };
+      });
+
       const assignedCustomers = isAdmin
         ? allUsersList.filter(u => u.role === 'customer' || !u.role)
         : allUsersList.filter(u => (u.coachId === coachUid || u.coachUid === coachUid) && (u.role === 'customer' || !u.role));
 
-      // Coach users (for admin tasks)
       const coachUsers = allUsersList.filter(u => u.role === 'coach');
 
       const customersMap = {};
-      for (const u of assignedCustomers) {
-        const diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', u.uid)));
-        u.diagnosis = diagSnap.empty ? null : diagSnap.docs[0].data();
-        customersMap[u.uid] = u;
-      }
+      assignedCustomers.forEach(u => { customersMap[u.uid] = u; });
 
-      // 2. Fetch Followups
-      const fuSnap = await getDocs(
-        isAdmin
-          ? collection(db, 'customer_followups')
-          : query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))
-      );
       const followupsMap = {};
       fuSnap.docs.forEach(fd => {
         const d = { id: fd.id, ...fd.data() };
@@ -216,34 +256,9 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         followupsMap[key].push(d);
       });
 
-      // 3. Fetch CRM Enquiries
-      const crmSnap = await getDocs(
-        isAdmin
-          ? collection(db, 'crm_enquiries')
-          : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
-      );
       const crmLeads = crmSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      // 4. Fetch Meeting Attendance (last 3 days)
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-      const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
-
-      const attSnap = await getDocs(
-        query(collection(db, 'meeting_attendance'), where('date', '>=', threeDaysAgoStr))
-      );
       const attendanceList = attSnap.docs.map(d => d.data());
-
-      // 5. Fetch Weight History (last 3 days)
-      const weightSnap = await getDocs(
-        query(collection(db, 'weight_history'), where('date', '>=', threeDaysAgoStr))
-      );
       const weightHistoryList = weightSnap.docs.map(d => d.data());
-
-      // 6. Fetch Completed Tasks for today
-      const completedSnap = await getDocs(
-        query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid), where('date', '==', todayStr))
-      );
       const completedIds = new Set(completedSnap.docs.map(d => d.data().taskId));
 
       setAllCustomersMap(customersMap);
@@ -416,12 +431,6 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       // ─────────────────────────────────────────────────────────────
       // RULE 7: Custom Personal Tasks (Scheduled by Coach)
       // ─────────────────────────────────────────────────────────────
-      const customTasksSnap = await getDocs(
-        isAdmin
-          ? collection(db, 'coach_custom_tasks')
-          : query(collection(db, 'coach_custom_tasks'), where('coachUid', '==', coachUid))
-      );
-
       for (const cd of customTasksSnap.docs) {
         const ct = { id: cd.id, ...cd.data() };
         if (!ct.taskDate) continue;
