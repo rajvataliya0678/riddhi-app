@@ -526,10 +526,10 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
                     onClick={() => handleTaskAction(task)}
                     id={`task-btn-${task.id}`}
                   >
-                    {task.type === '10day_followup' ? (task.daysCompleted === 0 ? '▶ Start' : `✏️ Fill Day ${task.nextDay}`)
-                      : task.type === 'crm_followup' ? '📋 View CRM Lead'
+                    {task.type === '10day_followup' ? (task.daysCompleted === 0 ? '▶ Start' : `✏️ Day ${task.nextDay}`)
+                      : task.type === 'crm_followup' ? '📋 CRM Lead'
                       : task.type === 'customer_missed_meeting' || task.type === 'customer_missed_weight' ? '📞 Follow Up'
-                      : '📞 Call Coach'}
+                      : '📞 Call'}
                   </button>
                 </div>
               );

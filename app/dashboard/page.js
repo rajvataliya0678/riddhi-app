@@ -330,9 +330,9 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* ── MOBILE BOTTOM TAB NAVIGATION BAR ── */}
+      {/* ── MOBILE BOTTOM TAB NAVIGATION BAR (5 CLEAN PRIMARY TABS) ── */}
       <nav className="mobile-bottom-nav">
-        {visibleNav.map(item => (
+        {visibleNav.filter(n => ['dashboard', 'attendance', 'customers', 'crm'].includes(n.id)).map(item => (
           <button
             key={item.id}
             type="button"
@@ -341,9 +341,18 @@ export default function DashboardPage() {
             id={`mobile-tab-${item.id}`}
           >
             <span>{item.icon}</span>
-            <span className="mobile-tab-label">{item.label}</span>
+            <span className="mobile-tab-label">{item.label.replace('My ', '')}</span>
           </button>
         ))}
+        <button
+          type="button"
+          className="mobile-tab-btn"
+          onClick={() => setDrawerOpen(true)}
+          id="mobile-tab-more"
+        >
+          <span>☰</span>
+          <span className="mobile-tab-label">Menu</span>
+        </button>
       </nav>
 
       {/* ── MAIN PANEL ──────────────────────── */}

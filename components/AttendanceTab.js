@@ -212,8 +212,8 @@ function PersonAttendanceCard({ name, role, morningMap, eveningMap, trainingMap,
         </div>
       </div>
 
-      {/* Month Calendar Grids (Side-by-side) */}
-      <div style={{ display: 'grid', gridTemplateColumns: showTraining ? 'repeat(auto-fit, minmax(180px, 1fr))' : '1fr 1fr', gap: '8px' }}>
+      {/* Month Calendar Grids (Responsive 260px minmax for mobile stacking) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
         <MonthAttendanceCalendar
           label="Morning Session"
           icon="🌅"
