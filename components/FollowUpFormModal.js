@@ -176,21 +176,6 @@ function Day1Form({ data, setData }) {
       <Field label="5. જો 3 મહિનામાં desired result આવી જાય તો life માં શું change આવશે?">
         <textarea className="form-input" rows={3} value={data.lifeChange3Months || ''} onChange={e => s('lifeChange3Months', e.target.value)} style={{ resize: 'vertical' }} id="d1-life-change" />
       </Field>
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '4px' }}>📝 Coach Notes</div>
-        <Field label="Customer Emotional WHY">
-          <textarea className="form-input" rows={2} value={data.emotionalWhy || ''} onChange={e => s('emotionalWhy', e.target.value)} style={{ resize: 'vertical' }} id="d1-emotional-why" />
-        </Field>
-        <Field label="Customer Pain Point">
-          <textarea className="form-input" rows={2} value={data.painPoint || ''} onChange={e => s('painPoint', e.target.value)} style={{ resize: 'vertical' }} id="d1-pain-point" />
-        </Field>
-        <Field label="Dream Outcome">
-          <textarea className="form-input" rows={2} value={data.dreamOutcome || ''} onChange={e => s('dreamOutcome', e.target.value)} style={{ resize: 'vertical' }} id="d1-dream-outcome" />
-        </Field>
-        <Field label="Coach Connection Notes">
-          <textarea className="form-input" rows={2} value={data.connectionNotes || ''} onChange={e => s('connectionNotes', e.target.value)} style={{ resize: 'vertical' }} id="d1-connection-notes" />
-        </Field>
-      </div>
     </div>
   );
 }
@@ -233,13 +218,6 @@ function Day2Form({ data, setData }) {
           <textarea className="form-input" rows={3} value={data.weekendNotes || ''} onChange={e => s('weekendNotes', e.target.value)} style={{ resize: 'vertical' }} id="d2-weekend-notes" />
         </Field>
       )}
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Analysis</div>
-        <Field label="Main Danger Zone" hint="e.g. 5–7 PM craving / Late-night eating"><input className="form-input" value={data.mainDangerZone || ''} onChange={e => s('mainDangerZone', e.target.value)} id="d2-danger-zone" /></Field>
-        <Field label="Main Routine Strength"><input className="form-input" value={data.routineStrength || ''} onChange={e => s('routineStrength', e.target.value)} id="d2-strength" /></Field>
-        <Field label="Main Routine Weakness"><input className="form-input" value={data.routineWeakness || ''} onChange={e => s('routineWeakness', e.target.value)} id="d2-weakness" /></Field>
-        <Field label="One Change For Tomorrow"><input className="form-input" value={data.tomorrowChange || ''} onChange={e => s('tomorrowChange', e.target.value)} id="d2-tomorrow-change" /></Field>
-      </div>
     </div>
   );
 }
@@ -260,12 +238,6 @@ function Day3Form({ data, setData }) {
       </Field>
       <Field label="Food you don't want to completely stop"><input className="form-input" value={data.keepFood || ''} onChange={e => s('keepFood', e.target.value)} id="d3-keep-food" /></Field>
       <Field label="Who influences your food choices most?"><input className="form-input" value={data.foodInfluencer || ''} onChange={e => s('foodInfluencer', e.target.value)} id="d3-food-influencer" /></Field>
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Analysis</div>
-        <Field label="Biggest Food Challenge"><textarea className="form-input" rows={2} value={data.foodChallenge || ''} onChange={e => s('foodChallenge', e.target.value)} style={{ resize: 'vertical' }} id="d3-food-challenge" /></Field>
-        <Field label="Main Food Trigger"><input className="form-input" value={data.foodTrigger || ''} onChange={e => s('foodTrigger', e.target.value)} id="d3-food-trigger" /></Field>
-        <Field label="Coach Recommendation For Tomorrow"><input className="form-input" value={data.coachRecommendation || ''} onChange={e => s('coachRecommendation', e.target.value)} id="d3-recommendation" /></Field>
-      </div>
     </div>
   );
 }
@@ -303,12 +275,6 @@ function Day4Form({ data, setData }) {
       <Field label="Current Confidence Level (1-10)">
         <ScaleInput id="d4-confidence" value={data.confidenceLevel} onChange={v => s('confidenceLevel', v)} />
       </Field>
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Analysis</div>
-        <Field label="Biggest Motivation"><input className="form-input" value={data.biggestMotivation || ''} onChange={e => s('biggestMotivation', e.target.value)} id="d4-motivation" /></Field>
-        <Field label="Biggest Mental Barrier"><input className="form-input" value={data.mentalBarrier || ''} onChange={e => s('mentalBarrier', e.target.value)} id="d4-barrier" /></Field>
-        <Field label="Coach Motivation Notes"><textarea className="form-input" rows={2} value={data.motivationNotes || ''} onChange={e => s('motivationNotes', e.target.value)} style={{ resize: 'vertical' }} id="d4-motivation-notes" /></Field>
-      </div>
     </div>
   );
 }
@@ -342,12 +308,6 @@ function Day5Form({ data, setData }) {
       <Field label="2–3 Year Personal Dream">
         <textarea className="form-input" rows={2} value={data.personalDream || ''} onChange={e => s('personalDream', e.target.value)} style={{ resize: 'vertical' }} id="d5-dream" />
       </Field>
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Notes</div>
-        <Field label="Important People In Their Life"><input className="form-input" value={data.importantPeople || ''} onChange={e => s('importantPeople', e.target.value)} id="d5-important-people" /></Field>
-        <Field label="Important Upcoming Event" hint="e.g. Marriage / Birthday / Trip / Function / Career Goal"><input className="form-input" value={data.upcomingEvent || ''} onChange={e => s('upcomingEvent', e.target.value)} id="d5-event" /></Field>
-        <Field label="Relationship Notes For Future Conversations"><textarea className="form-input" rows={2} value={data.relationshipNotes || ''} onChange={e => s('relationshipNotes', e.target.value)} style={{ resize: 'vertical' }} id="d5-relationship-notes" /></Field>
-      </div>
     </div>
   );
 }
@@ -387,17 +347,6 @@ function Day6Form({ data, setData }) {
       <Field label="Customer Belief In Program (1-10)">
         <ScaleInput id="d6-belief" value={data.beliefInProgram} onChange={v => s('beliefInProgram', v)} />
       </Field>
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Notes</div>
-        <Field label="Best Result Story Point"><textarea className="form-input" rows={2} value={data.storyPoint || ''} onChange={e => s('storyPoint', e.target.value)} style={{ resize: 'vertical' }} id="d6-story-point" /></Field>
-        <Field label="Possible Testimonial Later?">
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {['Yes', 'Maybe', 'No'].map(opt => (
-              <button key={opt} type="button" className={`multiselect-chip ${data.testimonialPossible === opt ? 'selected' : ''}`} onClick={() => s('testimonialPossible', opt)} id={`d6-testimonial-${opt.toLowerCase()}`}>{opt}</button>
-            ))}
-          </div>
-        </Field>
-      </div>
     </div>
   );
 }
@@ -501,16 +450,6 @@ function Day8Form({ data, setData }) {
           ))}
         </div>
       </Field>
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Assessment</div>
-        <Field label="Coach Potential">
-          <select className="form-input" value={data.coachPotential || ''} onChange={e => s('coachPotential', e.target.value)} id="d8-coach-potential">
-            <option value="">Select...</option>
-            {COACH_POTENTIAL.map(p => <option key={p}>{p}</option>)}
-          </select>
-        </Field>
-        <Field label="Coach Observation"><textarea className="form-input" rows={3} value={data.coachObservation || ''} onChange={e => s('coachObservation', e.target.value)} style={{ resize: 'vertical' }} id="d8-coach-obs" /></Field>
-      </div>
     </div>
   );
 }
@@ -543,16 +482,6 @@ function Day9Form({ data, setData }) {
       </Field>
       <Field label="What attracts them most?"><input className="form-input" value={data.whatAttracts || ''} onChange={e => s('whatAttracts', e.target.value)} id="d9-attracts" /></Field>
       <Field label="What concern do they have?"><textarea className="form-input" rows={2} value={data.concerns || ''} onChange={e => s('concerns', e.target.value)} style={{ resize: 'vertical' }} id="d9-concerns" /></Field>
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Decision</div>
-        <Field label="Ready For Coach Discussion?">
-          <select className="form-input" value={data.readyForDiscussion || ''} onChange={e => s('readyForDiscussion', e.target.value)} id="d9-ready">
-            <option value="">Select...</option>
-            {READY_OPTIONS.map(r => <option key={r}>{r}</option>)}
-          </select>
-        </Field>
-        <Field label="Recommended Next Step"><input className="form-input" value={data.recommendedNextStep || ''} onChange={e => s('recommendedNextStep', e.target.value)} id="d9-next-step" /></Field>
-      </div>
     </div>
   );
 }
@@ -726,19 +655,6 @@ function Ongoing3DayForm({ data, setData, dayNum }) {
       <Field label="Diet / Program Adjustment">
         <textarea className="form-input" rows={2} value={data.routineAdjustment || ''} onChange={e => s('routineAdjustment', e.target.value)} placeholder="Any changes made to meal plan, water, or exercise?" style={{ resize: 'vertical' }} id={`d${dayNum}-adjustment`} />
       </Field>
-
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-mid)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--primary)' }}>📝 Coach Ongoing Guidance</div>
-        <Field label="Coach Recommendation For Next 3 Days">
-          <textarea className="form-input" rows={2} value={data.coachRecommendation || ''} onChange={e => s('coachRecommendation', e.target.value)} style={{ resize: 'vertical' }} id={`d${dayNum}-recommendation`} />
-        </Field>
-        <Field label="Customer Next 3-Day Commitment">
-          <input className="form-input" value={data.nextCommitment || ''} onChange={e => s('nextCommitment', e.target.value)} placeholder="e.g. 3L water daily, 8k steps" id={`d${dayNum}-commitment`} />
-        </Field>
-        <Field label="Next 3-Day Follow-Up Date">
-          <input type="date" className="form-input" value={data.nextFollowUpDate || ''} onChange={e => s('nextFollowUpDate', e.target.value)} id={`d${dayNum}-next-date`} />
-        </Field>
-      </div>
     </div>
   );
 }
@@ -823,10 +739,6 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
 
 
   const handleSave = async () => {
-    if (!commonCheckin.todaysWeight) {
-      setError("Today's Weight is required in the daily check-in.");
-      return;
-    }
     setSaving(true);
     setError('');
     try {
@@ -961,13 +873,7 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
               </div>
             )}
 
-            {/* Common Check-in */}
-            <CommonCheckinSection
-              data={commonCheckin}
-              setData={setCommonCheckin}
-              startingWeight={customer.startingWeight}
-              dayNum={selectedDay}
-            />
+
 
             {/* Day-specific section */}
             <div>
