@@ -272,52 +272,60 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                   key={lead.id}
                   id={`session-lead-item-${lead.id}`}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '10px 16px',
-                    borderBottom: idx < currentList.length - 1 ? '1px solid var(--bg-secondary)' : 'none',
-                    background: 'transparent',
+                    padding: '12px 16px',
+                    borderBottom: idx < currentList.length - 1 ? '1px solid var(--border-color)' : 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    background: 'var(--card-bg)',
                   }}
                 >
-                  {/* Avatar */}
-                  <div style={{
-                    width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
-                    background: activeSession === 'morning'
-                      ? 'linear-gradient(135deg, #0284c7, #2563eb)'
-                      : 'linear-gradient(135deg, #7e22ce, #db2777)',
-                    color: 'white', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
-                  }}>
-                    {lead.name?.charAt(0)?.toUpperCase()}
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: '800', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                        {lead.name}
-                      </span>
-                      <span style={{
-                        padding: '1px 6px', borderRadius: '99px', fontSize: '0.64rem', fontWeight: '800',
-                        background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb'
+                  {/* Row 1: Avatar + Name + Stage Badge */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+                        background: activeSession === 'morning'
+                          ? 'linear-gradient(135deg, #0284c7, #2563eb)'
+                          : 'linear-gradient(135deg, #7e22ce, #db2777)',
+                        color: 'white', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: '0.88rem', fontWeight: '800',
                       }}>
-                        {lead.status || 'New Lead'}
-                      </span>
-                    </div>
+                        {lead.name?.charAt(0)?.toUpperCase()}
+                      </div>
 
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>Scheduled Today ({activeSession === 'morning' ? '🌅 Morning' : '🌇 Evening'})</span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: '800', fontSize: '0.88rem', color: 'var(--text-main)' }}>
+                            {lead.name}
+                          </span>
+                          <span style={{
+                            padding: '2px 8px', borderRadius: '99px', fontSize: '0.66rem', fontWeight: '800',
+                            background: lead.status === '1 Session' ? '#e0f2fe' : lead.status === '2 Session' ? '#faf5ff' : '#f3f4f6',
+                            color: lead.status === '1 Session' ? '#0369a1' : lead.status === '2 Session' ? '#6b21a8' : '#374151',
+                            border: '1px solid var(--border-color)',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {lead.status || 'New Lead'}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Scheduled Today ({activeSession === 'morning' ? '🌅 Morning' : '🌇 Evening'})
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-                    {/* Phone Call */}
+                  {/* Row 2: Action Buttons */}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
                     {lead.phone && (
                       <a
                         href={`tel:${lead.phone}`}
                         style={{
-                          color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
-                          background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 8px', borderRadius: '6px'
+                          color: '#16a34a', fontSize: '0.74rem', fontWeight: '800', textDecoration: 'none',
+                          background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '5px 10px', borderRadius: '6px',
+                          display: 'inline-flex', alignItems: 'center', gap: '4px'
                         }}
                         title={`Call ${lead.phone}`}
                       >
@@ -325,12 +333,11 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                       </a>
                     )}
 
-                    {/* If ALREADY attended today -> show ONLY Schedule Next Meeting button! */}
                     {isAttendedToday ? (
                       <button
                         type="button"
                         className="btn btn-primary btn-sm"
-                        style={{ padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', width: 'auto' }}
+                        style={{ padding: '5px 12px', fontSize: '0.74rem', fontWeight: '800', width: 'auto' }}
                         onClick={() => setSelectedLeadForReschedule({
                           ...lead,
                           modalTitle: lead.status === '1 Session' ? 'Schedule 2nd Live Meeting' : 'Schedule Next Session'
@@ -341,22 +348,20 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                       </button>
                     ) : (
                       <>
-                        {/* Attended -> Auto Stage Progression */}
                         <button
                           type="button"
                           className="btn btn-primary btn-sm"
-                          style={{ padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', width: 'auto' }}
+                          style={{ padding: '5px 10px', fontSize: '0.74rem', fontWeight: '800', width: 'auto' }}
                           onClick={() => handleMarkAttended(lead)}
                           title="Mark attended: Advances lead stage & opens schedule next meeting modal"
                         >
                           ✅ Attended
                         </button>
 
-                        {/* Missed -> Reschedule */}
                         <button
                           type="button"
                           style={{
-                            padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', borderRadius: '6px',
+                            padding: '5px 10px', fontSize: '0.74rem', fontWeight: '800', borderRadius: '6px',
                             background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', cursor: 'pointer'
                           }}
                           onClick={() => setSelectedLeadForReschedule({ ...lead, modalTitle: 'Reschedule Missed Session' })}
