@@ -29,7 +29,7 @@ export function useAuthGuard() {
         }
       } else {
         // Coach, Admin, or completed customer
-        if (pathname === '/' || pathname === '/login' || pathname === '/signup') {
+        if (pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname === '/diagnosis') {
           router.push('/dashboard');
         }
       }

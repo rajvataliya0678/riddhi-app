@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { doc, setDoc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export default function DiagnosisPage() {
+  const router = useRouter();
   // Route guard: Redirects to login if not logged in, or dashboard if already completed diagnosis
   const { loading: authLoading } = useAuthGuard();
   const { user, refreshProfile, logout } = useAuth();
@@ -80,7 +82,6 @@ export default function DiagnosisPage() {
       await setDoc(doc(db, 'diagnosis', uid), diagnosisData);
 
       // 2. Add starting weight to weight history
-      // Get today's local date string in YYYY-MM-DD format
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -99,8 +100,11 @@ export default function DiagnosisPage() {
         registrationCompleted: true
       });
 
-      // 4. Refresh auth state profile so route guard redirects to dashboard
+      // 4. Refresh auth state profile
       await refreshProfile();
+
+      // 5. Instantly redirect customer to dashboard
+      window.location.href = '/dashboard';
 
     } catch (err) {
       console.error("Error submitting diagnosis form:", err);

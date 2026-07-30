@@ -40,8 +40,9 @@ export default function SignupPage() {
     if (!result.success) {
       setError(result.error || 'Failed to create an account. Please try again.');
       setSubmitting(false);
+    } else {
+      window.location.href = '/diagnosis';
     }
-    // Success will trigger useAuthGuard redirect automatically
   };
 
   if (authLoading) {
