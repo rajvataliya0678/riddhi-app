@@ -7,7 +7,7 @@ import {
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 const AuthContext = createContext({});
@@ -83,18 +83,63 @@ export function AuthContextProvider({ children }) {
     }
   };
 
-  // Login function
-  const login = async (email, password) => {
+  // Login function (Supports Mobile Number OR Email)
+  const login = async (identifier, password) => {
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      let emailToUse = identifier.trim();
+
+      // Check if identifier is NOT an email (doesn't contain '@')
+      if (!emailToUse.includes('@')) {
+        const cleanPhone = emailToUse.replace(/[^0-9]/g, '');
+
+        // Query users by phone
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('phone', '==', emailToUse));
+        let snap = await getDocs(q);
+
+        if (snap.empty && cleanPhone) {
+          const allUsersSnap = await getDocs(usersRef);
+          const found = allUsersSnap.docs.find(d => {
+            const p = (d.data().phone || '').replace(/[^0-9]/g, '');
+            return p && (p === cleanPhone || p.endsWith(cleanPhone) || cleanPhone.endsWith(p));
+          });
+          if (found) {
+            emailToUse = found.data().email;
+          } else {
+            setLoading(false);
+            return { success: false, error: 'No account found with this mobile number. Please check or sign up.' };
+          }
+        } else if (!snap.empty) {
+          emailToUse = snap.docs[0].data().email;
+        } else {
+          setLoading(false);
+          return { success: false, error: 'No account found with this mobile number. Please check or sign up.' };
+        }
+      }
+
+      if (!emailToUse) {
+        setLoading(false);
+        return { success: false, error: 'Please enter a valid mobile number or email.' };
+      }
+
+      const userCredential = await signInWithEmailAndPassword(auth, emailToUse, password);
       const uid = userCredential.user.uid;
       const data = await fetchUserData(uid);
       setUser(userCredential.user);
       return { success: true, userData: data };
     } catch (error) {
       setLoading(false);
-      return { success: false, error: error.message };
+      let errMsg = error.message;
+      if (
+        error.code === 'auth/invalid-credential' ||
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/invalid-email'
+      ) {
+        errMsg = 'Incorrect mobile number / email or password. Please try again.';
+      }
+      return { success: false, error: errMsg };
     }
   };
 

@@ -11,29 +11,28 @@ export default function LoginPage() {
   
   const { login } = useAuth();
   
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword]     = useState('');
   
-  const [error, setError] = useState('');
+  const [error, setError]           = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
+    if (!identifier.trim() || !password) {
+      setError('Please enter your mobile number (or email) and password.');
       return;
     }
 
     setSubmitting(true);
-    const result = await login(email, password);
+    const result = await login(identifier, password);
     
     if (!result.success) {
       setError(result.error || 'Invalid credentials. Please check and try again.');
       setSubmitting(false);
     }
-    // Success will trigger useAuthGuard redirect automatically
   };
 
   if (authLoading) {
@@ -53,7 +52,7 @@ export default function LoginPage() {
         <div className="brand-header">
           <span className="brand-logo" id="app-logo">Vriddhi</span>
           <h2>Welcome Back</h2>
-          <p className="brand-subtitle">Log in to track your fitness goals</p>
+          <p className="brand-subtitle">Log in using your Mobile Number & Password</p>
         </div>
 
         {error && (
@@ -64,14 +63,14 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} id="login-form">
           <div className="form-group">
-            <label className="form-label" htmlFor="login-email">Email Address</label>
+            <label className="form-label" htmlFor="login-email">Mobile Number or Email</label>
             <input
-              type="email"
+              type="text"
               id="login-email"
               className="form-input"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. 9876543210 or name@example.com"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
               disabled={submitting}
             />
