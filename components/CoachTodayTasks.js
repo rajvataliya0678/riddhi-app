@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import FollowUpFormModal from './FollowUpFormModal';
+import CrmEnquiryModal from './CrmEnquiryModal';
+import CustomerDetailsModal from './CustomerDetailsModal';
 
-// Build the customer object FollowUpFormModal expects
+// Helper: Build the customer object FollowUpFormModal expects
 function buildFollowUpCustomer(customer, followups = []) {
   if (!customer) return {};
   const uid = customer.uid || customer.id || 'CUSTOMER';
@@ -40,7 +42,7 @@ function buildFollowUpCustomer(customer, followups = []) {
   };
 }
 
-// Day label → what to say in the task
+// Day label mapping for 10-day program
 const DAY_TASK_LABELS = {
   1:  'Customer Story & WHY',
   2:  'Daily Routine Diagnosis',
@@ -54,112 +56,262 @@ const DAY_TASK_LABELS = {
   10: 'Journey Review & Next Step',
 };
 
-export default function CoachTodayTasks({ coachUid, coachName }) {
-  const [tasks, setTasks]     = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach' }) {
+  const [tasks, setTasks]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [filter, setFilter]       = useState('all'); // 'all' | 'overdue' | 'today'
 
-  // For opening follow-up form
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [selectedFollowups, setSelectedFollowups] = useState([]);
-  const [allCustomersMap, setAllCustomersMap]   = useState({});
-  const [allFollowupsMap, setAllFollowupsMap]   = useState({});
+  // Modals state
+  const [selectedCustomer, setSelectedCustomer]             = useState(null);
+  const [selectedFollowups, setSelectedFollowups]           = useState([]);
+  const [selectedCrmLead, setSelectedCrmLead]               = useState(null);
+  const [selectedDetailsCustomer, setSelectedDetailsCustomer] = useState(null);
 
+  const [allCustomersMap, setAllCustomersMap] = useState({});
+  const [allFollowupsMap, setAllFollowupsMap] = useState({});
+
+  const isAdmin = userRole === 'admin';
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
-  useEffect(() => { fetchTasks(); }, [coachUid]);
+  const yesterdayObj = new Date();
+  yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+  const yesterdayStr = yesterdayObj.toISOString().split('T')[0];
+
+  useEffect(() => {
+    fetchTasks();
+  }, [coachUid, userRole]);
 
   const fetchTasks = async () => {
     if (!coachUid) return;
     try {
       setLoading(true);
 
-      // 1. All customers assigned to this coach
-      const usersSnap = await getDocs(
-        query(collection(db, 'users'), where('coachId', '==', coachUid))
-      );
+      // 1. Fetch Users
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const allUsersList = usersSnap.docs.map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }));
+
+      // Assigned customers for coach, or all customers for admin
+      const assignedCustomers = isAdmin
+        ? allUsersList.filter(u => u.role === 'customer' || !u.role)
+        : allUsersList.filter(u => (u.coachId === coachUid || u.coachUid === coachUid) && (u.role === 'customer' || !u.role));
+
+      // Coach users (for admin tasks)
+      const coachUsers = allUsersList.filter(u => u.role === 'coach');
 
       const customersMap = {};
-      for (const d of usersSnap.docs) {
-        const u = d.data();
-        // Diagnosis for goal label
+      for (const u of assignedCustomers) {
         const diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', u.uid)));
         u.diagnosis = diagSnap.empty ? null : diagSnap.docs[0].data();
         customersMap[u.uid] = u;
       }
 
-      // 2. All follow-ups for this coach
+      // 2. Fetch Followups
       const fuSnap = await getDocs(
-        query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))
+        isAdmin
+          ? collection(db, 'customer_followups')
+          : query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))
       );
       const followupsMap = {};
-      for (const fd of fuSnap.docs) {
+      fuSnap.docs.forEach(fd => {
         const d = { id: fd.id, ...fd.data() };
         const key = d.customerUid || d.customerProfileId;
         if (!followupsMap[key]) followupsMap[key] = [];
         followupsMap[key].push(d);
-      }
+      });
+
+      // 3. Fetch CRM Enquiries
+      const crmSnap = await getDocs(
+        isAdmin
+          ? collection(db, 'crm_enquiries')
+          : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
+      );
+      const crmLeads = crmSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // 4. Fetch Meeting Attendance (last 3 days)
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
+
+      const attSnap = await getDocs(
+        query(collection(db, 'meeting_attendance'), where('date', '>=', threeDaysAgoStr))
+      );
+      const attendanceList = attSnap.docs.map(d => d.data());
+
+      // 5. Fetch Weight History (last 3 days)
+      const weightSnap = await getDocs(
+        query(collection(db, 'weight_history'), where('date', '>=', threeDaysAgoStr))
+      );
+      const weightHistoryList = weightSnap.docs.map(d => d.data());
 
       setAllCustomersMap(customersMap);
       setAllFollowupsMap(followupsMap);
 
-      // 3. Compute tasks
+      // ── COMPUTE ALL TASKS ACCORDING TO RULES ─────────────────────
       const generatedTasks = [];
 
-      for (const customer of Object.values(customersMap)) {
-        const fus = followupsMap[customer.uid] || [];
-        const daysCompleted = fus.length > 0 ? Math.max(...fus.map(f => f.day)) : 0;
+      // ─────────────────────────────────────────────────────────────
+      // RULE 1: CRM Follow-up Date Tasks
+      // ─────────────────────────────────────────────────────────────
+      for (const lead of crmLeads) {
+        if (lead.status === 'Converted / Active Customer') continue;
+        if (!lead.followUpDate) continue;
 
-        if (daysCompleted >= 10) continue; // fully done, no task
+        const fuDateStr = lead.followUpDate.split('T')[0];
+        if (fuDateStr <= todayStr) {
+          const isOverdue = fuDateStr < todayStr;
+          generatedTasks.push({
+            id: `crm-${lead.id}`,
+            type: 'crm_followup',
+            uid: lead.id,
+            name: lead.name,
+            phone: lead.phone || '',
+            goal: lead.status || 'Lead',
+            title: `📋 CRM Lead Follow-up: ${lead.name}`,
+            description: `Follow-up date reached (${fuDateStr}) · Stage: ${lead.status || 'New Lead'}`,
+            urgency: isOverdue ? 'overdue' : 'today',
+            actionType: 'open_crm_modal',
+            leadObj: lead,
+          });
+        }
+      }
 
-        const nextDay = daysCompleted + 1;
+      // ─────────────────────────────────────────────────────────────
+      // RULE 2: Customer Missed Live Meeting Yesterday Tasks
+      // ─────────────────────────────────────────────────────────────
+      for (const cust of assignedCustomers) {
+        const attendedYesterday = attendanceList.some(
+          a => a.uid === cust.uid && a.date === yesterdayStr
+        );
+        if (!attendedYesterday) {
+          generatedTasks.push({
+            id: `missed-meeting-${cust.uid}`,
+            type: 'customer_missed_meeting',
+            uid: cust.uid,
+            name: cust.name || cust.fullName || 'Customer',
+            phone: cust.phone || '',
+            goal: cust.diagnosis?.fitnessGoal || '',
+            title: `🌅 Missed Live Meeting Yesterday: ${cust.name || cust.fullName || 'Customer'}`,
+            description: `Customer did not join morning or evening session yesterday (${yesterdayStr})`,
+            urgency: 'today',
+            actionType: 'open_customer_details',
+            customerObj: cust,
+          });
+        }
+      }
 
-        // Determine urgency based on joining date
-        let joinDate = null;
-        if (customer.createdAt?.toDate) {
-          joinDate = customer.createdAt.toDate();
+      // ─────────────────────────────────────────────────────────────
+      // RULE 3: Customer Missed Weight Entry Yesterday Tasks
+      // ─────────────────────────────────────────────────────────────
+      for (const cust of assignedCustomers) {
+        const weightLogged = weightHistoryList.some(
+          w => w.uid === cust.uid && (w.date === yesterdayStr || w.date === todayStr)
+        );
+        if (!weightLogged) {
+          generatedTasks.push({
+            id: `missed-weight-${cust.uid}`,
+            type: 'customer_missed_weight',
+            uid: cust.uid,
+            name: cust.name || cust.fullName || 'Customer',
+            phone: cust.phone || '',
+            goal: cust.diagnosis?.fitnessGoal || '',
+            title: `⚖️ Missed Weight Entry: ${cust.name || cust.fullName || 'Customer'}`,
+            description: `No weight recorded for yesterday/today. Remind customer to log weight.`,
+            urgency: 'today',
+            actionType: 'open_customer_details',
+            customerObj: cust,
+          });
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // RULE 4: Coach Missed Scheduled Meeting (For Club Owner / Admin)
+      // ─────────────────────────────────────────────────────────────
+      if (isAdmin) {
+        for (const coach of coachUsers) {
+          const coachAttended = attendanceList.some(
+            a => a.uid === coach.uid && (a.date === yesterdayStr || a.date === todayStr)
+          );
+          if (!coachAttended) {
+            generatedTasks.push({
+              id: `coach-missed-meeting-${coach.uid}`,
+              type: 'coach_missed_meeting',
+              uid: coach.uid,
+              name: coach.name,
+              phone: coach.phone || '',
+              goal: '👨‍🏫 Coach',
+              title: `🎓 Coach Missed Training: Coach ${coach.name}`,
+              description: `Coach did not attend live session / scheduled training yesterday (${yesterdayStr})`,
+              urgency: 'overdue',
+              actionType: 'call_phone',
+            });
+          }
         }
 
-        let urgency = 'upcoming'; // default
+        // ─────────────────────────────────────────────────────────────
+        // RULE 5: Coach Missed Weight Entry Today (For Club Owner / Admin)
+        // ─────────────────────────────────────────────────────────────
+        for (const coach of coachUsers) {
+          const coachLoggedWeight = weightHistoryList.some(
+            w => w.uid === coach.uid && (w.date === todayStr || w.date === yesterdayStr)
+          );
+          if (!coachLoggedWeight) {
+            generatedTasks.push({
+              id: `coach-missed-weight-${coach.uid}`,
+              type: 'coach_missed_weight',
+              uid: coach.uid,
+              name: coach.name,
+              phone: coach.phone || '',
+              goal: '👨‍🏫 Coach',
+              title: `⚖️ Coach Weight Entry Missing: Coach ${coach.name}`,
+              description: `Coach has not recorded daily weight today (${todayStr})`,
+              urgency: 'today',
+              actionType: 'call_phone',
+            });
+          }
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // RULE 6: 10-Day Program Follow-up Tasks
+      // ─────────────────────────────────────────────────────────────
+      for (const customer of assignedCustomers) {
+        const fus = followupsMap[customer.uid] || [];
+        const daysCompleted = fus.length > 0 ? Math.max(...fus.map(f => f.day)) : 0;
+        if (daysCompleted >= 10) continue;
+
+        const nextDay = daysCompleted + 1;
+        let joinDate = customer.createdAt?.toDate ? customer.createdAt.toDate() : null;
+        let urgency = 'today';
         let daysDiff = 0;
 
         if (joinDate) {
-          // Days since joining (0 = joined today)
           daysDiff = Math.floor((today - joinDate) / (1000 * 60 * 60 * 24));
-          const expectedDay = Math.min(daysDiff + 1, 10);
-
-          if (nextDay <= expectedDay && nextDay > daysCompleted) {
-            if (daysDiff === daysCompleted) {
-              urgency = 'today'; // Expected exactly today
-            } else if (daysDiff > daysCompleted) {
-              urgency = 'overdue'; // Missed days
-            }
-          } else {
-            urgency = 'upcoming';
-          }
-        } else {
-          // No joining date — treat as due today if day 1 not done
-          if (nextDay === 1) urgency = 'today';
+          if (daysDiff > daysCompleted) urgency = 'overdue';
         }
 
-        // Check if today's follow-up was already done
         const todayDone = fus.some(f => f.followUpDate === todayStr && f.day === nextDay);
-        if (todayDone) continue;
-
-        generatedTasks.push({
-          uid: customer.uid,
-          customerName: customer.name,
-          phone: customer.phone,
-          goal: customer.diagnosis?.fitnessGoal || '',
-          nextDay,
-          daysCompleted,
-          dayLabel: DAY_TASK_LABELS[nextDay] || `Day ${nextDay}`,
-          urgency,
-          daysDiff,
-        });
+        if (!todayDone) {
+          generatedTasks.push({
+            id: `fu-${customer.uid}-${nextDay}`,
+            type: '10day_followup',
+            uid: customer.uid,
+            name: customer.name || customer.fullName || 'Customer',
+            phone: customer.phone || '',
+            goal: customer.diagnosis?.fitnessGoal || '',
+            nextDay,
+            daysCompleted,
+            title: `Day ${nextDay}: ${DAY_TASK_LABELS[nextDay] || 'Follow-up'}`,
+            description: `10-Day Follow-up Program`,
+            urgency,
+            daysDiff,
+            actionType: 'open_followup_modal',
+            customerObj: customer,
+          });
+        }
       }
 
-      // Sort: overdue first → today → upcoming
+      // Sort: overdue first -> today
       const urgencyOrder = { overdue: 0, today: 1, upcoming: 2 };
       generatedTasks.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
 
@@ -171,18 +323,49 @@ export default function CoachTodayTasks({ coachUid, coachName }) {
     }
   };
 
-  const openTask = (task) => {
-    const customer = allCustomersMap[task.uid];
-    const fus = allFollowupsMap[task.uid] || [];
-    if (!customer) return;
-    setSelectedCustomer(buildFollowUpCustomer(customer, fus));
-    setSelectedFollowups(fus);
+  // Task click handler
+  const handleTaskAction = (task) => {
+    if (task.actionType === 'open_followup_modal') {
+      const customer = task.customerObj || allCustomersMap[task.uid];
+      const fus = allFollowupsMap[task.uid] || [];
+      if (!customer) return;
+      setSelectedCustomer(buildFollowUpCustomer(customer, fus));
+      setSelectedFollowups(fus);
+    } else if (task.actionType === 'open_crm_modal') {
+      setSelectedCrmLead(task.leadObj);
+    } else if (task.actionType === 'open_customer_details') {
+      const customer = task.customerObj || allCustomersMap[task.uid];
+      if (customer) {
+        setSelectedDetailsCustomer({
+          id: customer.uid,
+          uid: customer.uid,
+          fullName: customer.name || customer.fullName || 'Customer',
+          phone: customer.phone || '',
+          startingWeight: customer.diagnosis?.initialWeight || 0,
+          targetWeight: customer.diagnosis?.goalWeight || 0,
+          primaryGoal: customer.diagnosis?.fitnessGoal || '',
+        });
+      }
+    } else if (task.actionType === 'call_phone' && task.phone) {
+      window.location.href = `tel:${task.phone}`;
+    }
+  };
+
+  const handleCrmSave = async (updatedData) => {
+    if (selectedCrmLead?.id) {
+      const docRef = doc(db, 'crm_enquiries', selectedCrmLead.id);
+      await updateDoc(docRef, { ...updatedData, updatedAt: serverTimestamp() });
+    }
+    setSelectedCrmLead(null);
+    fetchTasks();
   };
 
   const closeModal = () => {
     setSelectedCustomer(null);
     setSelectedFollowups([]);
-    fetchTasks(); // refresh after save
+    setSelectedCrmLead(null);
+    setSelectedDetailsCustomer(null);
+    fetchTasks();
   };
 
   const urgencyConfig = {
@@ -194,137 +377,159 @@ export default function CoachTodayTasks({ coachUid, coachName }) {
   const overdueCount = tasks.filter(t => t.urgency === 'overdue').length;
   const todayCount   = tasks.filter(t => t.urgency === 'today').length;
 
+  const filteredTasks = filter === 'overdue'
+    ? tasks.filter(t => t.urgency === 'overdue')
+    : filter === 'today'
+      ? tasks.filter(t => t.urgency === 'today')
+      : tasks;
+
   return (
     <>
       <div className="dashboard-card" style={{ padding: 0, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-        {/* Header */}
+        {/* Card Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 20px',
+          padding: '14px 18px',
           background: 'linear-gradient(135deg, #f0fdf4, #eff6ff)',
           borderBottom: '1px solid var(--border-color)',
+          flexWrap: 'wrap', gap: '8px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.3rem' }}>📌</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>📌</span>
             <div>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', margin: 0 }}>Today's Follow-Up Tasks</h3>
-              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0 }}>
+              <h3 style={{ fontSize: '0.92rem', fontWeight: '800', margin: 0 }}>Today's Action & Follow-Up Tasks</h3>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>
                 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
+
+          {/* Filter Chips */}
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              type="button"
+              onClick={() => setFilter('all')}
+              style={{
+                padding: '2px 8px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
+                background: filter === 'all' ? 'var(--primary)' : '#f3f4f6',
+                color: filter === 'all' ? 'white' : 'var(--text-muted)',
+              }}
+            >
+              All ({tasks.length})
+            </button>
             {overdueCount > 0 && (
-              <span style={{ padding: '3px 10px', borderRadius: '99px', background: '#fef2f2', color: '#dc2626', fontSize: '0.72rem', fontWeight: '800' }}>
+              <button
+                type="button"
+                onClick={() => setFilter('overdue')}
+                style={{
+                  padding: '2px 8px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
+                  background: filter === 'overdue' ? '#dc2626' : '#fef2f2',
+                  color: filter === 'overdue' ? 'white' : '#dc2626',
+                }}
+              >
                 🔴 {overdueCount} Overdue
-              </span>
+              </button>
             )}
             {todayCount > 0 && (
-              <span style={{ padding: '3px 10px', borderRadius: '99px', background: '#fffbeb', color: '#d97706', fontSize: '0.72rem', fontWeight: '800' }}>
-                🟡 {todayCount} Due Today
-              </span>
+              <button
+                type="button"
+                onClick={() => setFilter('today')}
+                style={{
+                  padding: '2px 8px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
+                  background: filter === 'today' ? '#d97706' : '#fffbeb',
+                  color: filter === 'today' ? 'white' : '#d97706',
+                }}
+              >
+                🟡 {todayCount} Today
+              </button>
             )}
           </div>
         </div>
 
-        {/* Task List */}
-        <div style={{ maxHeight: '320px', overflowY: 'auto', flex: 1 }}>
+        {/* Task List Container */}
+        <div style={{ maxHeight: '340px', overflowY: 'auto', flex: 1 }}>
           {loading ? (
             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               ⏳ Loading tasks...
             </div>
-          ) : tasks.length === 0 ? (
+          ) : filteredTasks.length === 0 ? (
             <div style={{ padding: '28px 20px', textAlign: 'center' }}>
               <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎉</div>
               <p style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}>All caught up!</p>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>No pending follow-up tasks for today.</p>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>No pending tasks for this filter.</p>
             </div>
           ) : (
-            tasks.map((task, idx) => {
+            filteredTasks.map((task, idx) => {
               const cfg = urgencyConfig[task.urgency];
               return (
                 <div
-                  key={task.uid}
-                  id={`coach-task-${task.uid}-day${task.nextDay}`}
+                  key={task.id}
+                  id={`task-item-${task.id}`}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    padding: '12px 20px',
-                    borderBottom: idx < tasks.length - 1 ? '1px solid var(--bg-secondary)' : 'none',
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 16px',
+                    borderBottom: idx < filteredTasks.length - 1 ? '1px solid var(--bg-secondary)' : 'none',
                     background: task.urgency === 'overdue' ? '#fff5f5' : 'transparent',
                     transition: 'background 0.15s',
                   }}
                 >
                   {/* Avatar */}
                   <div style={{
-                    width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
-                    background: 'linear-gradient(135deg, var(--primary), #2563eb)',
+                    width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
+                    background: task.type?.includes('coach')
+                      ? 'linear-gradient(135deg, #10b981, #2563eb)'
+                      : task.type === 'crm_followup'
+                        ? 'linear-gradient(135deg, #d97706, #2563eb)'
+                        : 'linear-gradient(135deg, var(--primary), #2563eb)',
                     color: 'white', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: '0.9rem', fontWeight: '800',
+                    justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
                   }}>
-                    {task.customerName?.charAt(0)?.toUpperCase()}
+                    {task.name?.charAt(0)?.toUpperCase()}
                   </div>
 
-                  {/* Task info */}
+                  {/* Task Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: '700', fontSize: '0.88rem', color: 'var(--text-main)' }}>
-                        {task.customerName}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: '800', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                        {task.title}
                       </span>
                       {task.phone && (
                         <a
                           href={`tel:${task.phone}`}
                           style={{
-                            color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
-                            background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1px 6px', borderRadius: '4px'
+                            color: '#16a34a', fontSize: '0.68rem', fontWeight: '800', textDecoration: 'none',
+                            background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1px 5px', borderRadius: '4px'
                           }}
                           title={`Call ${task.phone}`}
                         >
                           📞 Call
                         </a>
                       )}
-                      {/* Urgency badge */}
                       <span style={{
-                        padding: '2px 8px', borderRadius: '99px', fontSize: '0.66rem', fontWeight: '800',
+                        padding: '1px 6px', borderRadius: '99px', fontSize: '0.62rem', fontWeight: '800',
                         background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
-                        whiteSpace: 'nowrap',
                       }}>
                         {cfg.icon} {cfg.label}
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{
-                        background: 'var(--primary-light)', color: 'var(--primary)',
-                        padding: '1px 7px', borderRadius: '4px', fontWeight: '700', fontSize: '0.7rem',
-                      }}>
-                        Day {task.nextDay}
-                      </span>
-                      <span>{task.dayLabel}</span>
-                      {task.goal && <span style={{ color: 'var(--text-muted)' }}>· {task.goal}</span>}
+
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {task.description}
                     </div>
-                    {task.urgency === 'overdue' && task.daysDiff > task.daysCompleted && (
-                      <div style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: '2px', fontWeight: '600' }}>
-                        ⚠️ {task.daysDiff - task.daysCompleted} day{task.daysDiff - task.daysCompleted > 1 ? 's' : ''} behind schedule
-                      </div>
-                    )}
                   </div>
 
-                  {/* Progress mini */}
-                  <div style={{ textAlign: 'center', flexShrink: 0, minWidth: '48px' }}>
-                    <div style={{ fontSize: '0.72rem', fontWeight: '800', color: 'var(--primary)' }}>
-                      {task.daysCompleted}/10
-                    </div>
-                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>done</div>
-                  </div>
-
-                  {/* Open button */}
+                  {/* Action Button */}
                   <button
-                    className="btn btn-primary"
-                    style={{ width: 'auto', padding: '6px 14px', fontSize: '0.75rem', fontWeight: '700', flexShrink: 0 }}
-                    onClick={() => openTask(task)}
-                    id={`task-open-${task.uid}`}
+                    className="btn btn-primary btn-sm"
+                    style={{ width: 'auto', padding: '4px 10px', fontSize: '0.72rem', fontWeight: '800', flexShrink: 0 }}
+                    onClick={() => handleTaskAction(task)}
+                    id={`task-btn-${task.id}`}
                   >
-                    {task.daysCompleted === 0 ? '▶ Start' : '✏️ Fill Day ' + task.nextDay}
+                    {task.type === '10day_followup' ? (task.daysCompleted === 0 ? '▶ Start' : `✏️ Fill Day ${task.nextDay}`)
+                      : task.type === 'crm_followup' ? '📋 View CRM Lead'
+                      : task.type === 'customer_missed_meeting' || task.type === 'customer_missed_weight' ? '📞 Follow Up'
+                      : '📞 Call Coach'}
                   </button>
                 </div>
               );
@@ -333,7 +538,7 @@ export default function CoachTodayTasks({ coachUid, coachName }) {
         </div>
       </div>
 
-      {/* Follow-Up Form Modal */}
+      {/* Modals */}
       {selectedCustomer && (
         <FollowUpFormModal
           customer={selectedCustomer}
@@ -342,6 +547,23 @@ export default function CoachTodayTasks({ coachUid, coachName }) {
           coachName={coachName}
           onClose={closeModal}
           onSaved={fetchTasks}
+        />
+      )}
+
+      {selectedCrmLead && (
+        <CrmEnquiryModal
+          enquiry={selectedCrmLead}
+          onSave={handleCrmSave}
+          onClose={closeModal}
+          autoCallLogFocus={true}
+        />
+      )}
+
+      {selectedDetailsCustomer && (
+        <CustomerDetailsModal
+          customer={selectedDetailsCustomer}
+          onClose={closeModal}
+          autoCallLogFocus={true}
         />
       )}
     </>

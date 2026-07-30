@@ -266,7 +266,7 @@ export default function DashboardPage() {
                 alignItems: 'stretch',
               }}>
                 {isCoach && (
-                  <CoachTodayTasks coachUid={user.uid} coachName={userData?.name || ''} />
+                  <CoachTodayTasks coachUid={user.uid} coachName={userData?.name || ''} userRole={userData?.role || 'coach'} />
                 )}
                 <TodaysMeetings user={user} userData={userData} />
               </div>
