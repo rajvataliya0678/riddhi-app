@@ -17,10 +17,12 @@ import CoachTodayTasks from '@/components/CoachTodayTasks';
 import TodaysMeetings from '@/components/TodaysMeetings';
 import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
 import MyCoachesTab from '@/components/MyCoachesTab';
+import AttendanceTab from '@/components/AttendanceTab';
 
 // ── Sidebar nav items ────────────────────────────────────
 const NAV_ITEMS = [
   { id: 'dashboard', icon: '🏠', label: 'My Dashboard', roles: ['customer', 'coach', 'admin'] },
+  { id: 'attendance', icon: '📅', label: 'Attendance', roles: ['customer', 'coach', 'admin'] },
   { id: 'customers', icon: '👥', label: 'My Customers', roles: ['coach', 'admin'] },
   { id: 'crm', icon: '📋', label: 'CRM', roles: ['coach', 'admin'] },
   { id: 'crm_analytics', icon: '📊', label: 'CRM Analytics', roles: ['coach', 'admin'] },
@@ -415,6 +417,9 @@ export default function DashboardPage() {
 
           {/* ── MY COACHES TAB ── */}
           {activeTab === 'my_coaches' && isCoach && <MyCoachesTab coachUid={user.uid} />}
+
+          {/* ── ATTENDANCE TAB ── */}
+          {activeTab === 'attendance' && <AttendanceTab user={user} userData={userData} />}
 
           {/* ── ADMIN TAB ── */}
           {activeTab === 'admin' && isAdmin && <AdminTab currentAdminUid={user.uid} />}

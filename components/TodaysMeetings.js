@@ -449,17 +449,20 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
                             userData
                           );
 
-                          // Determine session type (Morning < 14:00, Evening >= 14:00)
+                          // Determine session type
                           const hour = parseInt(m.time?.split(':')[0] || '12', 10);
-                          const sessionType = (hour < 14) ? 'morning' : 'evening';
+                          const todayDay = new Date().getDay(); // 0=Sun, 4=Thu
+                          const isThursdayTraining = todayDay === 4 && (m.visibleTo === 'coaches');
+                          const sessionType = isThursdayTraining ? 'training' : (hour < 14) ? 'morning' : 'evening';
 
-                          // Auto-mark Attendance in Firestore for this customer & date
+                          // Auto-mark Attendance in Firestore for this user & date
                           if (uid) {
                             const todayStr = new Date().toISOString().split('T')[0];
                             addDoc(collection(db, 'meeting_attendance'), {
                               uid: uid,
                               customerName: userData?.name || 'Customer',
                               coachId: userData?.coachId || '',
+                              userRole: role,
                               date: todayStr,
                               sessionType,
                               meetingId: m.id,
