@@ -144,6 +144,12 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       );
       const weightHistoryList = weightSnap.docs.map(d => d.data());
 
+      // 6. Fetch Completed Tasks for today
+      const completedSnap = await getDocs(
+        query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid), where('date', '==', todayStr))
+      );
+      const completedIds = new Set(completedSnap.docs.map(d => d.data().taskId));
+
       setAllCustomersMap(customersMap);
       setAllFollowupsMap(followupsMap);
 
@@ -315,11 +321,47 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       const urgencyOrder = { overdue: 0, today: 1, upcoming: 2 };
       generatedTasks.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
 
-      setTasks(generatedTasks);
+      const pendingTasks = generatedTasks.filter(t => !completedIds.has(t.id));
+      setTasks(pendingTasks);
     } catch (err) {
       console.error('CoachTodayTasks fetch error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMarkDone = async (task, e) => {
+    if (e) e.stopPropagation();
+    try {
+      setTasks(prev => prev.filter(t => t.id !== task.id));
+      await addDoc(collection(db, 'completed_tasks'), {
+        taskId: task.id,
+        coachUid: coachUid || '',
+        date: todayStr,
+        taskTitle: task.title,
+        completedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error('Error marking task done:', err);
+    }
+  };
+
+  const handleMarkAllDone = async () => {
+    if (!window.confirm('Mark all pending tasks as Done for today?')) return;
+    try {
+      const currentTasks = [...tasks];
+      setTasks([]);
+      for (const t of currentTasks) {
+        await addDoc(collection(db, 'completed_tasks'), {
+          taskId: t.id,
+          coachUid: coachUid || '',
+          date: todayStr,
+          taskTitle: t.title,
+          completedAt: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.error('Error marking all tasks done:', err);
     }
   };
 
@@ -444,6 +486,22 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
                 🟡 {todayCount} Today
               </button>
             )}
+
+            {tasks.length > 0 && (
+              <button
+                type="button"
+                onClick={handleMarkAllDone}
+                style={{
+                  padding: '2px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: '800',
+                  background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', cursor: 'pointer',
+                  marginLeft: '4px'
+                }}
+                title="Mark all pending tasks as Done for today"
+                id="mark-all-tasks-done-btn"
+              >
+                ✅ Mark All Done
+              </button>
+            )}
           </div>
         </div>
 
@@ -519,18 +577,33 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
                     </div>
                   </div>
 
-                  {/* Action Button */}
-                  <button
-                    className="btn btn-primary btn-sm"
-                    style={{ width: 'auto', padding: '4px 10px', fontSize: '0.72rem', fontWeight: '800', flexShrink: 0 }}
-                    onClick={() => handleTaskAction(task)}
-                    id={`task-btn-${task.id}`}
-                  >
-                    {task.type === '10day_followup' ? (task.daysCompleted === 0 ? '▶ Start' : `✏️ Day ${task.nextDay}`)
-                      : task.type === 'crm_followup' ? '📋 CRM Lead'
-                      : task.type === 'customer_missed_meeting' || task.type === 'customer_missed_weight' ? '📞 Follow Up'
-                      : '📞 Call'}
-                  </button>
+                  {/* Action Buttons: Action + Done */}
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      style={{ width: 'auto', padding: '4px 8px', fontSize: '0.72rem', fontWeight: '800' }}
+                      onClick={() => handleTaskAction(task)}
+                      id={`task-btn-${task.id}`}
+                    >
+                      {task.type === '10day_followup' ? (task.daysCompleted === 0 ? '▶ Start' : `✏️ Day ${task.nextDay}`)
+                        : task.type === 'crm_followup' ? '📋 CRM Lead'
+                        : task.type === 'customer_missed_meeting' || task.type === 'customer_missed_weight' ? '📞 Follow Up'
+                        : '📞 Call'}
+                    </button>
+
+                    <button
+                      type="button"
+                      style={{
+                        padding: '4px 8px', fontSize: '0.72rem', fontWeight: '800', borderRadius: '6px',
+                        background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', cursor: 'pointer'
+                      }}
+                      onClick={(e) => handleMarkDone(task, e)}
+                      id={`task-done-btn-${task.id}`}
+                      title="Mark this task as completed for today"
+                    >
+                      ✅ Done
+                    </button>
+                  </div>
                 </div>
               );
             })
