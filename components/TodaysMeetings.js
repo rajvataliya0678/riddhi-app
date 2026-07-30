@@ -114,6 +114,52 @@ function AddMeetingModal({ onClose, onSaved, createdBy }) {
             </div>
           </div>
 
+          {/* Quick Time Presets */}
+          <div className="form-group">
+            <label className="form-label" style={{ fontSize: '0.78rem' }}>Quick Session Time Presets</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => { set('time', '11:00'); set('visibleTo', 'customers'); }}
+                style={{
+                  padding: '6px 4px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
+                  border: form.time === '11:00' ? '2px solid #0284c7' : '1px solid var(--border-color)',
+                  background: form.time === '11:00' ? '#e0f2fe' : 'white',
+                  color: form.time === '11:00' ? '#0369a1' : 'var(--text-main)',
+                  cursor: 'pointer'
+                }}
+              >
+                🌅 Morning 11:00 AM
+              </button>
+              <button
+                type="button"
+                onClick={() => { set('time', '19:45'); set('visibleTo', 'customers'); }}
+                style={{
+                  padding: '6px 4px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
+                  border: form.time === '19:45' ? '2px solid #7e22ce' : '1px solid var(--border-color)',
+                  background: form.time === '19:45' ? '#faf5ff' : 'white',
+                  color: form.time === '19:45' ? '#6b21a8' : 'var(--text-main)',
+                  cursor: 'pointer'
+                }}
+              >
+                🌇 Evening 07:45 PM
+              </button>
+              <button
+                type="button"
+                onClick={() => { set('time', '13:45'); set('visibleTo', 'coaches'); set('recurrence', 'single'); }}
+                style={{
+                  padding: '6px 4px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
+                  border: form.time === '13:45' ? '2px solid #2563eb' : '1px solid var(--border-color)',
+                  background: form.time === '13:45' ? '#eff6ff' : 'white',
+                  color: form.time === '13:45' ? '#1d4ed8' : 'var(--text-main)',
+                  cursor: 'pointer'
+                }}
+              >
+                🎓 Thu Training 01:45 PM
+              </button>
+            </div>
+          </div>
+
           {/* Time & Date */}
           <div className="form-row-2">
             {form.recurrence === 'single' && (
@@ -377,10 +423,30 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
       userData
     );
 
-    const hour = parseInt(m.time?.split(':')[0] || '12', 10);
-    const todayDay = new Date().getDay();
-    const isThursdayTraining = todayDay === 4 && (m.visibleTo === 'coaches');
-    const sessionType = isThursdayTraining ? 'training' : (hour < 14) ? 'morning' : 'evening';
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const dayOfWeek = now.getDay();
+
+    const meetingHour = parseInt(m.time?.split(':')[0] || '11', 10);
+    const isThursdayTraining = dayOfWeek === 4 && (m.visibleTo === 'coaches' || (currentMinutes >= 825 && currentMinutes <= 1020));
+
+    let sessionType = 'morning';
+
+    if (isThursdayTraining) {
+      sessionType = 'training';
+    } else if (currentMinutes >= 1185 && currentMinutes <= 1260) { // 7:45 PM (1185m) to 9:00 PM (1260m)
+      sessionType = 'evening';
+    } else if (currentMinutes >= 660 && currentMinutes <= 750) { // 11:00 AM (660m) to 12:30 PM (750m)
+      sessionType = 'morning';
+    } else {
+      if (dayOfWeek === 4 && (m.visibleTo === 'coaches' || (meetingHour >= 13 && meetingHour <= 16))) {
+        sessionType = 'training';
+      } else if (meetingHour >= 17 || meetingHour < 6) {
+        sessionType = 'evening';
+      } else {
+        sessionType = 'morning';
+      }
+    }
 
     if (uid) {
       addDoc(collection(db, 'meeting_attendance'), {
