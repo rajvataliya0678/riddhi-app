@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  collection, query, getDocs, addDoc, deleteDoc, doc, serverTimestamp
+  collection, query, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -15,7 +15,7 @@ function AddMeetingModal({ onClose, onSaved, createdBy }) {
     date: todayStr,
     time: '07:00',
     meetingUrl: '',
-    visibleTo: 'customers', // 'customers' (For Customers - Available to Everyone) | 'coaches' (For Coaches Only)
+    visibleTo: 'customers', // 'customers' (For Customers) | 'coaches' (For Coaches Only)
     description: '',
   });
   const [saving, setSaving] = useState(false);
@@ -27,7 +27,6 @@ function AddMeetingModal({ onClose, onSaved, createdBy }) {
     e.preventDefault();
     if (!form.title.trim()) { setError('Meeting title required.'); return; }
     if (!form.time) { setError('Time required.'); return; }
-    if (!form.meetingUrl.trim()) { setError('Meeting link required.'); return; }
 
     setSaving(true);
     setError('');
@@ -143,21 +142,23 @@ function AddMeetingModal({ onClose, onSaved, createdBy }) {
             </div>
           </div>
 
-          {/* Meeting Link */}
+          {/* Meeting Link (OPTIONAL) */}
           <div className="form-group">
-            <label className="form-label">Meeting Link (Zoom / Google Meet URL) *</label>
+            <label className="form-label">Meeting Link (Zoom / Google Meet URL - Optional)</label>
             <input
               id="meeting-url"
               className="form-input"
               type="url"
-              placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+              placeholder="https://zoom.us/j/... (Can be added 5 mins before session)"
               value={form.meetingUrl}
               onChange={e => set('meetingUrl', e.target.value)}
-              required
             />
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+              * Link is optional. You can add or paste the link 5 minutes before the meeting starts.
+            </p>
           </div>
 
-          {/* Target Audience / Feature Choice */}
+          {/* Target Audience */}
           <div className="form-group">
             <label className="form-label">Target Audience (Who can see & join?) *</label>
             <select
@@ -170,15 +171,75 @@ function AddMeetingModal({ onClose, onSaved, createdBy }) {
               <option value="customers">👥 For Customers (Available for Everyone)</option>
               <option value="coaches">👨‍🏫 For Coaches Only (Coaches & Club Owner)</option>
             </select>
-            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              * Customer meetings are automatically visible to all customers, coaches, and owners.
-            </p>
           </div>
 
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
             <button type="button" onClick={onClose} className="btn btn-secondary" style={{ width: 'auto' }}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving} id="meeting-save-btn" style={{ width: 'auto' }}>
               {saving ? '⏳ Saving...' : '✅ Schedule Meeting'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Quick Add/Edit Link Modal ─────────────────────────────
+function QuickLinkModal({ meeting, onClose, onSaved }) {
+  const [url, setUrl] = useState(meeting?.meetingUrl || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'meetings', meeting.id), {
+        meetingUrl: url.trim(),
+        updatedAt: serverTimestamp(),
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      console.error('Error updating meeting link:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-card" style={{ maxWidth: '440px', width: '92vw' }}>
+        <div className="modal-header">
+          <div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', margin: 0 }}>
+              🔗 {meeting?.meetingUrl ? 'Edit Meeting Link' : 'Add Meeting Link'}
+            </h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+              {meeting?.title}
+            </p>
+          </div>
+          <button onClick={onClose} className="modal-close">&times;</button>
+        </div>
+        <form onSubmit={handleSave} style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
+            <label className="form-label" style={{ fontSize: '0.78rem' }}>Zoom / Google Meet URL</label>
+            <input
+              type="url"
+              className="form-input"
+              placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              autoFocus
+            />
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              * You can paste or update the link anytime before session starts.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ width: 'auto' }}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving} style={{ width: 'auto' }}>
+              {saving ? '⏳ Saving...' : '💾 Save Link'}
             </button>
           </div>
         </form>
@@ -227,25 +288,17 @@ function buildCustomizedZoomUrl(baseUrl, user, userData) {
   const role = userData?.role || 'customer';
   const fullName = userData?.name || user?.displayName || 'Member';
 
-  // Extract member first name
   let firstName = fullName.trim().split(' ')[0] || 'Member';
   firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
 
-  // Extract coach first name
   let coachFullName = userData?.coachName || (role !== 'customer' ? fullName : 'Coach');
   let coachFirstName = coachFullName.trim().split(' ')[0] || 'Coach';
   coachFirstName = coachFirstName.charAt(0).toUpperCase() + coachFirstName.slice(1);
 
-  // Role tag: CM = Customer, CH = Coach/Admin
   const roleTag = role === 'customer' ? 'CM' : 'CH';
-
-  // Construct parameter: PRV/<RoleTag>/<FirstName>/<CoachFirstName>
-  // Customer: PRV/CM/<FirstName>/<CoachName> -> encoded: PRV%2FCM%2F<First_Name>%2F<Coach_Name>
-  // Coach:    PRV/CH/<FirstName>/<CoachName> -> encoded: PRV%2FCH%2F<First_Name>%2F<Coach_Name>
   const unameRaw = `PRV/${roleTag}/${firstName}/${coachFirstName}`;
   const unameParam = `uname=${encodeURIComponent(unameRaw)}`;
 
-  // Avoid duplicating if already present
   if (baseUrl.includes('uname=')) {
     return baseUrl;
   }
@@ -256,10 +309,11 @@ function buildCustomizedZoomUrl(baseUrl, user, userData) {
 
 // ── Main Component ────────────────────────────────────────
 export default function TodaysMeetings({ user, userData, userRole, userId }) {
-  const [meetings, setMeetings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [, setTick] = useState(0);
+  const [meetings, setMeetings]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [showAdd, setShowAdd]           = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState(null);
+  const [, setTick]                     = useState(0);
 
   const role = userRole || userData?.role || 'customer';
   const uid = userId || user?.uid || '';
@@ -267,7 +321,6 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Live refresh every minute
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 60000);
     return () => clearInterval(interval);
@@ -281,19 +334,14 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
       const snap = await getDocs(collection(db, 'meetings'));
       const allMeetings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      // Filter meetings for today + role visibility
       const filtered = allMeetings.filter(m => {
-        // 1. Date / Recurrence Match: Daily recurrence OR matches today's date
         const isToday = m.recurrence === 'daily' || m.date === todayStr;
         if (!isToday) return false;
 
-        // 2. Role Visibility Match:
-        // Everything for customer is available for everyone (customers, coaches, owners).
         if (m.visibleTo === 'customers' || m.visibleTo === 'all' || !m.visibleTo) {
           return true;
         }
 
-        // Coaches-only meetings visible to coaches and owners
         if (m.visibleTo === 'coaches' && (role === 'coach' || role === 'admin')) {
           return true;
         }
@@ -301,7 +349,6 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
         return false;
       });
 
-      // Sort by time
       filtered.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
       setMeetings(filtered);
     } catch (err) {
@@ -321,13 +368,44 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
     }
   };
 
+  const handleJoin = (m) => {
+    if (!m.meetingUrl) return;
+
+    const finalUrl = buildCustomizedZoomUrl(
+      m.meetingUrl,
+      user,
+      userData
+    );
+
+    const hour = parseInt(m.time?.split(':')[0] || '12', 10);
+    const todayDay = new Date().getDay();
+    const isThursdayTraining = todayDay === 4 && (m.visibleTo === 'coaches');
+    const sessionType = isThursdayTraining ? 'training' : (hour < 14) ? 'morning' : 'evening';
+
+    if (uid) {
+      addDoc(collection(db, 'meeting_attendance'), {
+        uid: uid,
+        customerName: userData?.name || 'Customer',
+        coachId: userData?.coachId || '',
+        userRole: role,
+        date: todayStr,
+        sessionType,
+        meetingId: m.id,
+        meetingTitle: m.title,
+        attendedAt: serverTimestamp(),
+      }).catch(err => console.error('Attendance mark error:', err));
+    }
+
+    window.open(finalUrl, '_blank');
+  };
+
   const liveCount = meetings.filter(m => ['ongoing', 'starting'].includes(getMeetingStatus(m.time))).length;
 
   return (
     <>
       <div className="dashboard-card" style={{ padding: 0, overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '16px 20px',
@@ -366,7 +444,7 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
           </div>
         </div>
 
-        {/* ── Meeting List Container (Scrollable) ── */}
+        {/* Meeting List Container */}
         <div style={{ maxHeight: '320px', overflowY: 'auto', flex: 1 }}>
           {loading ? (
             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -428,55 +506,52 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
                       </span>
                     </div>
 
-                    {/* Join Button */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
-                      <button
-                        className="btn btn-primary"
-                        style={{
-                          flex: 1,
-                          padding: '8px 14px',
-                          fontSize: '0.82rem',
-                          fontWeight: '800',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justify: 'center',
-                          gap: '6px',
-                        }}
-                        onClick={() => {
-                          const finalUrl = buildCustomizedZoomUrl(
-                            m.meetingUrl,
-                            user,
-                            userData
-                          );
+                    {/* Meeting Link / Join Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
+                      {m.meetingUrl ? (
+                        <button
+                          className="btn btn-primary"
+                          style={{
+                            flex: 1,
+                            padding: '8px 14px',
+                            fontSize: '0.82rem',
+                            fontWeight: '800',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                          }}
+                          onClick={() => handleJoin(m)}
+                          id={`join-meeting-btn-${m.id}`}
+                        >
+                          📹 Join Meeting
+                        </button>
+                      ) : (
+                        <div style={{
+                          flex: 1, padding: '7px 12px', borderRadius: '6px',
+                          background: '#fffbeb', border: '1px solid #fcd34d', color: '#d97706',
+                          fontSize: '0.75rem', fontWeight: '800', textAlign: 'center',
+                        }}>
+                          ⏳ Link Updating 5 Mins Before Session
+                        </div>
+                      )}
 
-                          // Determine session type
-                          const hour = parseInt(m.time?.split(':')[0] || '12', 10);
-                          const todayDay = new Date().getDay(); // 0=Sun, 4=Thu
-                          const isThursdayTraining = todayDay === 4 && (m.visibleTo === 'coaches');
-                          const sessionType = isThursdayTraining ? 'training' : (hour < 14) ? 'morning' : 'evening';
-
-                          // Auto-mark Attendance in Firestore for this user & date
-                          if (uid) {
-                            const todayStr = new Date().toISOString().split('T')[0];
-                            addDoc(collection(db, 'meeting_attendance'), {
-                              uid: uid,
-                              customerName: userData?.name || 'Customer',
-                              coachId: userData?.coachId || '',
-                              userRole: role,
-                              date: todayStr,
-                              sessionType,
-                              meetingId: m.id,
-                              meetingTitle: m.title,
-                              attendedAt: serverTimestamp(),
-                            }).catch(err => console.error('Attendance mark error:', err));
-                          }
-
-                          window.open(finalUrl, '_blank');
-                        }}
-                        id={`join-meeting-btn-${m.id}`}
-                      >
-                        📹 Join Meeting
-                      </button>
+                      {canAdd && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingMeeting(m)}
+                          style={{
+                            padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800',
+                            background: m.meetingUrl ? '#f3f4f6' : 'var(--primary)',
+                            color: m.meetingUrl ? 'var(--text-main)' : 'white',
+                            border: m.meetingUrl ? '1px solid var(--border-color)' : 'none',
+                            cursor: 'pointer', whiteSpace: 'nowrap'
+                          }}
+                          title="Add or update Zoom/Meet link"
+                        >
+                          {m.meetingUrl ? '✏️ Edit Link' : '🔗 + Add Link'}
+                        </button>
+                      )}
 
                       {canAdd && (
                         <button
@@ -506,6 +581,15 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
           onClose={() => setShowAdd(false)}
           onSaved={fetchMeetings}
           createdBy={uid}
+        />
+      )}
+
+      {/* Quick Add / Edit Link Modal */}
+      {editingMeeting && (
+        <QuickLinkModal
+          meeting={editingMeeting}
+          onClose={() => setEditingMeeting(null)}
+          onSaved={fetchMeetings}
         />
       )}
     </>
