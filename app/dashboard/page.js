@@ -114,13 +114,13 @@ export default function DashboardPage() {
       const existingSnap = await getDocs(
         query(
           collection(db, 'weight_history'),
-          where('uid', '==', user.uid),
-          where('date', '==', todayStr)
+          where('uid', '==', user.uid)
         )
       );
 
-      if (!existingSnap.empty) {
-        const existingDoc = existingSnap.docs[0];
+      const existingDoc = existingSnap.docs.find(d => d.data().date === todayStr);
+
+      if (existingDoc) {
         await updateDoc(doc(db, 'weight_history', existingDoc.id), {
           weight: val,
           updatedAt: serverTimestamp(),

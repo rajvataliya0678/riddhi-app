@@ -217,7 +217,9 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
           query(collection(db, 'weight_history'), where('date', '>=', threeDaysAgoStr))
         ),
         getDocs(
-          query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid), where('date', '==', todayStr))
+          isAdmin
+            ? collection(db, 'completed_tasks')
+            : query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid))
         ),
         getDocs(
           isAdmin
@@ -259,7 +261,12 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       const crmLeads = crmSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const attendanceList = attSnap.docs.map(d => d.data());
       const weightHistoryList = weightSnap.docs.map(d => d.data());
-      const completedIds = new Set(completedSnap.docs.map(d => d.data().taskId));
+      const completedIds = new Set(
+        completedSnap.docs
+          .map(d => d.data())
+          .filter(d => d.date === todayStr)
+          .map(d => d.taskId)
+      );
 
       setAllCustomersMap(customersMap);
       setAllFollowupsMap(followupsMap);

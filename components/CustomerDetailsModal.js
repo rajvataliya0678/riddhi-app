@@ -58,8 +58,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
       const attSnap = await getDocs(
         query(
           collection(db, 'meeting_attendance'),
-          where('uid', '==', uid),
-          where('date', '>=', thirtyDaysAgoStr)
+          where('uid', '==', uid)
         )
       );
 
@@ -68,6 +67,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
 
       attSnap.docs.forEach(d => {
         const data = d.data();
+        if (!data.date || data.date < thirtyDaysAgoStr) return;
         if (data.sessionType === 'evening') {
           eveningMap[data.date] = true;
         } else {
