@@ -1245,34 +1245,417 @@ input, select, textarea { font-family: var(--font-body); }
 }
 
 /* ==============================================
-   RESPONSIVE — MOBILE SIDEBAR COLLAPSE
+   RESPONSIVE — MOBILE LAYOUT (≤768px)
+   Complete mobile-first overhaul:
+   - Sidebar → hidden (replaced by bottom tab bar + hamburger drawer in JS)
+   - Grids → single column stacking
+   - Modals → bottom sheet style
+   - Tables → compact with horizontal scroll
+   - Touch-friendly sizing
    ============================================== */
 
+/* ── Mobile Bottom Tab Bar ── */
+.mobile-bottom-nav {
+  display: none;
+}
+
+.mobile-top-bar {
+  display: none;
+}
+
+.sidebar-drawer-overlay {
+  display: none;
+}
+
 @media (max-width: 768px) {
+
+  /* ── Hide Desktop Sidebar ── */
   .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    flex-direction: row;
-    flex-wrap: wrap;
-    border-right: none;
-    border-bottom: 1px solid var(--sidebar-border);
+    display: none !important;
   }
 
-  .sidebar-nav { flex-direction: row; flex-wrap: wrap; padding: 8px 12px; }
-  .sidebar-section-label { display: none; }
-  .sidebar-link { width: auto; padding: 6px 10px; font-size: 0.8rem; }
-  .sidebar-logo { border-bottom: none; border-right: 1px solid var(--sidebar-border); flex: 0 0 auto; }
-  .sidebar-footer { display: none; }
+  /* ── Main Panel: remove left margin ── */
+  .main-panel {
+    margin-left: 0;
+    padding-bottom: 72px; /* space for bottom nav */
+  }
 
-  .main-panel { margin-left: 0; }
-  .main-panel-body { padding: 16px; }
-  .main-panel-header { padding: 14px 16px; }
+  .main-panel-header {
+    padding: 12px 16px;
+  }
 
-  .dashboard-grid { grid-template-columns: 1fr; }
-  .gamified-grid  { grid-template-columns: 1fr; }
-  .form-row       { grid-template-columns: 1fr; }
-  .form-time-row  { grid-template-columns: 1fr 1fr; }
+  .main-panel-body {
+    padding: 16px;
+  }
+
+  .page-title-block h1 {
+    font-size: 1.15rem;
+  }
+
+  .page-title-block p {
+    font-size: 0.75rem;
+  }
+
+  /* ── Mobile Top Bar ── */
+  .mobile-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 200;
+  }
+
+  .mobile-top-bar-logo {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: var(--primary);
+  }
+
+  .mobile-hamburger {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--bg-main);
+    border: 1.5px solid var(--border-color);
+    color: var(--text-main);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-smooth);
+  }
+  .mobile-hamburger:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-mid);
+    color: var(--primary);
+  }
+
+  /* ── Mobile Bottom Tab Bar ── */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background: var(--card-bg);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+    z-index: 200;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mobile-bottom-nav::-webkit-scrollbar { display: none; }
+
+  .mobile-tab-btn {
+    flex: 1;
+    min-width: 64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.15rem;
+    cursor: pointer;
+    padding: 6px 4px;
+    transition: var(--transition-smooth);
+    position: relative;
+  }
+
+  .mobile-tab-btn span.mobile-tab-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 64px;
+  }
+
+  .mobile-tab-btn.active {
+    color: var(--primary);
+    font-weight: 800;
+  }
+
+  .mobile-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 25%;
+    right: 25%;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 0 0 3px 3px;
+  }
+
+  /* ── Sidebar Drawer Overlay ── */
+  .sidebar-drawer-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 300;
+    animation: fadeInOverlay 0.2s ease;
+  }
+
+  @keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .sidebar-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: var(--card-bg);
+    z-index: 301;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+    animation: slideInDrawer 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+  }
+
+  @keyframes slideInDrawer {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+  }
+
+  .sidebar-drawer .sidebar-logo {
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .sidebar-drawer .sidebar-nav {
+    flex: 1;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sidebar-drawer .sidebar-link {
+    padding: 11px 14px;
+    font-size: 0.9rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .sidebar-drawer .sidebar-footer {
+    padding: 14px 12px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  /* ── Dashboard Grids → Stack ── */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-card {
+    padding: 16px;
+  }
+
+  /* ── Responsive Grid Classes (used by dashboard page.js) ── */
+  .resp-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .resp-grid-tasks {
+    grid-template-columns: 1fr !important;
+  }
+
+  .resp-grid-stats {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .resp-grid-stats .dashboard-card {
+    padding: 12px 8px;
+  }
+
+  .resp-grid-stats .dashboard-card p[style] {
+    font-size: 1.3rem !important;
+  }
+
+  /* ── Modals → Bottom Sheets ── */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 20px 16px;
+    animation: slideUpSheet 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .profile-modal-card {
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 92vh;
+    padding: 20px 16px;
+  }
+
+  .detail-modal-card {
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 92vh;
+    padding: 20px 16px;
+  }
+
+  @keyframes slideUpSheet {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  /* ── Tables → Compact ── */
+  .crm-table th, .crm-table td,
+  .admin-table th, .admin-table td,
+  .history-table th, .history-table td {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+
+  .crm-table { min-width: 600px; }
+  .admin-table { min-width: 600px; }
+
+  /* ── Forms → Single Column + Touch-Friendly ── */
+  .form-row, .form-row-2, .form-row-3, .form-time-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .form-input, .form-select {
+    min-height: 44px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  /* ── Cards & Spacing ── */
+  .customers-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .followup-customer-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .badges-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)) !important;
+  }
+
+  .gamified-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Scale Bubbles ── */
+  .scale-bubble {
+    width: 30px;
+    height: 30px;
+    font-size: 0.72rem;
+  }
+
+  /* ── Auth Pages ── */
+  .auth-card {
+    padding: 24px 20px;
+  }
+
+  /* ── CRM Pipeline Stats (mobile 3 across) ── */
+  .crm-pipeline-stats {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .crm-pipeline-stats .dashboard-card {
+    padding: 10px 6px !important;
+  }
+
+  .crm-pipeline-stats .dashboard-card span:first-child {
+    font-size: 1.2rem !important;
+  }
+
+  .crm-pipeline-stats .dashboard-card span:last-child {
+    font-size: 0.58rem !important;
+  }
+
+  /* ── Streak Hero ── */
+  .streak-hero {
+    padding: 14px 16px;
+  }
+
+  .streak-number {
+    font-size: 2rem;
+  }
+
+  /* ── Header Actions ── */
+  .main-panel-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── CRM Toolbar ── */
+  .crm-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .crm-filter-select {
+    width: 100%;
+  }
+
+  .crm-add-btn {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  /* ── Admin Toolbar ── */
+  .admin-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-search-input {
+    min-width: auto;
+    width: 100%;
+  }
+
+  /* ── Followup Section ── */
+  .followup-section-block {
+    padding: 16px;
+  }
+
+  /* ── BMR Display ── */
+  .bmr-value {
+    font-size: 1.8rem;
+  }
+
+  /* ── Weekly Insight ── */
+  .weekly-insight-card {
+    padding: 12px;
+  }
+
+  /* ── Quote Card ── */
+  .quote-card {
+    padding: 14px 16px 14px 22px;
+  }
 }
 
 /* ==============================================

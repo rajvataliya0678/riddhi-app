@@ -230,7 +230,7 @@ export default function CrmTab({ coachUid }) {
       </div>
 
       {/* Pipeline Quick Stats (Interactive cards for all 7 stages) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginBottom: '24px' }}>
+      <div className="crm-pipeline-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginBottom: '24px' }}>
         <div
           className="dashboard-card"
           onClick={() => setFilterStatus('All')}

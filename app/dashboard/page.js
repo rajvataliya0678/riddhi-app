@@ -53,6 +53,7 @@ export default function DashboardPage() {
   const [newWeight, setNewWeight] = useState('');
   const [modalError, setModalError] = useState('');
   const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const role = userData?.role || 'customer';
   const isCoach = role === 'coach' || role === 'admin';
@@ -100,65 +101,121 @@ export default function DashboardPage() {
     e.preventDefault();
     setModalError('');
     const val = parseFloat(newWeight);
-    if (isNaN(val) || val <= 10 || val > 300) { setModalError('Enter valid weight (10–300 kg).'); return; }
 
-    setModalSubmitting(true);
+    if (isNaN(val) || val <= 0) {
+      setModalError('Please enter a valid weight (e.g. 70.5)');
+      return;
+    }
+
     try {
-      const now = new Date();
-      const ds = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const existing = weightHistory.find(i => i.date === ds);
+      setModalSubmitting(true);
+      const todayStr = new Date().toISOString().split('T')[0];
 
-      if (existing) {
-        await updateDoc(doc(db, 'weight_history', existing.id), { weight: val, updatedAt: serverTimestamp() });
+      const existingSnap = await getDocs(
+        query(
+          collection(db, 'weight_history'),
+          where('uid', '==', user.uid),
+          where('date', '==', todayStr)
+        )
+      );
+
+      if (!existingSnap.empty) {
+        const existingDoc = existingSnap.docs[0];
+        await updateDoc(doc(db, 'weight_history', existingDoc.id), {
+          weight: val,
+          updatedAt: serverTimestamp(),
+        });
       } else {
-        await addDoc(collection(db, 'weight_history'), { uid: user.uid, weight: val, date: ds, createdAt: serverTimestamp() });
+        await addDoc(collection(db, 'weight_history'), {
+          uid: user.uid,
+          weight: val,
+          date: todayStr,
+          createdAt: serverTimestamp(),
+        });
       }
+
       await fetchData();
       setShowWeightModal(false);
       setNewWeight('');
     } catch (err) {
-      setModalError('Failed to save. Try again.');
+      console.error('Error logging weight:', err);
+      setModalError('Failed to save weight. Please try again.');
     } finally {
       setModalSubmitting(false);
     }
   };
 
-  // Customers must complete diagnosis; Coaches and Admins can view dashboard directly
   const requiresDiagnosis = role === 'customer' && userData?.registrationCompleted === false;
 
-  if (authLoading || !user || requiresDiagnosis || loadingData) {
+  if (authLoading || loadingData) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-main)' }}>
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>🌱</div>
-          <p>Loading Vriddhi...</p>
+      <div className="auth-wrapper">
+        <div style={{ textAlign: 'center' }}>
+          <div className="brand-logo">Vriddhi</div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading wellness dashboard...</p>
         </div>
       </div>
     );
   }
 
-  const pageTitles = { dashboard: 'My Dashboard', customers: 'My Customers', followup: '10-Day Follow-Up', crm: 'CRM — Pipeline', crm_analytics: 'CRM Analytics & Ratios', admin: 'Club Owner Panel' };
+  const pageTitles = { dashboard: 'My Dashboard', attendance: 'Attendance Calendar', customers: 'My Customers', followup: '10-Day Follow-Up', crm: 'CRM — Pipeline', crm_analytics: 'CRM Analytics & Ratios', my_coaches: 'My Coaches', admin: 'Club Owner Panel' };
   const pageSubtitles = {
     dashboard: `Today is ${dateStr}`,
+    attendance: 'Live Zoom session attendance & Thursday coach training log',
     customers: 'Customers assigned to you',
     followup: 'Track each new customer through their 10-day journey',
-    crm: 'Manage your leads across 6 pipeline stages',
+    crm: 'Manage your leads across pipeline stages',
     crm_analytics: 'Analyze conversion rates, ratios and performance insights',
+    my_coaches: 'Manage team coaches & view individual performance',
     admin: 'Manage all users, roles and assignments as Club Owner',
   };
 
   return (
     <div className="app-shell">
 
-      {/* ── LEFT SIDEBAR ────────────────────── */}
+      {/* ── MOBILE TOP BAR ── */}
+      <div className="mobile-top-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            className="mobile-hamburger"
+            onClick={() => setDrawerOpen(true)}
+            title="Open Menu"
+            id="mobile-hamburger-btn"
+          >
+            ☰
+          </button>
+          <div className="mobile-top-bar-logo">Vriddhi</div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {activeTab === 'dashboard' && (
+            <button
+              onClick={() => { setNewWeight(latestWeight.toString()); setShowWeightModal(true); }}
+              className="btn btn-primary btn-sm"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '0.75rem' }}
+            >
+              + Log Weight
+            </button>
+          )}
+
+          <div
+            className="profile-avatar-btn"
+            style={{ width: '32px', height: '32px', fontSize: '0.85rem' }}
+            onClick={() => setShowProfile(true)}
+          >
+            {userData?.name ? userData.name.charAt(0).toUpperCase() : '?'}
+          </div>
+        </div>
+      </div>
+
+      {/* ── DESKTOP LEFT SIDEBAR ────────────────────── */}
       <aside className="sidebar">
-        {/* Logo */}
         <div className="sidebar-logo">
           <div className="sidebar-logo-text">Vriddhi</div>
           <div className="sidebar-logo-sub">Wellness Platform</div>
         </div>
 
-        {/* Nav */}
         <nav className="sidebar-nav">
           <div className="sidebar-section-label">Menu</div>
           {visibleNav.map(item => (
@@ -174,9 +231,7 @@ export default function DashboardPage() {
           ))}
         </nav>
 
-        {/* Footer: user + logout */}
         <div className="sidebar-footer">
-          {/* Role badge */}
           {role !== 'customer' && (
             <div style={{ marginBottom: '10px' }}>
               <span style={{
@@ -190,7 +245,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* User info */}
           <div
             className="sidebar-user-row"
             onClick={() => setShowProfile(true)}
@@ -217,19 +271,91 @@ export default function DashboardPage() {
         </div>
       </aside>
 
+      {/* ── MOBILE SIDEBAR DRAWER ── */}
+      {drawerOpen && (
+        <>
+          <div className="sidebar-drawer-overlay" onClick={() => setDrawerOpen(false)} />
+          <div className="sidebar-drawer">
+            <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div className="sidebar-logo-text">Vriddhi</div>
+                <div className="sidebar-logo-sub">Wellness Platform</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <nav className="sidebar-nav">
+              <div className="sidebar-section-label">Menu</div>
+              {visibleNav.map(item => (
+                <button
+                  key={item.id}
+                  className={`sidebar-link ${activeTab === item.id ? 'active' : ''}`}
+                  onClick={() => { setActiveTab(item.id); setDrawerOpen(false); }}
+                >
+                  <span className="sidebar-link-icon">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            <div className="sidebar-footer">
+              <div
+                className="sidebar-user-row"
+                onClick={() => { setShowProfile(true); setDrawerOpen(false); }}
+              >
+                <div className="sidebar-avatar">
+                  {userData?.name ? userData.name.charAt(0).toUpperCase() : '?'}
+                </div>
+                <div className="sidebar-user-info">
+                  <div className="sidebar-user-name">{userData?.name}</div>
+                  <div className="sidebar-user-email">{userData?.email}</div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => logout()}
+                className="btn btn-outline btn-sm"
+                style={{ width: '100%', justifyContent: 'flex-start', gap: '8px' }}
+              >
+                ← Log Out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── MOBILE BOTTOM TAB NAVIGATION BAR ── */}
+      <nav className="mobile-bottom-nav">
+        {visibleNav.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            className={`mobile-tab-btn ${activeTab === item.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(item.id)}
+            id={`mobile-tab-${item.id}`}
+          >
+            <span>{item.icon}</span>
+            <span className="mobile-tab-label">{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
       {/* ── MAIN PANEL ──────────────────────── */}
       <div className="main-panel">
 
-        {/* Sticky header */}
         <div className="main-panel-header">
           <div className="page-title-block">
             <h1>{pageTitles[activeTab]}</h1>
             <p>{pageSubtitles[activeTab]}</p>
           </div>
 
-          {/* Right side actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Notification Bell */}
             <button className="notif-btn" id="notif-bell-btn" title="Notifications">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -238,7 +364,6 @@ export default function DashboardPage() {
               <span className="notif-badge">2</span>
             </button>
 
-            {/* Log Weight button on dashboard */}
             {activeTab === 'dashboard' && (
               <button
                 onClick={() => { setNewWeight(latestWeight.toString()); setShowWeightModal(true); }}
@@ -252,20 +377,21 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Page body */}
         <div className="main-panel-body">
 
           {/* ── MY DASHBOARD TAB ── */}
           {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-              {/* ── TODAY'S TASKS, TODAY'S MEETINGS & SESSION PROSPECTS TRACKER (3 CARDS IN 1 ROW) ── */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: isCoach ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
-                gap: '20px',
-                alignItems: 'stretch',
-              }}>
+              <div
+                className="resp-grid-tasks"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isCoach ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
+                  gap: '20px',
+                  alignItems: 'stretch',
+                }}
+              >
                 {isCoach && (
                   <CoachTodayTasks coachUid={user.uid} coachName={userData?.name || ''} userRole={userData?.role || 'coach'} />
                 )}
@@ -275,8 +401,7 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* Hero stats bar */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              <div className="resp-grid-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                 <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '16px', padding: '20px 24px' }}>
                   <div style={{ fontSize: '2rem' }}>⚖️</div>
                   <div>
@@ -301,9 +426,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* 3-column: Streak | Insights | Chart */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
-                {/* 1 — Streak & Achievements */}
+              <div className="resp-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
                   <h3 className="card-title">🔥 Streak & Achievements</h3>
                   <StreakBadges
@@ -314,7 +437,6 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                {/* 2 — Progress & Insights */}
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
                   <h3 className="card-title">📊 Progress & Insights</h3>
                   <WeeklyInsight
@@ -326,14 +448,12 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                {/* 3 — Weight Trend Chart */}
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
                   <h3 className="card-title">📈 Weight Trend</h3>
                   <WeightChart weightHistory={weightHistory} />
                 </div>
               </div>
 
-              {/* Profile + History */}
               <div className="dashboard-grid">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div className="dashboard-card">
