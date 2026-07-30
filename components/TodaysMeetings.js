@@ -424,38 +424,36 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
     );
 
     const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const dayOfWeek = now.getDay();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes(); // mins past midnight
+    const dayOfWeek = now.getDay(); // 0 = Sun, 4 = Thu
 
-    const meetingHour = parseInt(m.time?.split(':')[0] || '11', 10);
-    const isThursdayTraining = dayOfWeek === 4 && (m.visibleTo === 'coaches' || (currentMinutes >= 825 && currentMinutes <= 1020));
+    // Exact Official Time Windows:
+    // 1. Morning: 11:00 AM (660m) to 12:30 PM (750m)
+    // 2. Evening: 7:45 PM (1185m) to 9:00 PM (1260m)
+    // 3. Thursday Training: 1:45 PM (825m) to 5:00 PM (1020m) on Thursday only
+    const isMorningWindow  = currentMinutes >= 660 && currentMinutes <= 750;
+    const isEveningWindow  = currentMinutes >= 1185 && currentMinutes <= 1260;
+    const isTrainingWindow = dayOfWeek === 4 && currentMinutes >= 825 && currentMinutes <= 1020;
 
-    let sessionType = 'morning';
+    let sessionTypeToMark = null;
 
-    if (isThursdayTraining) {
-      sessionType = 'training';
-    } else if (currentMinutes >= 1185 && currentMinutes <= 1260) { // 7:45 PM (1185m) to 9:00 PM (1260m)
-      sessionType = 'evening';
-    } else if (currentMinutes >= 660 && currentMinutes <= 750) { // 11:00 AM (660m) to 12:30 PM (750m)
-      sessionType = 'morning';
-    } else {
-      if (dayOfWeek === 4 && (m.visibleTo === 'coaches' || (meetingHour >= 13 && meetingHour <= 16))) {
-        sessionType = 'training';
-      } else if (meetingHour >= 17 || meetingHour < 6) {
-        sessionType = 'evening';
-      } else {
-        sessionType = 'morning';
-      }
+    if (isTrainingWindow && (m.visibleTo === 'coaches' || role === 'coach' || role === 'admin')) {
+      sessionTypeToMark = 'training';
+    } else if (isMorningWindow) {
+      sessionTypeToMark = 'morning';
+    } else if (isEveningWindow) {
+      sessionTypeToMark = 'evening';
     }
 
-    if (uid) {
+    // ONLY mark attendance in database IF inside official time window!
+    if (sessionTypeToMark && uid) {
       addDoc(collection(db, 'meeting_attendance'), {
         uid: uid,
         customerName: userData?.name || 'Customer',
         coachId: userData?.coachId || '',
         userRole: role,
         date: todayStr,
-        sessionType,
+        sessionType: sessionTypeToMark,
         meetingId: m.id,
         meetingTitle: m.title,
         attendedAt: serverTimestamp(),
