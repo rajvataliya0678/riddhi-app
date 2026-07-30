@@ -55,9 +55,10 @@ export default function BulkAddLeadsModal({ coachUid, onClose, onSaved }) {
           coachId: coachUid,
           name: entry.name,
           phone: entry.phone,
-          source: source,
           status: 'New Lead',
-          followUpDate: new Date().toISOString().split('T')[0],
+          followUpDate: '',
+          nextMeetingDate: '',
+          nextMeetingSession: 'morning',
           notes: 'Added via Bulk Import',
           statusHistory: [
             {

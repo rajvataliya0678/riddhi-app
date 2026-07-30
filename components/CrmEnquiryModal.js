@@ -52,6 +52,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
   const [source, setSource]                   = useState('Referral');
   const [status, setStatus]                   = useState('New Lead');
   const [followUpDate, setFollowUpDate]       = useState('');
+  const [nextMeetingDate, setNextMeetingDate] = useState('');
+  const [nextMeetingSession, setNextMeetingSession] = useState('morning');
   const [notes, setNotes]                     = useState('');
   const [callLogs, setCallLogs]               = useState([]);
 
@@ -75,6 +77,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
       setSource(enquiry.source || 'Referral');
       setStatus(enquiry.status || 'New Lead');
       setFollowUpDate(enquiry.followUpDate || '');
+      setNextMeetingDate(enquiry.nextMeetingDate || '');
+      setNextMeetingSession(enquiry.nextMeetingSession || 'morning');
       setNotes(enquiry.notes || '');
 
       // Ensure each call log entry has an id
@@ -125,6 +129,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
           source: targetEnquiry.source || source || 'Referral',
           status: targetEnquiry.status || status || 'New Lead',
           followUpDate: targetEnquiry.followUpDate || followUpDate || '',
+          nextMeetingDate: targetEnquiry.nextMeetingDate || nextMeetingDate || '',
+          nextMeetingSession: targetEnquiry.nextMeetingSession || nextMeetingSession || 'morning',
           notes: targetEnquiry.notes || notes || '',
           callLogs: updatedLogs,
         }, targetEnquiry.id, true);
@@ -182,6 +188,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
           source,
           status,
           followUpDate,
+          nextMeetingDate,
+          nextMeetingSession,
           notes: notes.trim(),
           callLogs: updatedLogs,
         }, enquiry.id, true);
@@ -225,6 +233,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
           source,
           status,
           followUpDate,
+          nextMeetingDate,
+          nextMeetingSession,
           notes: notes.trim(),
           callLogs: updatedLogs,
         }, enquiry.id, true);
@@ -254,6 +264,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
         source,
         status,
         followUpDate,
+        nextMeetingDate,
+        nextMeetingSession,
         notes: notes.trim(),
         callLogs,
       };
@@ -459,7 +471,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="crm-followup">Next Follow-up Date</label>
+              <label className="form-label" htmlFor="crm-followup">Next Follow-up Date (Optional)</label>
               <input
                 type="date"
                 id="crm-followup"
@@ -468,6 +480,65 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
                 onChange={(e) => setFollowUpDate(e.target.value)}
                 disabled={submitting}
               />
+            </div>
+          </div>
+
+          {/* Schedule Next Live Meeting (Morning or Evening) */}
+          <div style={{
+            background: 'var(--bg-secondary)',
+            padding: '12px 14px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-color)',
+            marginTop: '2px',
+          }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-main)', display: 'block', marginBottom: '8px' }}>
+              🎥 Schedule Next Live Meeting Session
+            </label>
+            <div className="form-row-2" style={{ marginBottom: 0 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.74rem' }}>Meeting Date</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={nextMeetingDate}
+                  onChange={(e) => setNextMeetingDate(e.target.value)}
+                  disabled={submitting}
+                  id="crm-next-meeting-date"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.74rem' }}>Session Time</label>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setNextMeetingSession('morning')}
+                    id="crm-session-morning-btn"
+                    style={{
+                      flex: 1, padding: '7px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800',
+                      border: nextMeetingSession === 'morning' ? '2px solid #0284c7' : '1px solid var(--border-color)',
+                      background: nextMeetingSession === 'morning' ? '#e0f2fe' : 'white',
+                      color: nextMeetingSession === 'morning' ? '#0369a1' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🌅 Morning
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNextMeetingSession('evening')}
+                    id="crm-session-evening-btn"
+                    style={{
+                      flex: 1, padding: '7px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800',
+                      border: nextMeetingSession === 'evening' ? '2px solid #7e22ce' : '1px solid var(--border-color)',
+                      background: nextMeetingSession === 'evening' ? '#faf5ff' : 'white',
+                      color: nextMeetingSession === 'evening' ? '#6b21a8' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🌇 Evening
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -90,7 +90,9 @@ export default function CrmTab({ coachUid }) {
           healthCondition: data.healthCondition || '',
           source: data.source,
           status: data.status,
-          followUpDate: data.followUpDate,
+          followUpDate: data.followUpDate || '',
+          nextMeetingDate: data.nextMeetingDate || '',
+          nextMeetingSession: data.nextMeetingSession || 'morning',
           notes: data.notes,
           callLogs: data.callLogs || [],
           updatedAt: serverTimestamp(),
@@ -119,7 +121,9 @@ export default function CrmTab({ coachUid }) {
           healthCondition: data.healthCondition || '',
           source: data.source || 'Direct Entry',
           status: data.status || 'New Lead',
-          followUpDate: data.followUpDate,
+          followUpDate: data.followUpDate || '',
+          nextMeetingDate: data.nextMeetingDate || '',
+          nextMeetingSession: data.nextMeetingSession || 'morning',
           notes: data.notes,
           callLogs: data.callLogs || [],
           statusHistory: [
@@ -357,12 +361,23 @@ export default function CrmTab({ coachUid }) {
                       </div>
                     </td>
 
-                    {/* Follow-up Date */}
-                    <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                      {enquiry.followUpDate
-                        ? new Date(enquiry.followUpDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-                        : '—'
-                      }
+                    {/* Follow-up & Meeting Schedule */}
+                    <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                      {enquiry.nextMeetingDate ? (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '4px',
+                          background: enquiry.nextMeetingSession === 'evening' ? '#faf5ff' : '#e0f2fe',
+                          color: enquiry.nextMeetingSession === 'evening' ? '#7e22ce' : '#0369a1',
+                          border: enquiry.nextMeetingSession === 'evening' ? '1px solid #e9d5ff' : '1px solid #bae6fd',
+                          padding: '2px 7px', borderRadius: '4px', fontWeight: '800'
+                        }}>
+                          {enquiry.nextMeetingSession === 'evening' ? '🌇 Evening' : '🌅 Morning'} ({enquiry.nextMeetingDate})
+                        </span>
+                      ) : enquiry.followUpDate ? (
+                        new Date(enquiry.followUpDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+                      ) : (
+                        '—'
+                      )}
                     </td>
                   </tr>
                 );
