@@ -169,6 +169,7 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
 
       await updateDoc(docRef, {
         status: nextStatus,
+        lastAttendedDate: todayStr,
         statusHistory: newHistory,
         updatedAt: serverTimestamp(),
       });
@@ -263,90 +264,112 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
               </p>
             </div>
           ) : (
-            currentList.map((lead, idx) => (
-              <div
-                key={lead.id}
-                id={`session-lead-item-${lead.id}`}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '10px 16px',
-                  borderBottom: idx < currentList.length - 1 ? '1px solid var(--bg-secondary)' : 'none',
-                  background: 'transparent',
-                }}
-              >
-                {/* Avatar */}
-                <div style={{
-                  width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
-                  background: activeSession === 'morning'
-                    ? 'linear-gradient(135deg, #0284c7, #2563eb)'
-                    : 'linear-gradient(135deg, #7e22ce, #db2777)',
-                  color: 'white', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
-                }}>
-                  {lead.name?.charAt(0)?.toUpperCase()}
-                </div>
+            currentList.map((lead, idx) => {
+              const isAttendedToday = lead.lastAttendedDate === todayStr;
 
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: '800', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                      {lead.name}
-                    </span>
-                    <span style={{
-                      padding: '1px 6px', borderRadius: '99px', fontSize: '0.64rem', fontWeight: '800',
-                      background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb'
-                    }}>
-                      {lead.status || 'New Lead'}
-                    </span>
+              return (
+                <div
+                  key={lead.id}
+                  id={`session-lead-item-${lead.id}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 16px',
+                    borderBottom: idx < currentList.length - 1 ? '1px solid var(--bg-secondary)' : 'none',
+                    background: 'transparent',
+                  }}
+                >
+                  {/* Avatar */}
+                  <div style={{
+                    width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
+                    background: activeSession === 'morning'
+                      ? 'linear-gradient(135deg, #0284c7, #2563eb)'
+                      : 'linear-gradient(135deg, #7e22ce, #db2777)',
+                    color: 'white', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
+                  }}>
+                    {lead.name?.charAt(0)?.toUpperCase()}
                   </div>
 
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>Scheduled Today ({activeSession === 'morning' ? '🌅 Morning' : '🌇 Evening'})</span>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: '800', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                        {lead.name}
+                      </span>
+                      <span style={{
+                        padding: '1px 6px', borderRadius: '99px', fontSize: '0.64rem', fontWeight: '800',
+                        background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb'
+                      }}>
+                        {lead.status || 'New Lead'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>Scheduled Today ({activeSession === 'morning' ? '🌅 Morning' : '🌇 Evening'})</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
+                    {/* Phone Call */}
+                    {lead.phone && (
+                      <a
+                        href={`tel:${lead.phone}`}
+                        style={{
+                          color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
+                          background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 8px', borderRadius: '6px'
+                        }}
+                        title={`Call ${lead.phone}`}
+                      >
+                        📞 Call
+                      </a>
+                    )}
+
+                    {/* If ALREADY attended today -> show ONLY Schedule Next Meeting button! */}
+                    {isAttendedToday ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        style={{ padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', width: 'auto' }}
+                        onClick={() => setSelectedLeadForReschedule({
+                          ...lead,
+                          modalTitle: lead.status === '1 Session' ? 'Schedule 2nd Live Meeting' : 'Schedule Next Session'
+                        })}
+                        title="Schedule next live meeting date and session time"
+                      >
+                        📅 Schedule Next Meeting
+                      </button>
+                    ) : (
+                      <>
+                        {/* Attended -> Auto Stage Progression */}
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          style={{ padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', width: 'auto' }}
+                          onClick={() => handleMarkAttended(lead)}
+                          title="Mark attended: Advances lead stage & opens schedule next meeting modal"
+                        >
+                          ✅ Attended
+                        </button>
+
+                        {/* Missed -> Reschedule */}
+                        <button
+                          type="button"
+                          style={{
+                            padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', borderRadius: '6px',
+                            background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', cursor: 'pointer'
+                          }}
+                          onClick={() => setSelectedLeadForReschedule({ ...lead, modalTitle: 'Reschedule Missed Session' })}
+                          title="Reschedule next meeting date if lead missed today"
+                        >
+                          📅 Reschedule
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
-
-                {/* Action Buttons */}
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-                  {/* Phone Call */}
-                  {lead.phone && (
-                    <a
-                      href={`tel:${lead.phone}`}
-                      style={{
-                        color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', textDecoration: 'none',
-                        background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '4px 8px', borderRadius: '6px'
-                      }}
-                      title={`Call ${lead.phone}`}
-                    >
-                      📞 Call
-                    </a>
-                  )}
-
-                  {/* Attended -> Auto Stage Progression */}
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    style={{ padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', width: 'auto' }}
-                    onClick={() => handleMarkAttended(lead)}
-                    title="Mark attended: Advances lead stage (New Lead -> 1 Session -> 2 Session) & schedules next meeting!"
-                  >
-                    ✅ Attended
-                  </button>
-
-                  {/* Missed -> Reschedule */}
-                  <button
-                    type="button"
-                    style={{
-                      padding: '4px 8px', fontSize: '0.7rem', fontWeight: '800', borderRadius: '6px',
-                      background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', cursor: 'pointer'
-                    }}
-                    onClick={() => setSelectedLeadForReschedule({ ...lead, modalTitle: 'Reschedule Missed Session' })}
-                    title="Reschedule next meeting date if lead missed today"
-                  >
-                    📅 Reschedule
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
