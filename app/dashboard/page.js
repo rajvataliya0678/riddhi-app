@@ -18,6 +18,7 @@ import TodaysMeetings from '@/components/TodaysMeetings';
 import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
 import MyCoachesTab from '@/components/MyCoachesTab';
 import AttendanceTab from '@/components/AttendanceTab';
+import SessionLeadAttendees from '@/components/SessionLeadAttendees';
 
 // ── Sidebar nav items ────────────────────────────────────
 const NAV_ITEMS = [
@@ -258,10 +259,10 @@ export default function DashboardPage() {
           {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-              {/* ── TODAY'S TASKS & TODAY'S MEETINGS (SIDE BY SIDE IN 1 ROW) ── */}
+              {/* ── TODAY'S TASKS, TODAY'S MEETINGS & SESSION PROSPECTS TRACKER (3 CARDS IN 1 ROW) ── */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: isCoach ? 'repeat(auto-fit, minmax(350px, 1fr))' : '1fr',
+                gridTemplateColumns: isCoach ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
                 gap: '20px',
                 alignItems: 'stretch',
               }}>
@@ -269,6 +270,9 @@ export default function DashboardPage() {
                   <CoachTodayTasks coachUid={user.uid} coachName={userData?.name || ''} userRole={userData?.role || 'coach'} />
                 )}
                 <TodaysMeetings user={user} userData={userData} />
+                {isCoach && (
+                  <SessionLeadAttendees coachUid={user.uid} userRole={userData?.role || 'coach'} />
+                )}
               </div>
 
               {/* Hero stats bar */}
