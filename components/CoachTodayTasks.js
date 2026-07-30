@@ -56,6 +56,101 @@ const DAY_TASK_LABELS = {
   10: 'Journey Review & Next Step',
 };
 
+// Add Custom Personal Task Modal Component
+function AddCustomTaskModal({ coachUid, onClose, onSaved }) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [title, setTitle]             = useState('');
+  const [description, setDescription] = useState('');
+  const [taskDate, setTaskDate]       = useState(todayStr);
+  const [saving, setSaving]           = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      await addDoc(collection(db, 'coach_custom_tasks'), {
+        coachUid: coachUid || '',
+        title: title.trim(),
+        description: description.trim(),
+        taskDate: taskDate || todayStr,
+        createdAt: serverTimestamp(),
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      console.error('Error adding custom task:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-card" style={{ maxWidth: '440px', width: '92vw' }}>
+        <div className="modal-header">
+          <div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', margin: 0 }}>
+              📌 Add Personal Task
+            </h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+              Schedule a task for today or an upcoming date
+            </p>
+          </div>
+          <button onClick={onClose} className="modal-close">&times;</button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="form-group">
+            <label className="form-label" style={{ fontSize: '0.78rem' }}>Task Title *</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="e.g. Call client for diet progress, prepare report..."
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" style={{ fontSize: '0.78rem' }}>Description / Notes (Optional)</label>
+            <textarea
+              className="form-input"
+              rows={2}
+              placeholder="Add extra notes or reminders..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" style={{ fontSize: '0.78rem' }}>Task Date (Default: Today)</label>
+            <input
+              type="date"
+              className="form-input"
+              value={taskDate}
+              onChange={e => setTaskDate(e.target.value)}
+              required
+            />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              * Auto-set to Today. If not marked Done today, it will automatically move to Overdue tomorrow.
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px' }}>
+            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ width: 'auto' }}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving} style={{ width: 'auto' }}>
+              {saving ? '⏳ Saving...' : '💾 Schedule Task'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach' }) {
   const [tasks, setTasks]         = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -66,6 +161,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
   const [selectedFollowups, setSelectedFollowups]           = useState([]);
   const [selectedCrmLead, setSelectedCrmLead]               = useState(null);
   const [selectedDetailsCustomer, setSelectedDetailsCustomer] = useState(null);
+  const [showAddTaskModal, setShowAddTaskModal]             = useState(false);
 
   const [allCustomersMap, setAllCustomersMap] = useState({});
   const [allFollowupsMap, setAllFollowupsMap] = useState({});
@@ -317,6 +413,33 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         }
       }
 
+      // ─────────────────────────────────────────────────────────────
+      // RULE 7: Custom Personal Tasks (Scheduled by Coach)
+      // ─────────────────────────────────────────────────────────────
+      const customTasksSnap = await getDocs(
+        isAdmin
+          ? collection(db, 'coach_custom_tasks')
+          : query(collection(db, 'coach_custom_tasks'), where('coachUid', '==', coachUid))
+      );
+
+      for (const cd of customTasksSnap.docs) {
+        const ct = { id: cd.id, ...cd.data() };
+        if (!ct.taskDate) continue;
+        if (ct.taskDate <= todayStr) {
+          const isOverdue = ct.taskDate < todayStr;
+          generatedTasks.push({
+            id: `custom-${ct.id}`,
+            type: 'custom_personal_task',
+            uid: ct.id,
+            name: 'Personal Task',
+            title: `📌 ${ct.title}`,
+            description: ct.description || `Scheduled for ${ct.taskDate}`,
+            urgency: isOverdue ? 'overdue' : 'today',
+            actionType: 'none',
+          });
+        }
+      }
+
       // Sort: overdue first -> today
       const urgencyOrder = { overdue: 0, today: 1, upcoming: 2 };
       generatedTasks.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
@@ -343,25 +466,6 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       });
     } catch (err) {
       console.error('Error marking task done:', err);
-    }
-  };
-
-  const handleMarkAllDone = async () => {
-    if (!window.confirm('Mark all pending tasks as Done for today?')) return;
-    try {
-      const currentTasks = [...tasks];
-      setTasks([]);
-      for (const t of currentTasks) {
-        await addDoc(collection(db, 'completed_tasks'), {
-          taskId: t.id,
-          coachUid: coachUid || '',
-          date: todayStr,
-          taskTitle: t.title,
-          completedAt: serverTimestamp(),
-        });
-      }
-    } catch (err) {
-      console.error('Error marking all tasks done:', err);
     }
   };
 
@@ -487,21 +591,18 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
               </button>
             )}
 
-            {tasks.length > 0 && (
-              <button
-                type="button"
-                onClick={handleMarkAllDone}
-                style={{
-                  padding: '2px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: '800',
-                  background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', cursor: 'pointer',
-                  marginLeft: '4px'
-                }}
-                title="Mark all pending tasks as Done for today"
-                id="mark-all-tasks-done-btn"
-              >
-                ✅ Mark All Done
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowAddTaskModal(true)}
+              style={{
+                width: 'auto', padding: '3px 9px', fontSize: '0.7rem', fontWeight: '800',
+                marginLeft: '6px'
+              }}
+              id="add-custom-task-btn"
+            >
+              + Add Task
+            </button>
           </div>
         </div>
 
@@ -579,17 +680,19 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
 
                   {/* Action Buttons: Action + Done */}
                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      style={{ width: 'auto', padding: '4px 8px', fontSize: '0.72rem', fontWeight: '800' }}
-                      onClick={() => handleTaskAction(task)}
-                      id={`task-btn-${task.id}`}
-                    >
-                      {task.type === '10day_followup' ? (task.daysCompleted === 0 ? '▶ Start' : `✏️ Day ${task.nextDay}`)
-                        : task.type === 'crm_followup' ? '📋 CRM Lead'
-                        : task.type === 'customer_missed_meeting' || task.type === 'customer_missed_weight' ? '📞 Follow Up'
-                        : '📞 Call'}
-                    </button>
+                    {task.type !== 'custom_personal_task' && (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        style={{ width: 'auto', padding: '4px 8px', fontSize: '0.72rem', fontWeight: '800' }}
+                        onClick={() => handleTaskAction(task)}
+                        id={`task-btn-${task.id}`}
+                      >
+                        {task.type === '10day_followup' ? (task.daysCompleted === 0 ? '▶ Start' : `✏️ Day ${task.nextDay}`)
+                          : task.type === 'crm_followup' ? '📋 CRM Lead'
+                          : task.type === 'customer_missed_meeting' || task.type === 'customer_missed_weight' ? '📞 Follow Up'
+                          : '📞 Call'}
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -612,6 +715,14 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       </div>
 
       {/* Modals */}
+      {showAddTaskModal && (
+        <AddCustomTaskModal
+          coachUid={coachUid}
+          onClose={() => setShowAddTaskModal(false)}
+          onSaved={fetchTasks}
+        />
+      )}
+
       {selectedCustomer && (
         <FollowUpFormModal
           customer={selectedCustomer}
