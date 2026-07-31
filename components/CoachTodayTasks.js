@@ -278,7 +278,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       // RULE 1: CRM Follow-up Date Tasks
       // ─────────────────────────────────────────────────────────────
       for (const lead of crmLeads) {
-        if (lead.status === 'Converted / Active Customer' || lead.status === 'Converted' || lead.isConverted) continue;
+        if (lead.status === 'Converted / Active Customer' || lead.status === 'Converted' || lead.isConverted || lead.convertedCustomerUid) continue;
         if (!lead.followUpDate) continue;
 
         const fuDateStr = lead.followUpDate.split('T')[0];

@@ -158,7 +158,7 @@ export default function CrmTab({ coachUid }) {
   };
 
   // Active pipeline excludes leads converted to customers
-  const activeEnquiries = enquiries.filter(e => !e.isConverted && e.status !== 'Converted' && e.status !== 'Converted / Active Customer');
+  const activeEnquiries = enquiries.filter(e => !e.isConverted && !e.convertedCustomerUid && e.status !== 'Converted' && e.status !== 'Converted / Active Customer');
 
   const getFilteredEnquiries = () => {
     let filtered = [...activeEnquiries];

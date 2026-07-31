@@ -42,7 +42,7 @@ export default function CrmAnalyticsTab({ coachUid }) {
   const countNew       = enquiries.filter(e => e.status === 'New Lead' || e.status === 'New').length;
   const countSess1     = enquiries.filter(e => e.status === '1 Session').length;
   const countSess2     = enquiries.filter(e => e.status === '2 Session').length;
-  const countClosing   = enquiries.filter(e => e.status === 'Closing' || e.status === 'Converted').length;
+  const countClosing   = enquiries.filter(e => e.status === 'Closing' || e.status === 'Converted' || e.isConverted || e.convertedCustomerUid).length;
   const countWaiting   = enquiries.filter(e => e.status === 'Waiting List' || e.status === 'Interested').length;
   const countRejected  = enquiries.filter(e => e.status === 'Rejected' || e.status === 'Not Interested').length;
 
