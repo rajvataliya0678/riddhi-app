@@ -19,16 +19,22 @@ import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
 import MyCoachesTab from '@/components/MyCoachesTab';
 import AttendanceTab from '@/components/AttendanceTab';
 import SessionLeadAttendees from '@/components/SessionLeadAttendees';
+import {
+  LayoutDashboard, CalendarCheck, Users, ClipboardList, BarChart3,
+  GraduationCap, Settings2, Scale, Flame, Target, TrendingUp,
+  Heart, Calendar, LogOut, Bell, Menu, X, Pencil, Stethoscope,
+  Crown, Award, Plus, ChevronRight, Activity
+} from 'lucide-react';
 
 // ── Sidebar nav items ────────────────────────────────────
 const NAV_ITEMS = [
-  { id: 'dashboard', icon: '🏠', label: 'My Dashboard', roles: ['customer', 'coach', 'admin'] },
-  { id: 'attendance', icon: '📅', label: 'Attendance', roles: ['customer', 'coach', 'admin'] },
-  { id: 'customers', icon: '👥', label: 'My Customers', roles: ['coach', 'admin'] },
-  { id: 'crm', icon: '📋', label: 'CRM', roles: ['coach', 'admin'] },
-  { id: 'crm_analytics', icon: '📊', label: 'CRM Analytics', roles: ['coach', 'admin'] },
-  { id: 'my_coaches', icon: '👨‍🏫', label: 'My Coaches', roles: ['coach', 'admin'] },
-  { id: 'admin', icon: '⚙️', label: 'Club Owner Panel', roles: ['admin'] },
+  { id: 'dashboard',     Icon: LayoutDashboard, label: 'My Dashboard',    roles: ['customer', 'coach', 'admin'] },
+  { id: 'attendance',    Icon: CalendarCheck,   label: 'Attendance',      roles: ['customer', 'coach', 'admin'] },
+  { id: 'customers',     Icon: Users,           label: 'My Customers',    roles: ['coach', 'admin'] },
+  { id: 'crm',          Icon: ClipboardList,   label: 'CRM',             roles: ['coach', 'admin'] },
+  { id: 'crm_analytics', Icon: BarChart3,       label: 'CRM Analytics',   roles: ['coach', 'admin'] },
+  { id: 'my_coaches',   Icon: GraduationCap,   label: 'My Coaches',      roles: ['coach', 'admin'] },
+  { id: 'admin',        Icon: Settings2,       label: 'Club Owner Panel', roles: ['admin'] },
 ];
 
 // ── Mifflin-St Jeor BMR ──────────────────────────────────
@@ -186,7 +192,7 @@ export default function DashboardPage() {
             title="Open Menu"
             id="mobile-hamburger-btn"
           >
-            ☰
+            <Menu size={18} />
           </button>
           <div className="mobile-top-bar-logo">Vriddhi</div>
         </div>
@@ -196,9 +202,9 @@ export default function DashboardPage() {
             <button
               onClick={() => { setNewWeight(latestWeight.toString()); setShowWeightModal(true); }}
               className="btn btn-primary btn-sm"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '0.75rem' }}
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '0.75rem', gap: '4px' }}
             >
-              + Log Weight
+              <Plus size={13} /> Log Weight
             </button>
           )}
 
@@ -206,14 +212,14 @@ export default function DashboardPage() {
             type="button"
             onClick={() => setShowProfile(true)}
             style={{
-              background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '50%',
-              width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.95rem', cursor: 'pointer'
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%',
+              width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'rgba(255,255,255,0.7)', transition: 'all 0.2s ease'
             }}
             title="Settings & Profile"
             id="top-bar-settings-btn"
           >
-            ⚙️
+            <Settings2 size={16} />
           </button>
 
           <div
@@ -235,18 +241,21 @@ export default function DashboardPage() {
         </div>
 
         <nav className="sidebar-nav">
-          <div className="sidebar-section-label">Menu</div>
-          {visibleNav.map(item => (
-            <button
-              key={item.id}
-              className={`sidebar-link ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
-              id={`nav-${item.id}`}
-            >
-              <span className="sidebar-link-icon">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
+          <div className="sidebar-section-label">Navigation</div>
+          {visibleNav.map(item => {
+            const IconComp = item.Icon;
+            return (
+              <button
+                key={item.id}
+                className={`sidebar-link ${activeTab === item.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(item.id)}
+                id={`nav-${item.id}`}
+              >
+                <span className="sidebar-link-icon"><IconComp size={16} /></span>
+                {item.label}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="sidebar-footer">
@@ -254,11 +263,13 @@ export default function DashboardPage() {
             <div style={{ marginBottom: '10px' }}>
               <span style={{
                 fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em',
-                padding: '3px 10px', borderRadius: '99px',
-                background: isAdmin ? '#fdf4ff' : 'var(--primary-light)',
-                color: isAdmin ? '#7e22ce' : 'var(--primary)',
+                padding: '4px 12px', borderRadius: '99px', display: 'inline-flex', alignItems: 'center', gap: '5px',
+                background: isAdmin ? 'rgba(139,92,246,0.2)' : 'rgba(5,150,105,0.2)',
+                color: isAdmin ? '#c4b5fd' : '#6ee7b7',
+                border: isAdmin ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(5,150,105,0.3)',
               }}>
-                {isAdmin ? '👑 Club Owner' : '🏅 Coach'}
+                {isAdmin ? <Crown size={11} /> : <Award size={11} />}
+                {isAdmin ? 'Club Owner' : 'Coach'}
               </span>
             </div>
           )}
@@ -281,10 +292,14 @@ export default function DashboardPage() {
           <button
             onClick={() => logout()}
             className="btn btn-outline btn-sm"
-            style={{ width: '100%', justifyContent: 'flex-start', gap: '8px' }}
+            style={{
+              width: '100%', justifyContent: 'flex-start', gap: '8px',
+              color: 'rgba(255,255,255,0.5)', borderColor: 'rgba(255,255,255,0.1)',
+              background: 'transparent'
+            }}
             id="sidebar-logout-btn"
           >
-            ← Log Out
+            <LogOut size={15} /> Log Out
           </button>
         </div>
       </aside>
@@ -302,24 +317,31 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: 'var(--text-muted)' }}
+                style={{
+                  background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px', padding: '6px', cursor: 'pointer', color: 'rgba(255,255,255,0.6)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
               >
-                &times;
+                <X size={16} />
               </button>
             </div>
 
             <nav className="sidebar-nav">
-              <div className="sidebar-section-label">Menu</div>
-              {visibleNav.map(item => (
-                <button
-                  key={item.id}
-                  className={`sidebar-link ${activeTab === item.id ? 'active' : ''}`}
-                  onClick={() => { setActiveTab(item.id); setDrawerOpen(false); }}
-                >
-                  <span className="sidebar-link-icon">{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
+              <div className="sidebar-section-label">Navigation</div>
+              {visibleNav.map(item => {
+                const IconComp = item.Icon;
+                return (
+                  <button
+                    key={item.id}
+                    className={`sidebar-link ${activeTab === item.id ? 'active' : ''}`}
+                    onClick={() => { setActiveTab(item.id); setDrawerOpen(false); }}
+                  >
+                    <span className="sidebar-link-icon"><IconComp size={16} /></span>
+                    {item.label}
+                  </button>
+                );
+              })}
             </nav>
 
             <div className="sidebar-footer">
@@ -339,36 +361,43 @@ export default function DashboardPage() {
               <button
                 onClick={() => logout()}
                 className="btn btn-outline btn-sm"
-                style={{ width: '100%', justifyContent: 'flex-start', gap: '8px' }}
+                style={{
+                  width: '100%', justifyContent: 'flex-start', gap: '8px',
+                  color: 'rgba(255,255,255,0.5)', borderColor: 'rgba(255,255,255,0.1)',
+                  background: 'transparent'
+                }}
               >
-                ← Log Out
+                <LogOut size={15} /> Log Out
               </button>
             </div>
           </div>
         </>
       )}
 
-      {/* ── MOBILE BOTTOM TAB NAVIGATION BAR (5 CLEAN PRIMARY TABS) ── */}
+      {/* ── MOBILE BOTTOM TAB NAVIGATION BAR ── */}
       <nav className="mobile-bottom-nav">
-        {visibleNav.filter(n => ['dashboard', 'attendance', 'customers', 'crm'].includes(n.id)).map(item => (
-          <button
-            key={item.id}
-            type="button"
-            className={`mobile-tab-btn ${activeTab === item.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(item.id)}
-            id={`mobile-tab-${item.id}`}
-          >
-            <span>{item.icon}</span>
-            <span className="mobile-tab-label">{item.label.replace('My ', '')}</span>
-          </button>
-        ))}
+        {visibleNav.filter(n => ['dashboard', 'attendance', 'customers', 'crm'].includes(n.id)).map(item => {
+          const IconComp = item.Icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`mobile-tab-btn ${activeTab === item.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(item.id)}
+              id={`mobile-tab-${item.id}`}
+            >
+              <IconComp size={20} />
+              <span className="mobile-tab-label">{item.label.replace('My ', '')}</span>
+            </button>
+          );
+        })}
         <button
           type="button"
           className="mobile-tab-btn"
           onClick={() => setDrawerOpen(true)}
           id="mobile-tab-more"
         >
-          <span>☰</span>
+          <Menu size={20} />
           <span className="mobile-tab-label">Menu</span>
         </button>
       </nav>
@@ -384,10 +413,7 @@ export default function DashboardPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button className="notif-btn" id="notif-bell-btn" title="Notifications">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
+              <Bell size={18} />
               <span className="notif-badge">2</span>
             </button>
 
@@ -395,10 +421,10 @@ export default function DashboardPage() {
               <button
                 onClick={() => { setNewWeight(latestWeight.toString()); setShowWeightModal(true); }}
                 className="btn btn-primary"
-                style={{ width: 'auto' }}
+                style={{ width: 'auto', gap: '6px' }}
                 id="update-weight-btn"
               >
-                + Log Weight
+                <Plus size={16} /> Log Weight
               </button>
             )}
           </div>
@@ -428,34 +454,64 @@ export default function DashboardPage() {
                 )}
               </div>
 
+              {/* Stats Row */}
               <div className="resp-grid-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '16px', padding: '20px 24px' }}>
-                  <div style={{ fontSize: '2rem' }}>⚖️</div>
+                {/* Weight */}
+                <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '14px', padding: '18px 20px' }}>
+                  <div style={{
+                    width: '48px', height: '48px', borderRadius: '14px', flexShrink: 0,
+                    background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(59,130,246,0.2)'
+                  }}>
+                    <Scale size={22} color="#2563eb" />
+                  </div>
                   <div>
-                    <p style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>Current Weight</p>
-                    <p style={{ fontSize: '1.8rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--text-main)', lineHeight: 1 }}>{latestWeight} <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>kg</span></p>
+                    <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Current Weight</p>
+                    <p style={{ fontSize: '1.7rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--text-main)', lineHeight: 1 }}>{latestWeight} <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>kg</span></p>
                   </div>
                 </div>
-                <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '16px', padding: '20px 24px' }}>
-                  <div style={{ fontSize: '2rem' }}>🔥</div>
+
+                {/* BMR */}
+                <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '14px', padding: '18px 20px' }}>
+                  <div style={{
+                    width: '48px', height: '48px', borderRadius: '14px', flexShrink: 0,
+                    background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(245,158,11,0.25)'
+                  }}>
+                    <Flame size={22} color="#d97706" />
+                  </div>
                   <div>
-                    <p style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>BMR</p>
-                    <p style={{ fontSize: '1.8rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--primary)', lineHeight: 1 }}>{bmr} <span style={{ fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)' }}>cal/day</span></p>
+                    <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>BMR</p>
+                    <p style={{ fontSize: '1.7rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--primary)', lineHeight: 1 }}>{bmr} <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-muted)' }}>cal/day</span></p>
                   </div>
                 </div>
-                <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '16px', padding: '20px 24px' }}>
-                  <div style={{ fontSize: '2rem' }}>🎯</div>
+
+                {/* Goal */}
+                <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '14px', padding: '18px 20px' }}>
+                  <div style={{
+                    width: '48px', height: '48px', borderRadius: '14px', flexShrink: 0,
+                    background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(5,150,105,0.2)'
+                  }}>
+                    <Target size={22} color="#059669" />
+                  </div>
                   <div>
-                    <p style={{ fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>Goal</p>
+                    <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Goal</p>
                     <p style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--primary)', lineHeight: 1.3 }}>{diagnosis?.fitnessGoal || '—'}</p>
-                    {diagnosis?.goalWeight && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Target: {diagnosis.goalWeight} kg</p>}
+                    {diagnosis?.goalWeight && <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Target: {diagnosis.goalWeight} kg</p>}
                   </div>
                 </div>
               </div>
 
               <div className="resp-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
-                  <h3 className="card-title">🔥 Streak & Achievements</h3>
+                  <h3 className="card-title">
+                    <Flame size={17} color="#f97316" style={{ flexShrink: 0 }} />
+                    Streak & Achievements
+                  </h3>
                   <StreakBadges
                     weightHistory={weightHistory}
                     startWeight={diagnosis?.initialWeight}
@@ -465,7 +521,10 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
-                  <h3 className="card-title">📊 Progress & Insights</h3>
+                  <h3 className="card-title">
+                    <Activity size={17} color="#6366f1" style={{ flexShrink: 0 }} />
+                    Progress & Insights
+                  </h3>
                   <WeeklyInsight
                     weightHistory={weightHistory}
                     fitnessGoal={diagnosis?.fitnessGoal}
@@ -476,7 +535,10 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
-                  <h3 className="card-title">📈 Weight Trend</h3>
+                  <h3 className="card-title">
+                    <TrendingUp size={17} color="#059669" style={{ flexShrink: 0 }} />
+                    Weight Trend
+                  </h3>
                   <WeightChart weightHistory={weightHistory} />
                 </div>
               </div>
@@ -485,8 +547,10 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div className="dashboard-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 className="card-title">My Health Profile</h3>
-                      <button onClick={() => setShowProfile(true)} className="btn btn-outline btn-sm" style={{ width: 'auto' }} id="edit-profile-btn">✏️ Edit</button>
+                      <h3 className="card-title"><Heart size={17} color="#ef4444" style={{ flexShrink: 0 }} /> My Health Profile</h3>
+                      <button onClick={() => setShowProfile(true)} className="btn btn-outline btn-sm" style={{ width: 'auto', gap: '5px' }} id="edit-profile-btn">
+                        <Pencil size={13} /> Edit
+                      </button>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {[
@@ -508,7 +572,7 @@ export default function DashboardPage() {
 
                   {diagnosis?.medicalHistory && diagnosis.medicalHistory !== 'None' && (
                     <div className="dashboard-card">
-                      <h3 className="card-title">🏥 Medical Notes</h3>
+                      <h3 className="card-title"><Stethoscope size={17} color="#8b5cf6" style={{ flexShrink: 0 }} /> Medical Notes</h3>
                       <p style={{ fontSize: '0.88rem', lineHeight: '1.6', color: 'var(--text-secondary)' }}>{diagnosis.medicalHistory}</p>
                     </div>
                   )}
@@ -516,12 +580,12 @@ export default function DashboardPage() {
 
                 {/* Weight log history */}
                 <div className="dashboard-card">
-                  <h3 className="card-title">📅 Weight Log History</h3>
+                  <h3 className="card-title"><Calendar size={17} color="#059669" style={{ flexShrink: 0 }} /> Weight Log History</h3>
                   {weightHistory.length === 0 ? (
                     <div className="empty-state">
-                      <span className="empty-state-icon">⚖️</span>
+                      <span className="empty-state-icon"><Scale size={40} color="#94a3b8" /></span>
                       <h4>No logs yet</h4>
-                      <p>Click "+ Log Weight" to record your first entry.</p>
+                      <p>Click "Log Weight" to record your first entry.</p>
                     </div>
                   ) : (
                     <div className="history-table-container">
@@ -583,9 +647,9 @@ export default function DashboardPage() {
           <div className="modal-card">
             <div className="modal-header">
               <h3>Log Today's Weight</h3>
-              <button onClick={() => { setShowWeightModal(false); setModalError(''); }} className="modal-close">&times;</button>
+              <button onClick={() => { setShowWeightModal(false); setModalError(''); }} className="modal-close"><X size={14} /></button>
             </div>
-            {modalError && <div className="alert alert-danger">⚠️ {modalError}</div>}
+            {modalError && <div className="alert alert-danger">{modalError}</div>}
             <form onSubmit={handleUpdateWeight}>
               <div className="form-group" style={{ marginBottom: '20px' }}>
                 <label className="form-label" htmlFor="weight-input">Weight (kg)</label>
@@ -598,8 +662,8 @@ export default function DashboardPage() {
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" className="btn btn-outline" onClick={() => { setShowWeightModal(false); setModalError(''); }} disabled={modalSubmitting} style={{ width: '40%' }}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={modalSubmitting} style={{ width: '60%' }} id="modal-submit-weight">
-                  {modalSubmitting ? 'Saving...' : 'Save Weight'}
+                <button type="submit" className="btn btn-primary" disabled={modalSubmitting} style={{ width: '60%', gap: '6px' }} id="modal-submit-weight">
+                  {modalSubmitting ? 'Saving...' : <><Plus size={15} /> Save Weight</>}
                 </button>
               </div>
             </form>

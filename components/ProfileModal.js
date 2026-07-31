@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
+import { User, Dumbbell, Clock4, Settings2, X, UtensilsCrossed } from 'lucide-react';
 
 const FITNESS_GOALS = ['Weight Loss', 'Weight Gain', 'Maintenance', 'General Fitness'];
 
@@ -108,10 +109,10 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
   };
 
   const sections = [
-    { id: 'personal', label: '👤 Personal' },
-    { id: 'health', label: '💪 Health' },
-    { id: 'routine', label: '🕐 Routine' },
-    { id: 'settings', label: '⚙️ Settings' },
+    { id: 'personal', Icon: User,     label: 'Personal' },
+    { id: 'health',   Icon: Dumbbell, label: 'Health' },
+    { id: 'routine',  Icon: Clock4,   label: 'Routine' },
+    { id: 'settings', Icon: Settings2,label: 'Settings' },
   ];
 
   return (
@@ -128,37 +129,45 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
               <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>{userData?.email}</p>
             </div>
           </div>
-          <button onClick={onClose} className="modal-close">&times;</button>
+          <button onClick={onClose} className="modal-close"><X size={14} /></button>
         </div>
 
         {/* Section Tabs */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', overflowX: 'auto' }}>
-          {sections.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setActiveSection(s.id)}
-              style={{
-                background: activeSection === s.id ? 'var(--primary)' : 'transparent',
-                color: activeSection === s.id ? 'var(--text-inverse)' : 'var(--text-muted)',
-                border: '1px solid',
-                borderColor: activeSection === s.id ? 'var(--primary)' : 'var(--border-color)',
-                borderRadius: '20px',
-                padding: '5px 14px',
-                fontSize: '0.8rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', overflowX: 'auto' }}>
+          {sections.map(s => {
+            const IconComp = s.Icon;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setActiveSection(s.id)}
+                style={{
+                  background: activeSection === s.id ? 'var(--primary)' : 'transparent',
+                  color: activeSection === s.id ? 'var(--text-inverse)' : 'var(--text-muted)',
+                  border: '1.5px solid',
+                  borderColor: activeSection === s.id ? 'var(--primary)' : 'var(--border-color)',
+                  borderRadius: '20px',
+                  padding: '5px 14px',
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  boxShadow: activeSection === s.id ? '0 2px 10px rgba(5,150,105,0.25)' : 'none',
+                }}
+              >
+                {IconComp && <IconComp size={13} />}
+                {s.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Alerts */}
-        {error && <div className="alert alert-danger">⚠️ {error}</div>}
-        {success && <div className="alert alert-success">✓ {success}</div>}
+        {error   && <div className="alert alert-danger">{error}</div>}
+        {success && <div className="alert alert-success">{success}</div>}
 
         {/* Personal Section */}
         {activeSection === 'personal' && (

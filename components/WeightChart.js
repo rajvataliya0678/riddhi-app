@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { TrendingUp } from 'lucide-react';
 
 export default function WeightChart({ weightHistory }) {
   const svgRef = useRef(null);
@@ -26,7 +27,7 @@ export default function WeightChart({ weightHistory }) {
   if (chartData.length < 2) {
     return (
       <div className="empty-state" style={{ padding: '32px' }}>
-        <span className="empty-state-icon">📈</span>
+        <span className="empty-state-icon"><TrendingUp size={40} color="#94a3b8" /></span>
         <p>Log at least 2 days to see your trend chart.</p>
       </div>
     );

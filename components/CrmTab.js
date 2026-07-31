@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import BulkAddLeadsModal from './BulkAddLeadsModal';
 import ConvertLeadModal from './ConvertLeadModal';
+import { ClipboardList } from 'lucide-react';
 
 const STATUS_OPTIONS = [
   'All',
@@ -360,7 +361,7 @@ export default function CrmTab({ coachUid }) {
       {/* Enquiries Table */}
       {filteredEnquiries.length === 0 ? (
         <div className="empty-state">
-          <span className="empty-state-icon">📋</span>
+          <span className="empty-state-icon"><ClipboardList size={40} color="#94a3b8" /></span>
           <h4>{enquiries.length === 0 ? 'No leads in CRM pipeline' : 'No leads match your filter'}</h4>
           <p>{enquiries.length === 0 ? 'Click "+ Bulk Add Leads" or "+ Add Single Lead" to start your pipeline.' : 'Try changing your status filter.'}</p>
         </div>
