@@ -38,7 +38,9 @@ export default function FollowUpTab({ coachUid, coachName }) {
       const profilesSnap = await getDocs(
         query(collection(db, 'customer_profiles'), where('coachId', '==', coachUid))
       );
-      const profileList = profilesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const profileList = profilesSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => c.role !== 'coach' && c.role !== 'admin');
 
       // 2. Fetch all followups for this coach
       const followupsSnap = await getDocs(

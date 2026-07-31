@@ -200,6 +200,9 @@ export default function MyCustomersTab({ coachUid, coachName }) {
         const data = userDoc.data();
         const userData = { id: userDoc.id, uid: data.uid || userDoc.id, ...data };
 
+        // Exclude users who are coaches or admins
+        if (userData.role === 'coach' || userData.role === 'admin') continue;
+
         // Diagnosis
         const diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', userData.uid)));
         userData.diagnosis = diagSnap.empty ? null : diagSnap.docs[0].data();
