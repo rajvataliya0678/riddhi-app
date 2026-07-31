@@ -87,6 +87,8 @@ export function MonthAttendanceCalendar({
       borderRadius: 'var(--radius-md)',
       border: '1px solid var(--border-color)',
       marginBottom: '6px',
+      overflowX: 'auto',
+      width: '100%',
     }}>
       {/* Calendar Bar Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -188,6 +190,7 @@ function PersonAttendanceCard({ name, role, morningMap, eveningMap, trainingMap,
     <div style={{
       background: 'var(--card-bg)', border: '1px solid var(--border-color)',
       borderRadius: 'var(--radius-lg)', padding: '12px',
+      width: '100%', boxSizing: 'border-box', overflowX: 'hidden',
     }}>
       {/* Person Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
@@ -212,8 +215,8 @@ function PersonAttendanceCard({ name, role, morningMap, eveningMap, trainingMap,
         </div>
       </div>
 
-      {/* Month Calendar Grids (Responsive 260px minmax for mobile stacking) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+      {/* Month Calendar Grids (Responsive 240px minmax for mobile stacking) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
         <MonthAttendanceCalendar
           label="Morning Session"
           icon="🌅"
@@ -480,7 +483,7 @@ export default function AttendanceTab({ user, userData }) {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
           <MonthAttendanceCalendar
             label="Morning Session"
             icon="🌅"
@@ -522,7 +525,7 @@ export default function AttendanceTab({ user, userData }) {
             </h3>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
             {coachUsers.map(coach => {
               const cMaps = buildMaps(coach.uid);
               return (
@@ -579,7 +582,7 @@ export default function AttendanceTab({ user, userData }) {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
             {assignedCustomers.map(cust => {
               const cMaps = buildMaps(cust.uid);
               return (
