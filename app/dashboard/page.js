@@ -67,10 +67,13 @@ export default function DashboardPage() {
     try {
       setLoadingData(true);
 
-      const diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', user.uid)));
+      const [diagSnap, weightSnap] = await Promise.all([
+        getDocs(query(collection(db, 'diagnosis'), where('uid', '==', user.uid))),
+        getDocs(query(collection(db, 'weight_history'), where('uid', '==', user.uid)))
+      ]);
+
       if (!diagSnap.empty) setDiagnosis(diagSnap.docs[0].data());
 
-      const weightSnap = await getDocs(query(collection(db, 'weight_history'), where('uid', '==', user.uid)));
       const history = weightSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       history.sort((a, b) => new Date(b.date) - new Date(a.date));
       setWeightHistory(history);
@@ -87,7 +90,7 @@ export default function DashboardPage() {
     } else {
       setLoadingData(false);
     }
-  }, [user, userData]);
+  }, [user?.uid]);
 
   // ── Derived values ────────────────────────────────────────
   const latestWeight = weightHistory.length > 0 ? weightHistory[0].weight : (diagnosis?.initialWeight || 0);
@@ -147,7 +150,7 @@ export default function DashboardPage() {
 
   const requiresDiagnosis = role === 'customer' && userData?.registrationCompleted === false;
 
-  if (authLoading || loadingData) {
+  if (authLoading) {
     return (
       <div className="auth-wrapper">
         <div style={{ textAlign: 'center' }}>
