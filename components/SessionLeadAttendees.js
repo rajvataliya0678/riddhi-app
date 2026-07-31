@@ -139,8 +139,8 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
     }
   };
 
-  // Filter leads scheduled for TODAY
-  const todayLeads = leads.filter(l => l.nextMeetingDate === todayStr && l.status !== 'Converted / Active Customer');
+  // Filter leads scheduled for TODAY (excluding converted customers)
+  const todayLeads = leads.filter(l => l.nextMeetingDate === todayStr && l.status !== 'Converted / Active Customer' && l.status !== 'Converted' && !l.isConverted);
   const morningLeads = todayLeads.filter(l => (l.nextMeetingSession || 'morning') === 'morning');
   const eveningLeads = todayLeads.filter(l => l.nextMeetingSession === 'evening');
 

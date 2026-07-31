@@ -67,11 +67,13 @@ export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted 
         createdAt: serverTimestamp(),
       });
 
-      // 5. Update CRM enquiry status to 'Closing' / 'Converted'
+      // 5. Update CRM enquiry status to 'Converted' & hide from active pipeline
       if (lead?.id) {
         await updateDoc(doc(db, 'crm_enquiries', lead.id), {
-          status: 'Closing',
+          status: 'Converted',
+          isConverted: true,
           convertedCustomerUid: customerUid,
+          convertedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
       }

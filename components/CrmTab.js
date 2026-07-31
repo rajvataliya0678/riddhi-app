@@ -157,8 +157,11 @@ export default function CrmTab({ coachUid }) {
     setShowModal(true);
   };
 
+  // Active pipeline excludes leads converted to customers
+  const activeEnquiries = enquiries.filter(e => !e.isConverted && e.status !== 'Converted' && e.status !== 'Converted / Active Customer');
+
   const getFilteredEnquiries = () => {
-    let filtered = [...enquiries];
+    let filtered = [...activeEnquiries];
 
     if (filterStatus !== 'All') {
       filtered = filtered.filter(e => e.status === filterStatus);
@@ -183,13 +186,13 @@ export default function CrmTab({ coachUid }) {
   const filteredEnquiries = getFilteredEnquiries();
 
   const stats = {
-    total: enquiries.length,
-    newLead: enquiries.filter(e => e.status === 'New Lead' || e.status === 'New').length,
-    sess1: enquiries.filter(e => e.status === '1 Session').length,
-    sess2: enquiries.filter(e => e.status === '2 Session').length,
-    closing: enquiries.filter(e => e.status === 'Closing' || e.status === 'Converted').length,
-    waiting: enquiries.filter(e => e.status === 'Waiting List').length,
-    rejected: enquiries.filter(e => e.status === 'Rejected' || e.status === 'Not Interested').length,
+    total: activeEnquiries.length,
+    newLead: activeEnquiries.filter(e => e.status === 'New Lead' || e.status === 'New').length,
+    sess1: activeEnquiries.filter(e => e.status === '1 Session').length,
+    sess2: activeEnquiries.filter(e => e.status === '2 Session').length,
+    closing: activeEnquiries.filter(e => e.status === 'Closing').length,
+    waiting: activeEnquiries.filter(e => e.status === 'Waiting List').length,
+    rejected: activeEnquiries.filter(e => e.status === 'Rejected' || e.status === 'Not Interested').length,
   };
 
   if (loading) {
