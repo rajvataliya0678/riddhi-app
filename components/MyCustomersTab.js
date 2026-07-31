@@ -191,32 +191,37 @@ export default function MyCustomersTab({ coachUid, coachName }) {
     try {
       setLoading(true);
 
-      const usersSnap = await getDocs(
-        query(collection(db, 'users'), where('coachId', '==', coachUid))
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+      // 1. Parallel fetch for users, followups, and attendance
+      const [usersSnap, followupsSnap, attSnap] = await Promise.all([
+        getDocs(query(collection(db, 'users'), where('coachId', '==', coachUid))),
+        getDocs(query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))),
+        getDocs(query(collection(db, 'meeting_attendance'), where('date', '>=', thirtyDaysAgoStr)))
+      ]);
+
+      const validUsers = usersSnap.docs
+        .map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }))
+        .filter(u => u.role !== 'coach' && u.role !== 'admin');
+
+      // 2. Parallel fetch diagnosis & weight history for all valid customers
+      const customerList = await Promise.all(
+        validUsers.map(async (userData) => {
+          const [diagSnap, weightSnap] = await Promise.all([
+            getDocs(query(collection(db, 'diagnosis'), where('uid', '==', userData.uid))),
+            getDocs(query(collection(db, 'weight_history'), where('uid', '==', userData.uid)))
+          ]);
+          return {
+            ...userData,
+            diagnosis: diagSnap.empty ? null : diagSnap.docs[0].data(),
+            weightLogs: weightSnap.docs.map(d => d.data())
+          };
+        })
       );
 
-      const customerList = [];
-      for (const userDoc of usersSnap.docs) {
-        const data = userDoc.data();
-        const userData = { id: userDoc.id, uid: data.uid || userDoc.id, ...data };
-
-        // Exclude users who are coaches or admins
-        if (userData.role === 'coach' || userData.role === 'admin') continue;
-
-        // Diagnosis
-        const diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', userData.uid)));
-        userData.diagnosis = diagSnap.empty ? null : diagSnap.docs[0].data();
-
-        // Weight logs
-        const weightSnap = await getDocs(query(collection(db, 'weight_history'), where('uid', '==', userData.uid)));
-        userData.weightLogs = weightSnap.docs.map(d => d.data());
-
-        customerList.push(userData);
-      }
-
-      const followupsSnap = await getDocs(
-        query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))
-      );
+      // Group followups
       const grouped = {};
       followupsSnap.docs.forEach(d => {
         const data = { id: d.id, ...d.data() };
@@ -225,15 +230,7 @@ export default function MyCustomersTab({ coachUid, coachName }) {
         grouped[key].push(data);
       });
 
-      // Fetch meeting attendance for last 30 days
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-
-      const attSnap = await getDocs(
-        query(collection(db, 'meeting_attendance'), where('date', '>=', thirtyDaysAgoStr))
-      );
-
+      // Build attendance map
       const attMap = {};
       attSnap.docs.forEach(d => {
         const data = d.data();

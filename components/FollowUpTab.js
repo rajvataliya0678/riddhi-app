@@ -34,18 +34,16 @@ export default function FollowUpTab({ coachUid, coachName }) {
     try {
       setLoading(true);
 
-      // 1. Fetch all customer profiles for this coach
-      const profilesSnap = await getDocs(
-        query(collection(db, 'customer_profiles'), where('coachId', '==', coachUid))
-      );
+      // Parallel fetch for profiles and followups
+      const [profilesSnap, followupsSnap] = await Promise.all([
+        getDocs(query(collection(db, 'customer_profiles'), where('coachId', '==', coachUid))),
+        getDocs(query(collection(db, 'customer_followups'), where('coachId', '==', coachUid)))
+      ]);
+
       const profileList = profilesSnap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(c => c.role !== 'coach' && c.role !== 'admin');
 
-      // 2. Fetch all followups for this coach
-      const followupsSnap = await getDocs(
-        query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))
-      );
       const allFollowups = followupsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
       // Group followups by customerProfileId

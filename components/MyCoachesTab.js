@@ -26,41 +26,33 @@ export default function MyCoachesTab({ coachUid }) {
     try {
       setLoading(true);
 
-      // 1. Fetch all users (coaches and customers)
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const allUsers = usersSnap.docs.map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }));
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
+      // Parallel fetch for all collections
+      const [usersSnap, diagSnap, weightSnap, crmSnap, fuSnap, attSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'diagnosis')),
+        getDocs(collection(db, 'weight_history')),
+        getDocs(collection(db, 'crm_enquiries')),
+        getDocs(collection(db, 'customer_followups')),
+        getDocs(query(collection(db, 'meeting_attendance'), where('date', '>=', sevenDaysAgoStr)))
+      ]);
+
+      const allUsers = usersSnap.docs.map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }));
       const coachList = allUsers.filter(u => u.role === 'coach' || u.role === 'club_owner' || u.role === 'admin');
       const customerList = allUsers.filter(u => u.role === 'customer' || !u.role);
 
-      // 2. Fetch diagnosis for all customers
-      const diagSnap = await getDocs(collection(db, 'diagnosis'));
       const dMap = {};
       diagSnap.docs.forEach(d => {
         const data = d.data();
         if (data.uid) dMap[data.uid] = data;
       });
 
-      // 3. Fetch weight history for all customers
-      const weightSnap = await getDocs(collection(db, 'weight_history'));
       const wList = weightSnap.docs.map(d => d.data());
-
-      // 4. Fetch all CRM enquiries
-      const crmSnap = await getDocs(collection(db, 'crm_enquiries'));
       const crmList = crmSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      // 5. Fetch all customer followups
-      const fuSnap = await getDocs(collection(db, 'customer_followups'));
       const fuList = fuSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      // 6. Fetch meeting attendance for last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
-
-      const attSnap = await getDocs(
-        query(collection(db, 'meeting_attendance'), where('date', '>=', sevenDaysAgoStr))
-      );
 
       const attMap = {};
       attSnap.docs.forEach(d => {
