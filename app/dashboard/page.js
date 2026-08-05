@@ -19,6 +19,7 @@ import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
 import MyCoachesTab from '@/components/MyCoachesTab';
 import AttendanceTab from '@/components/AttendanceTab';
 import SessionLeadAttendees from '@/components/SessionLeadAttendees';
+import UpdatePrompt from '@/components/UpdatePrompt';
 import {
   LayoutDashboard, CalendarCheck, Users, ClipboardList, BarChart3,
   GraduationCap, Settings2, Scale, Flame, Target, TrendingUp,
@@ -181,6 +182,9 @@ export default function DashboardPage() {
 
   return (
     <div className="app-shell">
+
+      {/* ── IN-APP UPDATE PROMPT ── */}
+      <UpdatePrompt />
 
       {/* ── MOBILE TOP BAR ── */}
       <div className="mobile-top-bar">

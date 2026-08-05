@@ -1,10 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   collection, query, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import {
+  createNotificationChannel,
+  registerNotificationActionTypes,
+  requestNotificationPermission,
+  setupActionListener,
+  scheduleMeetingReminders,
+  cancelAllMeetingNotifications,
+  fireTestNotification,
+} from '@/lib/meetingNotifications';
 
 // ── Add / Schedule Meeting Modal ─────────────────────────
 function AddMeetingModal({ onClose, onSaved, createdBy }) {
@@ -360,12 +369,35 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
   const [showAdd, setShowAdd]           = useState(false);
   const [editingMeeting, setEditingMeeting] = useState(null);
   const [, setTick]                     = useState(0);
+  const [testNotifSent, setTestNotifSent] = useState(false);
 
   const role = userRole || userData?.role || 'customer';
   const uid = userId || user?.uid || '';
   const canAdd = role === 'admin' || role === 'coach';
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // ── Notification setup: run once on mount ──────────────────────────────────
+  const notifCleanupRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initNotifications() {
+      await requestNotificationPermission();
+      await createNotificationChannel();
+      await registerNotificationActionTypes();
+      const cleanup = await setupActionListener();
+      if (!cancelled) notifCleanupRef.current = cleanup;
+    }
+
+    initNotifications();
+
+    return () => {
+      cancelled = true;
+      if (notifCleanupRef.current) notifCleanupRef.current();
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 60000);
@@ -397,6 +429,10 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
 
       filtered.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
       setMeetings(filtered);
+
+      // ── Schedule a notification for each upcoming meeting ──────────────────
+      // We pass the first meeting's URL as a fallback for the action listener.
+      scheduleMeetingReminders(filtered, user, userData);
     } catch (err) {
       console.error('Meetings fetch error:', err);
     } finally {
@@ -485,7 +521,7 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
               </p>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             {liveCount > 0 && (
               <span style={{
                 padding: '3px 10px', borderRadius: '99px',
@@ -495,6 +531,32 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
                 🔴 {liveCount} Live
               </span>
             )}
+
+            {/* ── Test Notification button (coaches/admins only) ── */}
+            {canAdd && (
+              <button
+                id="test-notif-btn"
+                title="Send a test notification to verify sound & action buttons"
+                style={{
+                  padding: '4px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
+                  background: testNotifSent ? '#f0fdf4' : '#faf5ff',
+                  color: testNotifSent ? '#16a34a' : '#7c3aed',
+                  border: testNotifSent ? '1px solid #86efac' : '1px solid #c4b5fd',
+                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+                }}
+                onClick={async () => {
+                  // Use the first meeting's URL as the test URL (or a generic one)
+                  const testUrl = meetings.find(m => m.meetingUrl)?.meetingUrl || 'https://zoom.us/test';
+                  await fireTestNotification(testUrl);
+                  setTestNotifSent(true);
+                  // Reset button label after 10 seconds
+                  setTimeout(() => setTestNotifSent(false), 10000);
+                }}
+              >
+                {testNotifSent ? '✅ Sent! Check in 5s' : '🔔 Test Notification'}
+              </button>
+            )}
+
             {canAdd && (
               <button
                 className="btn btn-primary"
