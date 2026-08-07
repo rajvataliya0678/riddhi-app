@@ -87,9 +87,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   const fetchEnquiries = async () => {
     try {
       setLoading(true);
-      const crmQuery = userRole === 'admin'
-        ? collection(db, 'crm_enquiries')
-        : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid));
+      const crmQuery = query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid));
 
       const [snap, usersSnap] = await Promise.all([
         getDocs(crmQuery),
@@ -101,13 +99,9 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
         .filter(u => u.role === 'coach' || u.role === 'admin');
       setCoaches(coachesList);
 
-      const coachesMap = {};
-      coachesList.forEach(c => { coachesMap[c.uid] = c.name || c.fullName || 'Staff'; });
-
       const list = snap.docs.map(d => {
         const data = d.data();
-        const cName = data.coachName || coachesMap[data.coachId] || 'Staff';
-        return { id: d.id, ...data, coachName: cName };
+        return { id: d.id, ...data };
       });
 
       list.sort((a, b) => {
@@ -125,9 +119,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
 
   const handleSaveEnquiry = async (data, existingId, keepOpen = false) => {
     try {
-      const targetCoachId = data.coachId || coachUid;
-      const targetCoach = coaches.find(c => (c.uid || c.id) === targetCoachId);
-      const assignedStaffName = targetCoach?.name || targetCoach?.fullName || 'Staff';
+      const assignedStaffName = data.staffName || data.coachName || '';
 
       if (existingId) {
         const docRef = doc(db, 'crm_enquiries', existingId);
@@ -138,8 +130,8 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
           healthCondition: data.healthCondition || '',
           source: data.source,
           status: data.status,
-          coachId: targetCoachId,
-          coachName: assignedStaffName,
+          coachId: coachUid,
+          staffName: assignedStaffName,
           followUpDate: data.followUpDate || '',
           nextMeetingDate: data.nextMeetingDate || '',
           nextMeetingSession: data.nextMeetingSession || 'morning',
@@ -164,8 +156,8 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
         await updateDoc(docRef, updateData);
       } else {
         await addDoc(collection(db, 'crm_enquiries'), {
-          coachId: targetCoachId,
-          coachName: assignedStaffName,
+          coachId: coachUid,
+          staffName: assignedStaffName,
           name: data.name,
           phone: data.phone,
           address: data.address || '',
@@ -460,13 +452,15 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                         }}>
                           {enquiry.status}
                         </span>
-                        <span style={{
-                          padding: '2px 8px', borderRadius: '6px',
-                          fontSize: '0.7rem', fontWeight: '800', whiteSpace: 'nowrap',
-                          background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1'
-                        }}>
-                          👨‍🏫 {enquiry.coachName || 'Staff'}
-                        </span>
+                        {(enquiry.staffName || enquiry.coachName) && (
+                          <span style={{
+                            padding: '2px 8px', borderRadius: '6px',
+                            fontSize: '0.7rem', fontWeight: '800', whiteSpace: 'nowrap',
+                            background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1'
+                          }}>
+                            👤 Staff: {enquiry.staffName || enquiry.coachName}
+                          </span>
+                        )}
                       </div>
                     </td>
 
