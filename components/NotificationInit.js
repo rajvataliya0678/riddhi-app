@@ -14,7 +14,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { collection, getDocs, query, where, updateDoc, doc, arrayUnion, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, updateDoc, doc, arrayUnion, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
@@ -25,74 +25,77 @@ import {
   setupActionListener,
 } from '@/lib/meetingNotifications';
 
-// ── Broadcast Notification Checker ────────────────────────────────────────────
-async function checkBroadcastNotifications(uid, userRole, userCreatedAt) {
-  if (!Capacitor.isNativePlatform()) return;
-  if (!uid) return;
+// ── Real-Time Broadcast Notification Listener (0-Second Instant Delivery) ──────
+function subscribeBroadcastNotifications(uid, userRole, userCreatedAt) {
+  if (!uid) return () => {};
 
-  try {
-    const regDate = userCreatedAt?.toDate
-      ? userCreatedAt.toDate()
-      : userCreatedAt
-        ? new Date(userCreatedAt)
-        : new Date(0);
+  const regDate = userCreatedAt?.toDate
+    ? userCreatedAt.toDate()
+    : userCreatedAt
+      ? new Date(userCreatedAt)
+      : new Date(0);
 
-    // Fetch last 10 broadcast notifications not yet read by this user
-    const snap = await getDocs(
-      query(
-        collection(db, 'broadcast_notifications'),
-        orderBy('sentAt', 'desc'),
-        limit(10)
-      )
-    );
+  const q = query(
+    collection(db, 'broadcast_notifications'),
+    orderBy('sentAt', 'desc'),
+    limit(10)
+  );
 
-    const pending = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(n => {
-        if (n.deleted) return false;
-        if ((n.readBy || []).includes(uid)) return false; // already seen
+  const unsubscribe = onSnapshot(q, async (snap) => {
+    try {
+      const pending = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(n => {
+          if (n.deleted) return false;
+          if ((n.readBy || []).includes(uid)) return false; // already seen
 
-        // Registration time filter: ONLY push notifications sent AFTER user registered
-        const sentDate = n.sentAt?.toDate ? n.sentAt.toDate() : new Date(n.sentAt || 0);
-        if (sentDate < regDate) return false;
+          // Registration time filter: ONLY push notifications sent AFTER user registered
+          const sentDate = n.sentAt?.toDate ? n.sentAt.toDate() : new Date(n.sentAt || 0);
+          if (sentDate < regDate) return false;
 
-        // Audience filter
-        if (n.audience === 'all') return true;
-        if (n.audience === 'coaches' && (userRole === 'coach' || userRole === 'admin')) return true;
-        if (n.audience === 'customers' && userRole === 'customer') return true;
-        return false;
-      });
+          // Audience filter
+          if (n.audience === 'all') return true;
+          if (n.audience === 'coaches' && (userRole === 'coach' || userRole === 'admin')) return true;
+          if (n.audience === 'customers' && userRole === 'customer') return true;
+          return false;
+        });
 
-    if (pending.length === 0) return;
+      if (pending.length === 0) return;
 
-    // Show each as a local notification
-    const notifications = pending.map((n, idx) => ({
-      id: 20000 + idx,
-      title: n.title,
-      body: n.body,
-      channelId: 'meeting_reminders',
-      sound: 'session_reminder',
-      extra: { link: n.link || '' },
-      schedule: { at: new Date(Date.now() + (idx + 1) * 2000) }, // stagger by 2s each
-    }));
+      if (Capacitor.isNativePlatform()) {
+        // Instant delivery on Android/iOS app shell
+        const notifications = pending.map((n, idx) => ({
+          id: 20000 + (idx % 1000),
+          title: n.title,
+          body: n.body,
+          channelId: 'meeting_reminders',
+          sound: 'session_reminder',
+          extra: { link: n.link || '' },
+          schedule: { at: new Date(Date.now() + 200) }, // Instant 0s trigger
+        }));
 
-    await LocalNotifications.schedule({ notifications });
+        await LocalNotifications.schedule({ notifications });
+      }
 
-    // Mark all as read by this user
-    for (const n of pending) {
-      await updateDoc(doc(db, 'broadcast_notifications', n.id), {
-        readBy: arrayUnion(uid),
-      });
+      // Mark as read by this user
+      for (const n of pending) {
+        updateDoc(doc(db, 'broadcast_notifications', n.id), {
+          readBy: arrayUnion(uid),
+        }).catch(err => console.warn('[NotifReadUpdate] Error:', err));
+      }
+    } catch (err) {
+      console.warn('[NotificationInit] Realtime broadcast listener error:', err);
     }
-  } catch (err) {
-    console.warn('[NotificationInit] Broadcast check failed:', err);
-  }
+  }, (err) => console.warn('[NotificationInit] Snapshot error:', err));
+
+  return unsubscribe;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function NotificationInit({ uid, userRole, userCreatedAt }) {
   useEffect(() => {
-    let cleanupFn = null;
+    let cleanupAction = null;
+    let unsubscribeNotif = null;
     let mounted = true;
 
     async function init() {
@@ -100,11 +103,11 @@ export default function NotificationInit({ uid, userRole, userCreatedAt }) {
       await createNotificationChannel();
       await registerNotificationActionTypes();
       const cleanup = await setupActionListener();
-      if (mounted) cleanupFn = cleanup;
+      if (mounted) cleanupAction = cleanup;
 
-      // Check for admin-sent broadcast notifications (after 3s to let auth settle)
-      if (uid) {
-        setTimeout(() => checkBroadcastNotifications(uid, userRole, userCreatedAt), 3000);
+      // Subscribe to real-time instant broadcast notifications
+      if (uid && mounted) {
+        unsubscribeNotif = subscribeBroadcastNotifications(uid, userRole, userCreatedAt);
       }
     }
 
@@ -112,9 +115,10 @@ export default function NotificationInit({ uid, userRole, userCreatedAt }) {
 
     return () => {
       mounted = false;
-      if (cleanupFn) cleanupFn();
+      if (cleanupAction) cleanupAction();
+      if (unsubscribeNotif) unsubscribeNotif();
     };
-  }, [uid, userRole]);
+  }, [uid, userRole, userCreatedAt]);
 
   return null;
 }
