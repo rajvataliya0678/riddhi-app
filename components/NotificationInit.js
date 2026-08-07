@@ -91,11 +91,91 @@ function subscribeBroadcastNotifications(uid, userRole, userCreatedAt) {
   return unsubscribe;
 }
 
+// ── Real-Time Auto Meeting Notification Listener ────────────────────────────────
+function subscribeMeetingAutoBroadcast(uid, userRole) {
+  if (!uid) return () => {};
+
+  const q = query(collection(db, 'meetings'));
+  const todayStr = new Date().toISOString().split('T')[0];
+  const notifiedMeetings = new Set();
+
+  const checkAndNotify = (snapDocs) => {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    snapDocs.forEach(d => {
+      const m = { id: d.id, ...d.data() };
+      if (!m.time) return;
+
+      const isToday = m.recurrence === 'daily' || m.date === todayStr;
+      if (!isToday) return;
+
+      // Check target audience
+      let canSee = false;
+      if (m.visibleTo === 'customers' || m.visibleTo === 'all' || !m.visibleTo) canSee = true;
+      if (m.visibleTo === 'coaches' && (userRole === 'coach' || userRole === 'admin')) canSee = true;
+      if (!canSee) return;
+
+      let hours = 0, minutes = 0;
+      const ampmMatch = m.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (ampmMatch) {
+        hours = parseInt(ampmMatch[1]);
+        minutes = parseInt(ampmMatch[2]);
+        const period = ampmMatch[3].toUpperCase();
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+      } else {
+        const parts = m.time.split(':');
+        hours = parseInt(parts[0]) || 0;
+        minutes = parseInt(parts[1]) || 0;
+      }
+
+      const meetingMinutes = hours * 60 + minutes;
+      const key = `${m.id}_${todayStr}_${hours}_${minutes}`;
+
+      // Trigger if meeting time has arrived (within 0 to 5 mins window) and not yet notified
+      if (nowMinutes >= meetingMinutes && nowMinutes <= meetingMinutes + 5 && !notifiedMeetings.has(key)) {
+        notifiedMeetings.add(key);
+
+        if (Capacitor.isNativePlatform()) {
+          LocalNotifications.schedule({
+            notifications: [{
+              id: 30000 + (Math.abs(d.id.hashCode ? d.id.hashCode() : 1) % 10000),
+              title: 'Your session is starting 🎥',
+              body: `${m.title || 'Live Session'} is starting now. Tap Join to enter!`,
+              sound: 'session_reminder',
+              channelId: 'meeting_reminders',
+              actionTypeId: 'MEETING_ACTIONS',
+              extra: { meetingUrl: m.meetingUrl || '' },
+              schedule: { at: new Date(Date.now() + 200) },
+            }]
+          }).catch(err => console.warn('[AutoMeetingNotif] Schedule error:', err));
+        }
+      }
+    });
+  };
+
+  const unsubscribe = onSnapshot(q, (snap) => {
+    checkAndNotify(snap.docs);
+  }, (err) => console.warn('[NotificationInit] Meeting snapshot error:', err));
+
+  // Check every 30 seconds for exact minute match
+  const timer = setInterval(() => {
+    onSnapshot(q, (snap) => checkAndNotify(snap.docs))();
+  }, 30000);
+
+  return () => {
+    unsubscribe();
+    clearInterval(timer);
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function NotificationInit({ uid, userRole, userCreatedAt }) {
   useEffect(() => {
     let cleanupAction = null;
     let unsubscribeNotif = null;
+    let unsubscribeMeeting = null;
     let mounted = true;
 
     async function init() {
@@ -105,9 +185,10 @@ export default function NotificationInit({ uid, userRole, userCreatedAt }) {
       const cleanup = await setupActionListener();
       if (mounted) cleanupAction = cleanup;
 
-      // Subscribe to real-time instant broadcast notifications
+      // Subscribe to real-time instant broadcast notifications & auto meeting notifications
       if (uid && mounted) {
         unsubscribeNotif = subscribeBroadcastNotifications(uid, userRole, userCreatedAt);
+        unsubscribeMeeting = subscribeMeetingAutoBroadcast(uid, userRole);
       }
     }
 
@@ -117,6 +198,7 @@ export default function NotificationInit({ uid, userRole, userCreatedAt }) {
       mounted = false;
       if (cleanupAction) cleanupAction();
       if (unsubscribeNotif) unsubscribeNotif();
+      if (unsubscribeMeeting) unsubscribeMeeting();
     };
   }, [uid, userRole, userCreatedAt]);
 
