@@ -272,7 +272,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
             phone: lead.phone || '',
             goal: lead.status || 'Lead',
             title: `📋 CRM Lead Follow-up: ${lead.name}`,
-            description: `Follow-up date reached (${fuDateStr}) · Stage: ${lead.status || 'New Lead'}`,
+            description: `Follow-up date reached (${fuDateStr}) · Stage: ${lead.status || 'New Lead'}${lead.coachName ? ` · Staff: ${lead.coachName}` : ''}`,
             urgency: isOverdue ? 'overdue' : 'today',
             actionType: 'open_crm_modal',
             leadObj: lead,

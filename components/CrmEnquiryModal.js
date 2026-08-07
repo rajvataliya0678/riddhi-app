@@ -40,7 +40,7 @@ function getStatusBadgeClass(status) {
   return map[status] || 'status-new';
 }
 
-export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, onDelete, coaches = [], autoCallLogFocus = false }) {
+export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, onDelete, coaches = [], userRole = 'coach', autoCallLogFocus = false }) {
   const isEditing = !!enquiry;
 
   const [showMenu, setShowMenu]               = useState(false);
@@ -407,27 +407,41 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
           
-          {coaches && coaches.length > 0 && (
-            <div className="form-group">
-              <label className="form-label" htmlFor="crm-assigned-coach" style={{ fontSize: '0.78rem', fontWeight: '800' }}>
-                Assigned Coach (જવાબદાર કોચ)
-              </label>
-              <select
-                id="crm-assigned-coach"
-                className="form-input"
-                value={assignedCoachId}
-                onChange={(e) => setAssignedCoachId(e.target.value)}
-                disabled={submitting}
-                style={{ fontWeight: '700' }}
-              >
-                <option value="">— Select Coach —</option>
-                {coaches.map(c => (
-                  <option key={c.uid || c.id} value={c.uid || c.id}>
-                    {c.name || c.fullName} ({c.role === 'admin' ? 'Owner' : 'Coach'})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Assigned Staff (Club Owner can select/reassign, others view only) */}
+          {userRole === 'admin' ? (
+            coaches && coaches.length > 0 && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="crm-assigned-coach" style={{ fontSize: '0.78rem', fontWeight: '800' }}>
+                  👑 Assign Staff / Coach (જવાબદાર સ્ટાફ મોનિટર - Club Owner Only)
+                </label>
+                <select
+                  id="crm-assigned-coach"
+                  className="form-input"
+                  value={assignedCoachId}
+                  onChange={(e) => setAssignedCoachId(e.target.value)}
+                  disabled={submitting}
+                  style={{ fontWeight: '700', border: '1px solid #8b5cf6' }}
+                >
+                  <option value="">— Select Staff / Coach —</option>
+                  {coaches.map(c => (
+                    <option key={c.uid || c.id} value={c.uid || c.id}>
+                      {c.name || c.fullName} ({c.role === 'admin' ? 'Club Owner' : 'Coach'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )
+          ) : (
+            enquiry?.coachName && (
+              <div style={{
+                background: '#f8fafc', padding: '8px 12px', borderRadius: '8px',
+                border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px',
+                fontSize: '0.8rem', fontWeight: '700', color: '#475569'
+              }}>
+                <span>👨‍🏫 Assigned Staff:</span>
+                <span style={{ color: '#0f172a', fontWeight: '800' }}>{enquiry.coachName}</span>
+              </div>
+            )
           )}
 
           {/* Row 1: Name & Phone */}

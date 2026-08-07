@@ -41,7 +41,7 @@ function getStatusBadgeStyle(status) {
   }
 }
 
-export default function CrmTab({ coachUid }) {
+export default function CrmTab({ coachUid, userRole = 'coach' }) {
   const [enquiries, setEnquiries]   = useState([]);
   const [coaches, setCoaches]       = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -82,27 +82,40 @@ export default function CrmTab({ coachUid }) {
 
   useEffect(() => {
     fetchEnquiries();
-  }, [coachUid]);
+  }, [coachUid, userRole]);
 
   const fetchEnquiries = async () => {
     try {
       setLoading(true);
+      const crmQuery = userRole === 'admin'
+        ? collection(db, 'crm_enquiries')
+        : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid));
+
       const [snap, usersSnap] = await Promise.all([
-        getDocs(query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))),
+        getDocs(crmQuery),
         getDocs(collection(db, 'users'))
       ]);
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const coachesList = usersSnap.docs
+        .map(d => ({ uid: d.id, ...d.data() }))
+        .filter(u => u.role === 'coach' || u.role === 'admin');
+      setCoaches(coachesList);
+
+      const coachesMap = {};
+      coachesList.forEach(c => { coachesMap[c.uid] = c.name || c.fullName || 'Staff'; });
+
+      const list = snap.docs.map(d => {
+        const data = d.data();
+        const cName = data.coachName || coachesMap[data.coachId] || 'Staff';
+        return { id: d.id, ...data, coachName: cName };
+      });
+
       list.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
         const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
         return dateB - dateA;
       });
       setEnquiries(list);
-
-      const coachesList = usersSnap.docs
-        .map(d => ({ uid: d.id, ...d.data() }))
-        .filter(u => u.role === 'coach' || u.role === 'admin');
-      setCoaches(coachesList);
     } catch (error) {
       console.error('Error fetching CRM enquiries:', error);
     } finally {
@@ -112,6 +125,10 @@ export default function CrmTab({ coachUid }) {
 
   const handleSaveEnquiry = async (data, existingId, keepOpen = false) => {
     try {
+      const targetCoachId = data.coachId || coachUid;
+      const targetCoach = coaches.find(c => (c.uid || c.id) === targetCoachId);
+      const assignedStaffName = targetCoach?.name || targetCoach?.fullName || 'Staff';
+
       if (existingId) {
         const docRef = doc(db, 'crm_enquiries', existingId);
         const updateData = {
@@ -121,7 +138,8 @@ export default function CrmTab({ coachUid }) {
           healthCondition: data.healthCondition || '',
           source: data.source,
           status: data.status,
-          coachId: data.coachId || coachUid,
+          coachId: targetCoachId,
+          coachName: assignedStaffName,
           followUpDate: data.followUpDate || '',
           nextMeetingDate: data.nextMeetingDate || '',
           nextMeetingSession: data.nextMeetingSession || 'morning',
@@ -146,7 +164,8 @@ export default function CrmTab({ coachUid }) {
         await updateDoc(docRef, updateData);
       } else {
         await addDoc(collection(db, 'crm_enquiries'), {
-          coachId: coachUid,
+          coachId: targetCoachId,
+          coachName: assignedStaffName,
           name: data.name,
           phone: data.phone,
           address: data.address || '',
@@ -428,9 +447,9 @@ export default function CrmTab({ coachUid }) {
                       #{index + 1}
                     </td>
 
-                    {/* Black Lead Name + Status Badge next to it */}
+                    {/* Black Lead Name + Status Badge + Staff Badge next to it */}
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span style={{ color: '#000000', fontWeight: '900', fontSize: '0.92rem' }}>
                           {enquiry.name}
                         </span>
@@ -440,6 +459,13 @@ export default function CrmTab({ coachUid }) {
                           background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
                         }}>
                           {enquiry.status}
+                        </span>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: '6px',
+                          fontSize: '0.7rem', fontWeight: '800', whiteSpace: 'nowrap',
+                          background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1'
+                        }}>
+                          👨‍🏫 {enquiry.coachName || 'Staff'}
                         </span>
                       </div>
                     </td>
@@ -609,6 +635,7 @@ export default function CrmTab({ coachUid }) {
           onConvert={(enquiry) => setConvertLead(enquiry)}
           onDelete={(id, name) => handleDeleteEnquiry(id, name)}
           coaches={coaches}
+          userRole={userRole}
           autoCallLogFocus={autoCallLogFocus}
         />
       )}
