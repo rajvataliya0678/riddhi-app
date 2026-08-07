@@ -36,10 +36,10 @@ export default function UpdatePrompt() {
 
   const { latestVersion, releaseNotes, apkUrl, forceUpdate, currentVersion } = updateInfo;
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setDownloading(true);
-    downloadAndInstall(apkUrl);
-    setTimeout(() => setDownloading(false), 3000);
+    await downloadAndInstall(apkUrl);
+    setTimeout(() => setDownloading(false), 8000);
   };
 
   const isGu = language !== 'en'; // Default to Gujarati for senior citizens & user preference
