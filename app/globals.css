@@ -3,7 +3,7 @@
    Ultra-modern glassmorphism, vivid gradients, premium feel
    ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hind+Vadodara:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -89,9 +89,11 @@
   --font-body:    'Space Grotesk', 'Inter', system-ui, sans-serif;
   --font-heading: 'Outfit', 'Space Grotesk', sans-serif;
 
-  /* Transitions */
+  /* Transitions & Spring Physics */
   --transition-smooth: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-spring: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, border-color 0.2s ease;
+  --transition-fluid:  all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-bounce: transform 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6);
   --transition-fast:   all 0.15s ease;
 }
 
@@ -234,23 +236,25 @@ input, select, textarea { font-family: var(--font-body); }
   background: transparent;
   width: 100%;
   text-align: left;
-  transition: var(--transition-smooth);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, color 0.2s ease, box-shadow 0.25s ease;
   position: relative;
   letter-spacing: 0.01em;
+  will-change: transform;
 }
 
 .sidebar-link:hover {
-  background: rgba(255,255,255,0.07);
-  color: rgba(255,255,255,0.9);
-  transform: translateX(2px);
+  background: rgba(255,255,255,0.09);
+  color: rgba(255,255,255,0.95);
+  transform: translateX(4px) scale(1.01);
 }
 
 .sidebar-link.active {
-  background: linear-gradient(135deg, rgba(5,150,105,0.25) 0%, rgba(99,102,241,0.15) 100%);
+  background: linear-gradient(135deg, rgba(5,150,105,0.3) 0%, rgba(99,102,241,0.2) 100%);
   color: #fff;
   font-weight: 700;
-  border: 1px solid rgba(5,150,105,0.3);
-  box-shadow: 0 4px 16px rgba(5,150,105,0.15), inset 0 1px 0 rgba(255,255,255,0.1);
+  border: 1px solid rgba(5,150,105,0.4);
+  box-shadow: 0 4px 20px rgba(5,150,105,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  transform: translateX(2px);
 }
 
 .sidebar-link.active::before {
@@ -528,12 +532,13 @@ input, select, textarea { font-family: var(--font-body); }
   font-family: var(--font-body);
   cursor: pointer;
   border: none;
-  transition: var(--transition-smooth);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, border-color 0.2s ease;
   width: 100%;
   white-space: nowrap;
   letter-spacing: 0.01em;
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 
 .btn::after {
@@ -545,7 +550,29 @@ input, select, textarea { font-family: var(--font-body); }
   border-radius: inherit;
 }
 
+.btn-primary::before, .btn-sheen::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -120%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.65s ease;
+}
+
+.btn-primary:hover::before, .btn-sheen:hover::before {
+  left: 160%;
+}
+
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn:active:not(:disabled),
+button:active:not(:disabled),
+.sidebar-link:active,
+.mobile-tab-btn:active {
+  transform: scale(0.95) translateY(1px) !important;
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
 
 .btn-primary {
   background: var(--grad-green);
@@ -554,14 +581,9 @@ input, select, textarea { font-family: var(--font-body); }
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(5,150,105,0.45), 0 4px 12px rgba(5,150,105,0.25);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 30px rgba(5,150,105,0.48), 0 4px 14px rgba(5,150,105,0.28);
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(5,150,105,0.3);
 }
 
 .btn-outline {
@@ -646,9 +668,10 @@ input, select, textarea { font-family: var(--font-body); }
   display: flex;
   flex-direction: column;
   gap: 16px;
-  transition: var(--transition-smooth);
+  transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.25s ease;
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 
 .dashboard-card::before {
@@ -660,9 +683,9 @@ input, select, textarea { font-family: var(--font-body); }
 }
 
 .dashboard-card:hover {
-  box-shadow: var(--card-shadow-hover);
-  transform: translateY(-3px);
-  border-color: rgba(5,150,105,0.2);
+  box-shadow: 0 14px 36px rgba(99,102,241,0.16), 0 4px 14px rgba(0,0,0,0.06);
+  transform: translateY(-4px) scale(1.006);
+  border-color: rgba(5,150,105,0.3);
 }
 
 .card-title {
@@ -1472,19 +1495,24 @@ input, select, textarea { font-family: var(--font-body); }
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  transition: var(--transition-spring);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease;
+  will-change: transform;
 }
 
 .badge-unlocked {
   background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
   border: 1px solid var(--primary-mid);
-  box-shadow: 0 2px 8px rgba(5,150,105,0.1);
+  box-shadow: 0 2px 8px rgba(5,150,105,0.12);
+  animation: badgePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+
 .badge-unlocked:hover {
-  transform: translateY(-4px) scale(1.06);
-  box-shadow: 0 6px 20px rgba(5,150,105,0.2);
+  transform: translateY(-6px) scale(1.1) rotate(2deg);
+  box-shadow: 0 10px 24px rgba(5,150,105,0.28);
+  border-color: var(--primary);
 }
-.badge-locked { background: var(--bg-main); border: 1px solid var(--border-color); opacity: 0.4; }
+.badge-locked { background: var(--bg-main); border: 1px solid var(--border-color); opacity: 0.45; }
+.badge-locked:hover { transform: translateY(-2px) scale(1.02); opacity: 0.7; }
 
 .badge-icon { font-size: 1.6rem; display: block; }
 .badge-name { font-size: 0.68rem; font-weight: 800; color: var(--text-main); text-align: center; line-height: 1.2; }
@@ -1628,6 +1656,52 @@ input, select, textarea { font-family: var(--font-body); }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── Fluid Tab Content Entrance & Stagger ── */
+@keyframes tabContentEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+    filter: blur(4px);
+  }
+  60% {
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+.tab-content-enter {
+  animation: tabContentEnter 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.stagger-child {
+  opacity: 0;
+  animation: tabContentEnter 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.stagger-1 { animation-delay: 0.04s; }
+.stagger-2 { animation-delay: 0.08s; }
+.stagger-3 { animation-delay: 0.12s; }
+.stagger-4 { animation-delay: 0.16s; }
+.stagger-5 { animation-delay: 0.20s; }
+.stagger-6 { animation-delay: 0.24s; }
+
+@keyframes modalIn {
+  0%   { opacity: 0; transform: scale(0.86) translateY(24px); }
+  70%  { opacity: 1; transform: scale(1.02) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%   { box-shadow: 0 0 0 0 rgba(5,150,105,0.4); }
+  70%  { box-shadow: 0 0 0 12px rgba(5,150,105,0); }
+  100% { box-shadow: 0 0 0 0 rgba(5,150,105,0); }
 }
 
 /* ================================================================
@@ -2258,4 +2332,84 @@ input, select, textarea { font-family: var(--font-body); }
   .bmr-value { font-size: 1.9rem; }
   .weekly-insight-card { padding: 12px; }
   .quote-card { padding: 14px 16px 14px 24px; }
+}
+
+/* ================================================================
+   GUJARATI TYPOGRAPHY & CREATIVE BUTTON DESIGN SYSTEM
+   ================================================================ */
+
+:root {
+  --font-gujarati: 'Noto Sans Gujarati', 'Hind Vadodara', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-gujarati-heading: 'Hind Vadodara', 'Noto Sans Gujarati', sans-serif;
+}
+
+html[lang="gu"],
+[data-lang="gu"],
+[data-lang="gu"] body {
+  font-family: var(--font-gujarati) !important;
+  line-height: 1.65;
+}
+
+[data-lang="gu"] h1,
+[data-lang="gu"] h2,
+[data-lang="gu"] h3,
+[data-lang="gu"] h4,
+[data-lang="gu"] h5,
+[data-lang="gu"] .brand-logo,
+[data-lang="gu"] .page-title-block h1 {
+  font-family: var(--font-gujarati-heading) !important;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+/* Button & Input Adjustments for Gujarati */
+[data-lang="gu"] .btn,
+[data-lang="gu"] button,
+[data-lang="gu"] input,
+[data-lang="gu"] select,
+[data-lang="gu"] textarea,
+[data-lang="gu"] label {
+  font-family: var(--font-gujarati) !important;
+  letter-spacing: 0 !important;
+}
+
+[data-lang="gu"] .btn {
+  padding: 11px 20px;
+  min-height: 44px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+[data-lang="gu"] .btn-sm {
+  padding: 7px 14px;
+  min-height: 36px;
+  font-size: 0.82rem;
+}
+
+/* Ensure icons & text align perfectly in Gujarati buttons */
+[data-lang="gu"] .btn svg,
+[data-lang="gu"] button svg {
+  flex-shrink: 0;
+}
+
+/* Mobile Tab bar Gujarati font sizing */
+[data-lang="gu"] .mobile-tab-btn {
+  font-family: var(--font-gujarati) !important;
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  padding: 6px 2px;
+}
+
+[data-lang="gu"] .mobile-tab-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* Card titles and badging in Gujarati */
+[data-lang="gu"] .card-header-title,
+[data-lang="gu"] .dashboard-card h3,
+[data-lang="gu"] .stat-label {
+  font-family: var(--font-gujarati-heading) !important;
+  letter-spacing: 0;
 }

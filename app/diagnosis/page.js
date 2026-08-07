@@ -6,12 +6,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { doc, setDoc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import LanguageToggle from '@/components/LanguageToggle';
 
 export default function DiagnosisPage() {
   const router = useRouter();
-  // Route guard: Redirects to login if not logged in, or dashboard if already completed diagnosis
   const { loading: authLoading } = useAuthGuard();
-  const { user, refreshProfile, logout } = useAuth();
+  const { user, refreshProfile, logout, t } = useAuth();
 
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('female');
@@ -32,7 +32,6 @@ export default function DiagnosisPage() {
     e.preventDefault();
     setError('');
 
-    // Validations
     if (!age || !height || !weight) {
       setError('Please fill in Age, Height, and Weight.');
       return;
@@ -60,9 +59,13 @@ export default function DiagnosisPage() {
     setSubmitting(true);
 
     try {
-      const uid = user.uid;
+      const uid = user?.uid;
+      if (!uid) {
+        setError('User session expired. Please log in again.');
+        setSubmitting(false);
+        return;
+      }
       
-      // 1. Save Diagnosis Details
       const diagnosisData = {
         uid,
         age: ageNum,
@@ -81,7 +84,6 @@ export default function DiagnosisPage() {
       };
       await setDoc(doc(db, 'diagnosis', uid), diagnosisData);
 
-      // 2. Add starting weight to weight history
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -95,16 +97,12 @@ export default function DiagnosisPage() {
         createdAt: serverTimestamp()
       });
 
-      // 3. Mark user registration as complete
       await updateDoc(doc(db, 'users', uid), {
         registrationCompleted: true
       });
 
-      // 4. Refresh auth state profile
       await refreshProfile();
-
-      // 5. Instantly redirect customer to dashboard
-      window.location.href = '/dashboard';
+      router.replace('/dashboard');
 
     } catch (err) {
       console.error("Error submitting diagnosis form:", err);
@@ -117,7 +115,7 @@ export default function DiagnosisPage() {
     return (
       <div className="auth-wrapper">
         <div className="decor-gradient"></div>
-        <p>Loading...</p>
+        <p>{t.loading}</p>
       </div>
     );
   }
@@ -127,10 +125,15 @@ export default function DiagnosisPage() {
       <div className="decor-gradient"></div>
       
       <div className="auth-card" style={{ maxWidth: '600px' }}>
+        {/* Language Toggle at top right */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <LanguageToggle />
+        </div>
+
         <div className="brand-header">
-          <span className="brand-logo" id="app-logo">Vriddhi</span>
-          <h2>Diagnosis & Health Profile</h2>
-          <p className="brand-subtitle">Help us customize your wellness roadmap. This is a one-time questionnaire.</p>
+          <span className="brand-logo" id="app-logo">{t.brandName}</span>
+          <h2>{t.diagTitle}</h2>
+          <p className="brand-subtitle">{t.diagSub}</p>
         </div>
 
         {error && (
@@ -142,12 +145,12 @@ export default function DiagnosisPage() {
         <form onSubmit={handleSubmit} id="diagnosis-form">
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label" htmlFor="diag-age">Age (years)</label>
+              <label className="form-label" htmlFor="diag-age">{t.ageLabel}</label>
               <input
                 type="number"
                 id="diag-age"
                 className="form-input"
-                placeholder="25"
+                placeholder={t.agePlaceholder}
                 min="1"
                 max="120"
                 value={age}
@@ -158,7 +161,7 @@ export default function DiagnosisPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="diag-gender">Biological Gender</label>
+              <label className="form-label" htmlFor="diag-gender">{t.genderLabel}</label>
               <select
                 id="diag-gender"
                 className="form-select"
@@ -167,21 +170,21 @@ export default function DiagnosisPage() {
                 required
                 disabled={submitting}
               >
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="other">Other / Prefer not to say</option>
+                <option value="female">{t.genderFemale}</option>
+                <option value="male">{t.genderMale}</option>
+                <option value="other">{t.genderOther}</option>
               </select>
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label" htmlFor="diag-height">Height (cm)</label>
+              <label className="form-label" htmlFor="diag-height">{t.heightLabel}</label>
               <input
                 type="number"
                 id="diag-height"
                 className="form-input"
-                placeholder="170"
+                placeholder={t.heightPlaceholder}
                 min="50"
                 max="250"
                 value={height}
@@ -192,13 +195,13 @@ export default function DiagnosisPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="diag-weight">Starting Weight (kg)</label>
+              <label className="form-label" htmlFor="diag-weight">{t.weightLabel}</label>
               <input
                 type="number"
                 step="0.1"
                 id="diag-weight"
                 className="form-input"
-                placeholder="70.5"
+                placeholder={t.weightPlaceholder}
                 min="10"
                 max="300"
                 value={weight}
@@ -211,13 +214,13 @@ export default function DiagnosisPage() {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label" htmlFor="diag-goal-weight">Goal Weight (kg) <span style={{color:'var(--text-muted)',fontWeight:'400'}}>(optional)</span></label>
+              <label className="form-label" htmlFor="diag-goal-weight">{t.goalWeightLabel} <span style={{color:'var(--text-muted)',fontWeight:'400'}}>({t.optional})</span></label>
               <input
                 type="number"
                 step="0.1"
                 id="diag-goal-weight"
                 className="form-input"
-                placeholder="e.g. 65.0"
+                placeholder={t.goalWeightPlaceholder}
                 min="10"
                 max="300"
                 value={goalWeight}
@@ -227,30 +230,30 @@ export default function DiagnosisPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="diag-goal">Primary Fitness Goal</label>
-            <select
-              id="diag-goal"
-              className="form-select"
-              value={fitnessGoal}
-              onChange={(e) => setFitnessGoal(e.target.value)}
-              required
-              disabled={submitting}
-            >
-              <option value="Weight Loss">Weight Loss</option>
-              <option value="Weight Gain">Weight Gain</option>
-              <option value="Maintenance">Maintenance</option>
-              <option value="General Fitness">General Fitness</option>
-            </select>
+              <label className="form-label" htmlFor="diag-goal">{t.fitnessGoalLabel}</label>
+              <select
+                id="diag-goal"
+                className="form-select"
+                value={fitnessGoal}
+                onChange={(e) => setFitnessGoal(e.target.value)}
+                required
+                disabled={submitting}
+              >
+                <option value="Weight Loss">{t.goalWeightLoss}</option>
+                <option value="Weight Gain">{t.goalWeightGain}</option>
+                <option value="Maintenance">{t.goalMaintenance}</option>
+                <option value="General Fitness">{t.goalFitness}</option>
+              </select>
             </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="diag-medical">Medical History / Health Conditions</label>
+            <label className="form-label" htmlFor="diag-medical">{t.medicalHistoryLabel}</label>
             <textarea
               id="diag-medical"
               className="form-input"
               style={{ minHeight: '100px', resize: 'vertical' }}
-              placeholder="e.g. Asthma, High Blood Pressure, Knee injury, food allergies, or write 'None'"
+              placeholder={t.medicalHistoryPlaceholder}
               value={medicalHistory}
               onChange={(e) => setMedicalHistory(e.target.value)}
               disabled={submitting}
@@ -258,12 +261,12 @@ export default function DiagnosisPage() {
           </div>
 
           <div className="form-group" style={{ marginBottom: '8px' }}>
-            <label className="form-label">Preferred Daily Routine (Meal Times)</label>
+            <label className="form-label">{t.routineLabel}</label>
           </div>
           
           <div className="form-time-row">
             <div className="form-group">
-              <label className="form-label" htmlFor="time-breakfast" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Breakfast</label>
+              <label className="form-label" htmlFor="time-breakfast" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t.breakfastTime}</label>
               <input
                 type="time"
                 id="time-breakfast"
@@ -276,7 +279,7 @@ export default function DiagnosisPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="time-lunch" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Lunch</label>
+              <label className="form-label" htmlFor="time-lunch" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t.lunchTime}</label>
               <input
                 type="time"
                 id="time-lunch"
@@ -289,7 +292,7 @@ export default function DiagnosisPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="time-dinner" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dinner</label>
+              <label className="form-label" htmlFor="time-dinner" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t.dinnerTime}</label>
               <input
                 type="time"
                 id="time-dinner"
@@ -310,7 +313,7 @@ export default function DiagnosisPage() {
               disabled={submitting}
               style={{ width: '40%' }}
             >
-              Cancel & Exit
+              {t.cancelExitBtn}
             </button>
             <button 
               type="submit" 
@@ -319,7 +322,7 @@ export default function DiagnosisPage() {
               disabled={submitting}
               style={{ width: '60%' }}
             >
-              {submitting ? 'Saving Profile...' : 'Complete Registration'}
+              {submitting ? t.savingProfileBtn : t.completeRegistrationBtn}
             </button>
           </div>
         </form>
@@ -327,3 +330,4 @@ export default function DiagnosisPage() {
     </div>
   );
 }
+

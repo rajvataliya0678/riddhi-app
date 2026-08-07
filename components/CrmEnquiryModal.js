@@ -40,7 +40,7 @@ function getStatusBadgeClass(status) {
   return map[status] || 'status-new';
 }
 
-export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, autoCallLogFocus = false }) {
+export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, onDelete, coaches = [], autoCallLogFocus = false }) {
   const isEditing = !!enquiry;
 
   const [showMenu, setShowMenu]               = useState(false);
@@ -51,6 +51,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
   const [healthCondition, setHealthCondition] = useState('Weight Loss / Overweight');
   const [source, setSource]                   = useState('Referral');
   const [status, setStatus]                   = useState('New Lead');
+  const [assignedCoachId, setAssignedCoachId] = useState('');
   const [followUpDate, setFollowUpDate]       = useState('');
   const [nextMeetingDate, setNextMeetingDate] = useState('');
   const [nextMeetingSession, setNextMeetingSession] = useState('morning');
@@ -76,6 +77,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
       setHealthCondition(enquiry.healthCondition || 'Weight Loss / Overweight');
       setSource(enquiry.source || 'Referral');
       setStatus(enquiry.status || 'New Lead');
+      setAssignedCoachId(enquiry.coachId || enquiry.coachUid || '');
       setFollowUpDate(enquiry.followUpDate || '');
       setNextMeetingDate(enquiry.nextMeetingDate || '');
       setNextMeetingSession(enquiry.nextMeetingSession || 'morning');
@@ -263,6 +265,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
         healthCondition,
         source,
         status,
+        coachId: assignedCoachId,
         followUpDate,
         nextMeetingDate,
         nextMeetingSession,
@@ -299,7 +302,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {isEditing && onConvert && (enquiry.status !== 'Closing' && enquiry.status !== 'Converted') && (
+            {isEditing && (onConvert || onDelete) && (
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -336,31 +339,62 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
                       padding: '6px 0',
                     }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowMenu(false);
-                        onClose();
-                        onConvert(enquiry);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '10px 14px',
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#10b981',
-                        fontSize: '0.84rem',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                      }}
-                      id="crm-menu-convert-action"
-                    >
-                      🔄 Convert to Customer
-                    </button>
+                    {onConvert && (enquiry.status !== 'Closing' && enquiry.status !== 'Converted') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMenu(false);
+                          onClose();
+                          onConvert(enquiry);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          width: '100%',
+                          padding: '10px 14px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#10b981',
+                          fontSize: '0.84rem',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                        id="crm-menu-convert-action"
+                      >
+                        🔄 Convert to Customer
+                      </button>
+                    )}
+
+                    {onDelete && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMenu(false);
+                          onClose();
+                          onDelete(enquiry.id, enquiry.name);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          width: '100%',
+                          padding: '10px 14px',
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#ef4444',
+                          fontSize: '0.84rem',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          borderTop: onConvert ? '1px solid var(--border-color)' : 'none',
+                        }}
+                        id="crm-menu-delete-action"
+                      >
+                        🗑️ Delete Lead
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -369,21 +403,42 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, a
           </div>
         </div>
 
-        {error && (
-          <div className="alert alert-danger" style={{ marginTop: '12px' }}>⚠️ {error}</div>
-        )}
+        {error && <div className="alert alert-danger" style={{ marginBottom: '14px' }}>⚠️ {error}</div>}
 
-        <form onSubmit={handleSubmit} style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
           
+          {coaches && coaches.length > 0 && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="crm-assigned-coach" style={{ fontSize: '0.78rem', fontWeight: '800' }}>
+                Assigned Coach (જવાબદાર કોચ)
+              </label>
+              <select
+                id="crm-assigned-coach"
+                className="form-input"
+                value={assignedCoachId}
+                onChange={(e) => setAssignedCoachId(e.target.value)}
+                disabled={submitting}
+                style={{ fontWeight: '700' }}
+              >
+                <option value="">— Select Coach —</option>
+                {coaches.map(c => (
+                  <option key={c.uid || c.id} value={c.uid || c.id}>
+                    {c.name || c.fullName} ({c.role === 'admin' ? 'Owner' : 'Coach'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Row 1: Name & Phone */}
           <div className="form-row-2">
             <div className="form-group">
-              <label className="form-label" htmlFor="crm-name">Lead Name *</label>
+              <label className="form-label" htmlFor="crm-name">Lead Full Name *</label>
               <input
                 type="text"
                 id="crm-name"
                 className="form-input"
-                placeholder="Full name"
+                placeholder="e.g. Ramesh Patel"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required

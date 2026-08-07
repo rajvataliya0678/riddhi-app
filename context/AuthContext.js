@@ -10,6 +10,9 @@ import {
 import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
+import { translations } from '@/lib/translations';
+import { CURRENT_APP_VERSION } from '@/lib/appUpdate';
+
 const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
@@ -18,15 +21,51 @@ export function AuthContextProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [localLang, setLocalLang] = useState('en'); // Default to English for first-time users
 
-  // Helper to fetch user Firestore document
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vriddhi_lang');
+      if (saved) setLocalLang(saved);
+    }
+  }, []);
+
+  // Helper to fetch user Firestore document & log app version telemetry
   const fetchUserData = async (uid) => {
     try {
       const docRef = doc(db, 'users', uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setUserData(docSnap.data());
-        return docSnap.data();
+      let docSnap = await getDoc(docRef);
+      let data = docSnap.exists() ? docSnap.data() : null;
+
+      if (!data) {
+        const snap = await getDocs(query(collection(db, 'users'), where('uid', '==', uid)));
+        if (!snap.empty) {
+          data = snap.docs[0].data();
+        }
+      }
+
+      if (data) {
+        setUserData(data);
+
+        const isNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
+        const platformStr = isNative ? 'Android App' : 'Web Browser';
+
+        const targetRef = doc(db, 'users', data.uid || uid);
+        // Log active app version and platform telemetry
+        updateDoc(targetRef, {
+          appVersion: CURRENT_APP_VERSION,
+          platform: platformStr,
+          lastActiveAt: serverTimestamp()
+        }).catch(err => console.warn("App telemetry log failed:", err));
+
+        if (data.preferredLanguage && typeof window !== 'undefined') {
+          localStorage.setItem('vriddhi_lang', data.preferredLanguage);
+          setLocalLang(data.preferredLanguage);
+        } else if (typeof window !== 'undefined') {
+          const currentLang = localStorage.getItem('vriddhi_lang') || localLang || 'en';
+          updateDoc(targetRef, { preferredLanguage: currentLang }).catch(err => console.warn(err));
+        }
+        return data;
       }
     } catch (error) {
       console.error("Error fetching user data from Firestore:", error);
@@ -35,7 +74,6 @@ export function AuthContextProvider({ children }) {
   };
 
   useEffect(() => {
-    // If Firebase isn't configured, we bypass active auth listeners to avoid runtime errors
     if (!auth) {
       setLoading(false);
       return;
@@ -56,19 +94,25 @@ export function AuthContextProvider({ children }) {
   }, []);
 
   // Sign Up function
-  const signUp = async (email, password, name, phone, language = 'en') => {
+  const signUp = async (email, password, name, phone, languageParam = 'en') => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      // Store custom fields in Firestore user document
+      const langToUse = languageParam || localLang || 'en';
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vriddhi_lang', langToUse);
+      }
+      setLocalLang(langToUse);
+
       const newUserData = {
         uid,
         name,
         email,
         phone,
-        preferredLanguage: language || 'en',
+        preferredLanguage: langToUse,
         role: 'customer',
         registrationCompleted: false,
         createdAt: serverTimestamp(),
@@ -86,46 +130,43 @@ export function AuthContextProvider({ children }) {
 
   // Change Language function
   const changeLanguage = async (lang) => {
-    if (!user) return;
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        preferredLanguage: lang
-      });
-      setUserData(prev => prev ? { ...prev, preferredLanguage: lang } : null);
-    } catch (err) {
-      console.error('Error updating language preference:', err);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vriddhi_lang', lang);
+    }
+    setLocalLang(lang);
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          preferredLanguage: lang
+        });
+        setUserData(prev => prev ? { ...prev, preferredLanguage: lang } : null);
+      } catch (err) {
+        console.error('Error updating language preference:', err);
+      }
     }
   };
 
-  // Login function (Supports Mobile Number OR Email)
+  // Login function
   const login = async (identifier, password) => {
     setLoading(true);
     try {
       let emailToUse = identifier.trim();
+      let foundUserDoc = null;
 
-      // Check if identifier is NOT an email (doesn't contain '@')
       if (!emailToUse.includes('@')) {
         const cleanPhone = emailToUse.replace(/[^0-9]/g, '');
-
-        // Query users by phone
         const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('phone', '==', emailToUse));
-        let snap = await getDocs(q);
+        const allUsersSnap = await getDocs(usersRef);
 
-        if (snap.empty && cleanPhone) {
-          const allUsersSnap = await getDocs(usersRef);
-          const found = allUsersSnap.docs.find(d => {
-            const p = (d.data().phone || '').replace(/[^0-9]/g, '');
-            return p && (p === cleanPhone || p.endsWith(cleanPhone) || cleanPhone.endsWith(p));
-          });
-          if (found) {
-            emailToUse = found.data().email;
-          } else {
-            setLoading(false);
-            return { success: false, error: 'No account found with this mobile number. Please check or sign up.' };
-          }
-        } else if (!snap.empty) {
-          emailToUse = snap.docs[0].data().email;
+        const found = allUsersSnap.docs.find(d => {
+          const rawPhone = d.data().phone;
+          const p = String(rawPhone || '').replace(/[^0-9]/g, '');
+          return p && cleanPhone && (p === cleanPhone || p.endsWith(cleanPhone) || cleanPhone.endsWith(p));
+        });
+
+        if (found) {
+          foundUserDoc = found;
+          emailToUse = found.data().email || `${cleanPhone}@vriddhi.local`;
         } else {
           setLoading(false);
           return { success: false, error: 'No account found with this mobile number. Please check or sign up.' };
@@ -137,7 +178,54 @@ export function AuthContextProvider({ children }) {
         return { success: false, error: 'Please enter a valid mobile number or email.' };
       }
 
-      const userCredential = await signInWithEmailAndPassword(auth, emailToUse, password);
+      let userCredential;
+      try {
+        userCredential = await signInWithEmailAndPassword(auth, emailToUse, password);
+      } catch (authErr) {
+        // If user profile exists in Firestore (e.g. converted from CRM) but Firebase Auth account isn't provisioned yet
+        if (
+          foundUserDoc &&
+          (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential')
+        ) {
+          try {
+            userCredential = await createUserWithEmailAndPassword(auth, emailToUse, password);
+            const newUid = userCredential.user.uid;
+            const existingData = foundUserDoc.data();
+            const oldDocUid = foundUserDoc.id || existingData.uid;
+
+            // Preserve existing profile data & link to new Auth UID
+            const mergedProfile = {
+              ...existingData,
+              uid: newUid,
+              email: emailToUse,
+              registrationCompleted: true,
+              updatedAt: serverTimestamp(),
+            };
+
+            await setDoc(doc(db, 'users', newUid), mergedProfile);
+
+            // Re-point diagnosis & weight history records if oldDocUid differed
+            if (oldDocUid && oldDocUid !== newUid) {
+              const [diagSnap, weightSnap] = await Promise.all([
+                getDocs(query(collection(db, 'diagnosis'), where('uid', '==', oldDocUid))),
+                getDocs(query(collection(db, 'weight_history'), where('uid', '==', oldDocUid)))
+              ]);
+              for (const dd of diagSnap.docs) {
+                await updateDoc(doc(db, 'diagnosis', dd.id), { uid: newUid });
+              }
+              for (const wd of weightSnap.docs) {
+                await updateDoc(doc(db, 'weight_history', wd.id), { uid: newUid });
+              }
+            }
+          } catch (createAuthErr) {
+            console.error('Provisioning Auth account failed:', createAuthErr);
+            throw authErr;
+          }
+        } else {
+          throw authErr;
+        }
+      }
+
       const uid = userCredential.user.uid;
       const data = await fetchUserData(uid);
       setUser(userCredential.user);
@@ -157,7 +245,6 @@ export function AuthContextProvider({ children }) {
     }
   };
 
-  // Logout function
   const logout = async () => {
     setLoading(true);
     try {
@@ -171,18 +258,26 @@ export function AuthContextProvider({ children }) {
     }
   };
 
-  // Force reload user profile data (used after diagnosis form completion)
   const refreshProfile = async () => {
     if (user) {
       await fetchUserData(user.uid);
     }
   };
 
-  const language = userData?.preferredLanguage || 'en';
+  const language = localLang || userData?.preferredLanguage || 'en';
+  const t = translations[language] || translations.en;
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('lang', language);
+      document.documentElement.setAttribute('data-lang', language);
+    }
+  }, [language]);
 
   return (
-    <AuthContext.Provider value={{ user, userData, loading, language, changeLanguage, signUp, login, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ user, userData, loading, language, changeLanguage, t, signUp, login, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
 }
+

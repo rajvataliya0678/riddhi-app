@@ -10,31 +10,42 @@ export function useAuthGuard() {
   const pathname = usePathname();
 
   useEffect(() => {
+    // 1. Wait for Firebase Auth state to initialize
     if (loading) return;
 
+    // 2. Unauthenticated user → redirect to login if not already on auth pages
     if (!user) {
-      // User is NOT logged in
       if (pathname !== '/login' && pathname !== '/signup') {
-        router.push('/login');
+        router.replace('/login');
       }
-    } else {
-      // User IS logged in
-      const role = userData?.role || 'customer';
-      const isRegistrationCompleted = userData?.registrationCompleted;
+      return;
+    }
 
-      // Only regular customers are required to fill diagnosis questionnaire
-      if (role === 'customer' && isRegistrationCompleted === false) {
-        if (pathname !== '/diagnosis') {
-          router.push('/diagnosis');
-        }
-      } else {
-        // Coach, Admin, or completed customer
-        if (pathname === '/' || pathname === '/login' || pathname === '/signup' || pathname === '/diagnosis') {
-          router.push('/dashboard');
-        }
+    // 3. User is logged in — wait until Firestore user document is fetched
+    if (userData === null) return;
+
+    const role = userData.role || 'customer';
+    const isRegistrationCompleted = userData.registrationCompleted;
+
+    // 4. Incomplete customer profile → force /diagnosis questionnaire
+    if (role === 'customer' && isRegistrationCompleted === false) {
+      if (pathname !== '/diagnosis') {
+        router.replace('/diagnosis');
       }
+      return;
+    }
+
+    // 5. Active user (Coach, Admin, or completed Customer) → redirect away from auth/entry pages to /dashboard
+    if (
+      pathname === '/' ||
+      pathname === '/login' ||
+      pathname === '/signup' ||
+      (pathname === '/diagnosis' && isRegistrationCompleted === true)
+    ) {
+      router.replace('/dashboard');
     }
   }, [user, userData, loading, pathname, router]);
 
   return { user, userData, loading };
 }
+

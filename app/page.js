@@ -1,30 +1,21 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { useAuth } from '@/context/AuthContext';
 
 export default function IndexPage() {
-  const { user, loading } = useAuthGuard();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.push('/dashboard');
-      } else {
-        router.push('/login');
-      }
-    }
-  }, [loading, user, router]);
+  useAuthGuard();
+  const { t } = useAuth();
 
   return (
     <div className="auth-wrapper">
       <div className="decor-gradient"></div>
       <div style={{ textAlign: 'center' }}>
-        <span className="brand-logo" style={{ marginBottom: '16px' }}>Vriddhi</span>
-        <p style={{ fontSize: '1.1rem' }}>Loading application...</p>
+        <span className="brand-logo" style={{ marginBottom: '16px' }}>{t.brandName}</span>
+        <p style={{ fontSize: '1.1rem' }}>{t.loading}</p>
       </div>
     </div>
   );
 }
+

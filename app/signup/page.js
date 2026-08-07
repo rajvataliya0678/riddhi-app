@@ -2,20 +2,20 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
+import LanguageToggle from '@/components/LanguageToggle';
 
 export default function SignupPage() {
-  // Protect route: if already logged in and completed diagnosis, redirects to dashboard
+  const router = useRouter();
   const { loading: authLoading } = useAuthGuard();
-  
-  const { signUp } = useAuth();
+  const { signUp, language, changeLanguage, t } = useAuth();
   
   const [name, setName]         = useState('');
   const [phone, setPhone]       = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [language, setLanguage] = useState('en');
   
   const [error, setError]       = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -24,14 +24,13 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
 
-    // Client-side validations
     if (!name.trim() || !phone.trim() || !email.trim() || !password) {
-      setError('Please fill in all the fields.');
+      setError(t.signupErrAllFields);
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+      setError(t.signupErrPasswordLength);
       return;
     }
 
@@ -42,7 +41,7 @@ export default function SignupPage() {
       setError(result.error || 'Failed to create an account. Please try again.');
       setSubmitting(false);
     } else {
-      window.location.href = '/diagnosis';
+      router.replace('/diagnosis');
     }
   };
 
@@ -50,7 +49,7 @@ export default function SignupPage() {
     return (
       <div className="auth-wrapper">
         <div className="decor-gradient"></div>
-        <p>Loading...</p>
+        <p>{t.loading}</p>
       </div>
     );
   }
@@ -60,10 +59,15 @@ export default function SignupPage() {
       <div className="decor-gradient"></div>
       
       <div className="auth-card">
+        {/* Language selector at top right */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <LanguageToggle />
+        </div>
+
         <div className="brand-header">
-          <span className="brand-logo" id="app-logo">Vriddhi</span>
-          <h2>Create Account</h2>
-          <p className="brand-subtitle">Start your personalized fitness and coaching journey</p>
+          <span className="brand-logo" id="app-logo">{t.brandName}</span>
+          <h2>{t.signupTitle}</h2>
+          <p className="brand-subtitle">{t.signupSub}</p>
         </div>
 
         {error && (
@@ -73,48 +77,13 @@ export default function SignupPage() {
         )}
 
         <form onSubmit={handleSubmit} id="signup-form">
-          {/* Language Selection */}
-          <div className="form-group" style={{ marginBottom: '14px' }}>
-            <label className="form-label" style={{ fontSize: '0.8rem', fontWeight: '700' }}>
-              🌐 Preferred Language / ભાષા પસંદ કરો
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setLanguage('en')}
-                style={{
-                  padding: '9px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800',
-                  border: language === 'en' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                  background: language === 'en' ? 'var(--primary-light)' : 'var(--card-bg)',
-                  color: language === 'en' ? 'var(--primary)' : 'var(--text-main)',
-                  cursor: 'pointer',
-                }}
-              >
-                🇬🇧 English
-              </button>
-              <button
-                type="button"
-                onClick={() => setLanguage('gu')}
-                style={{
-                  padding: '9px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800',
-                  border: language === 'gu' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                  background: language === 'gu' ? 'var(--primary-light)' : 'var(--card-bg)',
-                  color: language === 'gu' ? 'var(--primary)' : 'var(--text-main)',
-                  cursor: 'pointer',
-                }}
-              >
-                🇮🇳 ગુજરાતી (Gujarati)
-              </button>
-            </div>
-          </div>
-
           <div className="form-group">
-            <label className="form-label" htmlFor="signup-name">Full Name</label>
+            <label className="form-label" htmlFor="signup-name">{t.fullNameLabel}</label>
             <input
               type="text"
               id="signup-name"
               className="form-input"
-              placeholder="John Doe"
+              placeholder={t.fullNamePlaceholder}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -123,12 +92,12 @@ export default function SignupPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="signup-phone">Phone Number</label>
+            <label className="form-label" htmlFor="signup-phone">{t.phoneLabel}</label>
             <input
               type="tel"
               id="signup-phone"
               className="form-input"
-              placeholder="+91 9876543210"
+              placeholder={t.phonePlaceholder}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
@@ -137,12 +106,12 @@ export default function SignupPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="signup-email">Email Address</label>
+            <label className="form-label" htmlFor="signup-email">{t.emailLabel}</label>
             <input
               type="email"
               id="signup-email"
               className="form-input"
-              placeholder="name@example.com"
+              placeholder={t.emailPlaceholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -151,12 +120,12 @@ export default function SignupPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="signup-password">Password</label>
+            <label className="form-label" htmlFor="signup-password">{t.passwordLabel}</label>
             <input
               type="password"
               id="signup-password"
               className="form-input"
-              placeholder="••••••••"
+              placeholder={t.passwordPlaceholder}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -170,17 +139,18 @@ export default function SignupPage() {
             id="signup-submit"
             disabled={submitting}
           >
-            {submitting ? 'Creating Account...' : 'Sign Up'}
+            {submitting ? t.creatingAccountBtn : t.signupBtn}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', fontSize: '0.9rem' }}>
-          Already have an account?{' '}
-          <Link href="/login" id="link-to-login">
-            Log In
+        <p style={{ textAlign: 'center', fontSize: '0.9rem', marginTop: '16px' }}>
+          {t.alreadyAccountText}{' '}
+          <Link href="/login" id="link-to-login" style={{ fontWeight: '800' }}>
+            {t.logInLink}
           </Link>
         </p>
       </div>
     </div>
   );
 }
+

@@ -126,9 +126,7 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
     try {
       setLoading(true);
       const snap = await getDocs(
-        isAdmin
-          ? collection(db, 'crm_enquiries')
-          : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
+        query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
       );
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setLeads(list);

@@ -200,32 +200,12 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       ] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'diagnosis')),
-        getDocs(
-          isAdmin
-            ? collection(db, 'customer_followups')
-            : query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))
-        ),
-        getDocs(
-          isAdmin
-            ? collection(db, 'crm_enquiries')
-            : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
-        ),
-        getDocs(
-          query(collection(db, 'meeting_attendance'), where('date', '>=', threeDaysAgoStr))
-        ),
-        getDocs(
-          query(collection(db, 'weight_history'), where('date', '>=', threeDaysAgoStr))
-        ),
-        getDocs(
-          isAdmin
-            ? collection(db, 'completed_tasks')
-            : query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid))
-        ),
-        getDocs(
-          isAdmin
-            ? collection(db, 'coach_custom_tasks')
-            : query(collection(db, 'coach_custom_tasks'), where('coachUid', '==', coachUid))
-        )
+        getDocs(query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))),
+        getDocs(query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))),
+        getDocs(query(collection(db, 'meeting_attendance'), where('date', '>=', threeDaysAgoStr))),
+        getDocs(query(collection(db, 'weight_history'), where('date', '>=', threeDaysAgoStr))),
+        getDocs(query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid))),
+        getDocs(query(collection(db, 'coach_custom_tasks'), where('coachUid', '==', coachUid)))
       ]);
 
       // Diagnosis map in memory
@@ -241,9 +221,9 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         return { id: d.id, uid: uUid, ...uData, diagnosis: diagMap[uUid] || null };
       });
 
-      const assignedCustomers = isAdmin
-        ? allUsersList.filter(u => u.role === 'customer' || !u.role)
-        : allUsersList.filter(u => (u.coachId === coachUid || u.coachUid === coachUid) && (u.role === 'customer' || !u.role));
+      const assignedCustomers = allUsersList.filter(
+        u => (u.coachId === coachUid || u.coachUid === coachUid) && (u.role === 'customer' || !u.role)
+      );
 
       const coachUsers = allUsersList.filter(u => u.role === 'coach');
 
@@ -414,19 +394,20 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
           if (daysDiff > daysCompleted) urgency = 'overdue';
         }
 
+        const custName = customer.name || customer.fullName || 'Customer';
         const todayDone = fus.some(f => f.followUpDate === todayStr && f.day === nextDay);
         if (!todayDone) {
           generatedTasks.push({
             id: `fu-${customer.uid}-${nextDay}`,
             type: '10day_followup',
             uid: customer.uid,
-            name: customer.name || customer.fullName || 'Customer',
+            name: custName,
             phone: customer.phone || '',
             goal: customer.diagnosis?.fitnessGoal || '',
             nextDay,
             daysCompleted,
-            title: `Day ${nextDay}: ${DAY_TASK_LABELS[nextDay] || 'Follow-up'}`,
-            description: `10-Day Follow-up Program`,
+            title: `Day ${nextDay}: ${DAY_TASK_LABELS[nextDay] || 'Follow-up'} — ${custName}`,
+            description: `10-Day Follow-up Program for ${custName}`,
             urgency,
             daysDiff,
             actionType: 'open_followup_modal',
@@ -467,6 +448,30 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCrmDelete = async (leadId, leadName) => {
+    if (!leadId) return;
+    if (window.confirm(`શું તમે ખરેખર "${leadName || 'આ લીડ'}" ડીલીટ કરવા માંગો છો?`)) {
+      try {
+        await deleteDoc(doc(db, 'crm_enquiries', leadId));
+        setSelectedCrmLead(null);
+        fetchTasks();
+      } catch (err) {
+        console.error('Error deleting CRM lead:', err);
+        alert('Failed to delete lead. Try again.');
+      }
+    }
+  };
+
+  const handleCrmSave = async (updatedData, leadId) => {
+    const idToUpdate = leadId || selectedCrmLead?.id;
+    if (idToUpdate) {
+      const docRef = doc(db, 'crm_enquiries', idToUpdate);
+      await updateDoc(docRef, { ...updatedData, updatedAt: serverTimestamp() });
+    }
+    setSelectedCrmLead(null);
+    fetchTasks();
   };
 
   const handleMarkDone = async (task, e) => {
@@ -513,15 +518,6 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
     }
   };
 
-  const handleCrmSave = async (updatedData) => {
-    if (selectedCrmLead?.id) {
-      const docRef = doc(db, 'crm_enquiries', selectedCrmLead.id);
-      await updateDoc(docRef, { ...updatedData, updatedAt: serverTimestamp() });
-    }
-    setSelectedCrmLead(null);
-    fetchTasks();
-  };
-
   const closeModal = () => {
     setSelectedCustomer(null);
     setSelectedFollowups([]);
@@ -561,21 +557,21 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
             <span style={{ fontSize: '1.2rem' }}>📌</span>
             <div>
               <h3 style={{ fontSize: '0.92rem', fontWeight: '800', margin: 0 }}>Today's Action & Follow-Up Tasks</h3>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>
-                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0 }}>
+                {today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}
               </p>
             </div>
           </div>
 
           {/* Filter Chips */}
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setFilter('all')}
               style={{
-                padding: '2px 8px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
-                background: filter === 'all' ? 'var(--primary)' : '#f3f4f6',
-                color: filter === 'all' ? 'white' : 'var(--text-muted)',
+                padding: '4px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '800', border: 'none', cursor: 'pointer',
+                background: filter === 'all' ? '#059669' : '#f1f5f9',
+                color: filter === 'all' ? '#fff' : '#64748b',
               }}
             >
               All ({tasks.length})
@@ -585,9 +581,9 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
                 type="button"
                 onClick={() => setFilter('overdue')}
                 style={{
-                  padding: '2px 8px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
+                  padding: '4px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '800', border: '1px solid #fca5a5', cursor: 'pointer',
                   background: filter === 'overdue' ? '#dc2626' : '#fef2f2',
-                  color: filter === 'overdue' ? 'white' : '#dc2626',
+                  color: filter === 'overdue' ? '#fff' : '#dc2626',
                 }}
               >
                 🔴 {overdueCount} Overdue
@@ -598,9 +594,9 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
                 type="button"
                 onClick={() => setFilter('today')}
                 style={{
-                  padding: '2px 8px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
+                  padding: '4px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '800', border: '1px solid #fcd34d', cursor: 'pointer',
                   background: filter === 'today' ? '#d97706' : '#fffbeb',
-                  color: filter === 'today' ? 'white' : '#d97706',
+                  color: filter === 'today' ? '#fff' : '#b45309',
                 }}
               >
                 🟡 {todayCount} Today
@@ -611,10 +607,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
               type="button"
               className="btn btn-primary btn-sm"
               onClick={() => setShowAddTaskModal(true)}
-              style={{
-                width: 'auto', padding: '3px 9px', fontSize: '0.7rem', fontWeight: '800',
-                marginLeft: '6px'
-              }}
+              style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: '20px', gap: '4px' }}
               id="add-custom-task-btn"
             >
               + Add Task
@@ -623,90 +616,97 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         </div>
 
         {/* Task List Container */}
-        <div style={{ maxHeight: '340px', overflowY: 'auto', flex: 1 }}>
+        <div style={{ maxHeight: '340px', overflowY: 'auto', flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {loading ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              ⏳ Loading tasks...
+            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              ⏳ Loading today's action tasks...
             </div>
           ) : filteredTasks.length === 0 ? (
-            <div style={{ padding: '28px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🎉</div>
-              <p style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px' }}>All caught up!</p>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>No pending tasks for this filter.</p>
+            <div className="empty-state" style={{ padding: '24px 12px', textAlign: 'center' }}>
+              <span className="empty-state-icon" style={{ fontSize: '2rem' }}>🎉</span>
+              <h4 style={{ fontSize: '0.9rem', margin: '4px 0' }}>All clear! No pending tasks</h4>
+              <p style={{ fontSize: '0.78rem' }}>You are completely caught up for today.</p>
             </div>
           ) : (
             filteredTasks.map((task, idx) => {
-              const cfg = urgencyConfig[task.urgency];
+              const u = urgencyConfig[task.urgency] || urgencyConfig.today;
               return (
                 <div
                   key={task.id}
                   id={`task-item-${task.id}`}
+                  onClick={() => handleTaskAction(task)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    padding: '10px 16px',
-                    borderBottom: idx < filteredTasks.length - 1 ? '1px solid var(--bg-secondary)' : 'none',
-                    background: task.urgency === 'overdue' ? '#fff5f5' : 'transparent',
-                    transition: 'background 0.15s',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: `1px solid ${u.border}`,
+                    background: u.bg,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
                   }}
                 >
-                  {/* Avatar */}
-                  <div style={{
-                    width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
-                    background: task.type?.includes('coach')
-                      ? 'linear-gradient(135deg, #10b981, #2563eb)'
-                      : task.type === 'crm_followup'
-                        ? 'linear-gradient(135deg, #d97706, #2563eb)'
-                        : 'linear-gradient(135deg, var(--primary), #2563eb)',
-                    color: 'white', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: '0.85rem', fontWeight: '800',
-                  }}>
-                    {task.name?.charAt(0)?.toUpperCase()}
-                  </div>
-
-                  {/* Task Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: '800', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      width: '38px', height: '38px', borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #d97706, #2563eb)',
+                      color: '#fff', fontWeight: '800', fontSize: '0.9rem',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      {task.name ? task.name.charAt(0).toUpperCase() : 'T'}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-main)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {task.title}
-                      </span>
-                      {task.phone && (
-                        <a
-                          href={`tel:${task.phone}`}
-                          style={{
-                            color: '#16a34a', fontSize: '0.68rem', fontWeight: '800', textDecoration: 'none',
-                            background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '1px 5px', borderRadius: '4px'
-                          }}
-                          title={`Call ${task.phone}`}
-                        >
-                          📞 Call
-                        </a>
-                      )}
-                      <span style={{
-                        padding: '1px 6px', borderRadius: '99px', fontSize: '0.62rem', fontWeight: '800',
-                        background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
-                      }}>
-                        {cfg.icon} {cfg.label}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {task.description}
+                      </p>
+                      <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {task.description}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Action Buttons: Action + Done */}
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-                    {task.type !== 'custom_personal_task' && (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        style={{ width: 'auto', padding: '4px 8px', fontSize: '0.72rem', fontWeight: '800' }}
-                        onClick={() => handleTaskAction(task)}
-                        id={`task-btn-${task.id}`}
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    {task.phone && (
+                      <a
+                        href={`tel:${task.phone}`}
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          padding: '6px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700',
+                          background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
+                          display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none'
+                        }}
                       >
-                        {task.type === '10day_followup' ? (task.daysCompleted === 0 ? '▶ Start' : `✏️ Day ${task.nextDay}`)
-                          : task.type === 'crm_followup' ? '📋 CRM Lead'
-                          : task.type === 'customer_missed_meeting' || task.type === 'customer_missed_weight' ? '📞 Follow Up'
-                          : '📞 Call'}
+                        📞 Call
+                      </a>
+                    )}
+                    <span style={{
+                      padding: '3px 8px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800',
+                      background: u.bg, color: u.color, border: `1px solid ${u.border}`
+                    }}>
+                      {u.icon} {u.label}
+                    </span>
+
+                    {task.actionType === 'open_crm_modal' && (
+                      <button
+                        onClick={e => { e.stopPropagation(); handleTaskAction(task); }}
+                        className="btn btn-sm"
+                        style={{ padding: '5px 10px', fontSize: '0.75rem', background: '#10b981', color: '#fff', borderRadius: '8px' }}
+                      >
+                        📋 CRM Lead
+                      </button>
+                    )}
+
+                    {task.actionType === 'open_followup_modal' && (
+                      <button
+                        onClick={e => { e.stopPropagation(); handleTaskAction(task); }}
+                        className="btn btn-sm"
+                        style={{ padding: '5px 10px', fontSize: '0.75rem', background: '#6366f1', color: '#fff', borderRadius: '8px' }}
+                      >
+                        📝 Follow-up
                       </button>
                     )}
 
@@ -755,6 +755,8 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
           enquiry={selectedCrmLead}
           onSave={handleCrmSave}
           onClose={closeModal}
+          onDelete={handleCrmDelete}
+          coaches={allUsersList.filter(u => u.role === 'coach' || u.role === 'admin')}
           autoCallLogFocus={true}
         />
       )}

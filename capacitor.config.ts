@@ -6,8 +6,15 @@ const config: CapacitorConfig = {
   webDir: 'public',
   server: {
     url: 'https://vriddhi-app-eight.vercel.app',
-    cleartext: true
+    cleartext: true,
+    allowNavigation: [
+      'vriddhi-app-eight.vercel.app',
+      '*.vercel.app',
+      '*.firebaseapp.com',
+      '*.googleapis.com'
+    ]
   }
 };
 
 export default config;
+

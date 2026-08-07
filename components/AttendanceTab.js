@@ -449,13 +449,13 @@ export default function AttendanceTab({ user, userData }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '0.82rem', fontWeight: '700' }}>
           <span style={{ color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            🌅 <strong>Morning Session:</strong> 11:00 AM – 12:30 PM
+            🌅 <strong>Morning Attendance Window:</strong> 11:00 AM – 12:00 PM
           </span>
           <span style={{ color: '#6b21a8', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            🌇 <strong>Evening Session:</strong> 07:45 PM – 09:00 PM
+            🌇 <strong>Evening Attendance Window:</strong> 07:45 PM – 08:45 PM
           </span>
           <span style={{ color: '#1d4ed8', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-            🎓 <strong>Thursday Coach Training:</strong> 01:45 PM – 05:00 PM (Thu Only)
+            🎓 <strong>Thursday Training Window:</strong> 01:45 PM – 02:45 PM (Thu Only)
           </span>
         </div>
       </div>

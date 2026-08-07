@@ -34,11 +34,14 @@ export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted 
       const userRef = doc(collection(db, 'users'));
       const customerUid = userRef.id;
 
+      const cleanPhone = form.phone.trim().replace(/[^0-9]/g, '');
+      const defaultEmail = cleanPhone ? `${cleanPhone}@vriddhi.local` : `${customerUid.substring(0, 8)}@vriddhi.local`;
+
       // 2. Create customer record in users collection
       await setDoc(userRef, {
         uid: customerUid,
         name: form.name.trim(),
-        email: form.email.trim() || `${customerUid.substring(0, 8)}@vriddhi.local`,
+        email: form.email.trim() || defaultEmail,
         phone: form.phone.trim(),
         role: 'customer',
         coachId: coachUid,

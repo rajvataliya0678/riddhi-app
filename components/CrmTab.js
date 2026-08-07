@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import BulkAddLeadsModal from './BulkAddLeadsModal';
 import ConvertLeadModal from './ConvertLeadModal';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, MoreVertical, Trash2, Edit3, UserCheck } from 'lucide-react';
 
 const STATUS_OPTIONS = [
   'All',
@@ -43,18 +43,42 @@ function getStatusBadgeStyle(status) {
 
 export default function CrmTab({ coachUid }) {
   const [enquiries, setEnquiries]   = useState([]);
+  const [coaches, setCoaches]       = useState([]);
   const [loading, setLoading]       = useState(true);
 
   // Filters
   const [filterStatus, setFilterStatus]     = useState('All');
   const [filterFollowUp, setFilterFollowUp] = useState('');
 
-  // Modals
+  // Modals & Menu
   const [showModal, setShowModal]           = useState(false);
   const [showBulkModal, setShowBulkModal]   = useState(false);
   const [convertLead, setConvertLead]       = useState(null);
   const [editingEnquiry, setEditingEnquiry] = useState(null);
   const [autoCallLogFocus, setAutoCallLogFocus] = useState(false);
+  const [activeMenuId, setActiveMenuId]     = useState(null);
+
+  useEffect(() => {
+    const handleOutsideClick = () => setActiveMenuId(null);
+    if (activeMenuId) {
+      window.addEventListener('click', handleOutsideClick);
+    }
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [activeMenuId]);
+
+  const handleDeleteEnquiry = async (enquiryId, enquiryName, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm(`શું તમે ખરેખર "${enquiryName}" લીડ ડીલીટ કરવા માંગો છો?`)) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'crm_enquiries', enquiryId));
+      await fetchEnquiries();
+    } catch (error) {
+      console.error('Error deleting enquiry:', error);
+      alert('Error deleting lead. Please try again.');
+    }
+  };
 
   useEffect(() => {
     fetchEnquiries();
@@ -63,9 +87,10 @@ export default function CrmTab({ coachUid }) {
   const fetchEnquiries = async () => {
     try {
       setLoading(true);
-      const snap = await getDocs(
-        query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
-      );
+      const [snap, usersSnap] = await Promise.all([
+        getDocs(query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))),
+        getDocs(collection(db, 'users'))
+      ]);
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
@@ -73,6 +98,11 @@ export default function CrmTab({ coachUid }) {
         return dateB - dateA;
       });
       setEnquiries(list);
+
+      const coachesList = usersSnap.docs
+        .map(d => ({ uid: d.id, ...d.data() }))
+        .filter(u => u.role === 'coach' || u.role === 'admin');
+      setCoaches(coachesList);
     } catch (error) {
       console.error('Error fetching CRM enquiries:', error);
     } finally {
@@ -91,6 +121,7 @@ export default function CrmTab({ coachUid }) {
           healthCondition: data.healthCondition || '',
           source: data.source,
           status: data.status,
+          coachId: data.coachId || coachUid,
           followUpDate: data.followUpDate || '',
           nextMeetingDate: data.nextMeetingDate || '',
           nextMeetingSession: data.nextMeetingSession || 'morning',
@@ -377,6 +408,7 @@ export default function CrmTab({ coachUid }) {
                 <th style={{ width: '340px' }}>Lead Name & Status</th>
                 <th style={{ width: '220px' }}>Phone</th>
                 <th style={{ width: '160px' }}>Follow-up</th>
+                <th style={{ width: '60px', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -462,6 +494,104 @@ export default function CrmTab({ coachUid }) {
                         '—'
                       )}
                     </td>
+
+                    {/* Three-dots Action Menu */}
+                    <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(activeMenuId === enquiry.id ? null : enquiry.id);
+                        }}
+                        style={{
+                          background: activeMenuId === enquiry.id ? 'var(--bg-secondary)' : 'transparent',
+                          border: '1px solid transparent',
+                          padding: '6px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          color: 'var(--text-secondary)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title="Lead Options"
+                        id={`crm-menu-btn-${enquiry.id}`}
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+
+                      {activeMenuId === enquiry.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            top: '40px',
+                            background: '#ffffff',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '12px',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                            zIndex: 100,
+                            minWidth: '160px',
+                            padding: '6px 0',
+                            display: 'flex',
+                            flexDirection: 'column',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              openEditModal(enquiry);
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              padding: '9px 14px', background: 'none', border: 'none',
+                              width: '100%', textAlign: 'left', cursor: 'pointer',
+                              fontSize: '0.84rem', fontWeight: '700', color: 'var(--text-main)',
+                            }}
+                          >
+                            <Edit3 size={15} color="#059669" /> Edit Details
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              setConvertLead(enquiry);
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              padding: '9px 14px', background: 'none', border: 'none',
+                              width: '100%', textAlign: 'left', cursor: 'pointer',
+                              fontSize: '0.84rem', fontWeight: '700', color: '#2563eb',
+                            }}
+                          >
+                            <UserCheck size={15} color="#2563eb" /> Convert Lead
+                          </button>
+
+                          <div style={{ borderTop: '1px solid #f1f5f9', margin: '4px 0' }} />
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              setActiveMenuId(null);
+                              handleDeleteEnquiry(enquiry.id, enquiry.name, e);
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              padding: '9px 14px', background: 'none', border: 'none',
+                              width: '100%', textAlign: 'left', cursor: 'pointer',
+                              fontSize: '0.84rem', fontWeight: '800', color: '#dc2626',
+                            }}
+                            id={`crm-delete-btn-${enquiry.id}`}
+                          >
+                            <Trash2 size={15} color="#dc2626" /> Delete Lead
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -477,6 +607,8 @@ export default function CrmTab({ coachUid }) {
           onSave={handleSaveEnquiry}
           onClose={() => setShowModal(false)}
           onConvert={(enquiry) => setConvertLead(enquiry)}
+          onDelete={(id, name) => handleDeleteEnquiry(id, name)}
+          coaches={coaches}
           autoCallLogFocus={autoCallLogFocus}
         />
       )}

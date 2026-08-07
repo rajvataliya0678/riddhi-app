@@ -1,18 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   collection, query, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAuth } from '@/context/AuthContext';
 import {
-  createNotificationChannel,
-  registerNotificationActionTypes,
-  requestNotificationPermission,
-  setupActionListener,
   scheduleMeetingReminders,
-  cancelAllMeetingNotifications,
-  fireTestNotification,
 } from '@/lib/meetingNotifications';
 
 // ── Add / Schedule Meeting Modal ─────────────────────────
@@ -364,40 +359,18 @@ function buildCustomizedZoomUrl(baseUrl, user, userData) {
 
 // ── Main Component ────────────────────────────────────────
 export default function TodaysMeetings({ user, userData, userRole, userId }) {
+  const { t, language } = useAuth();
   const [meetings, setMeetings]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [showAdd, setShowAdd]           = useState(false);
   const [editingMeeting, setEditingMeeting] = useState(null);
   const [, setTick]                     = useState(0);
-  const [testNotifSent, setTestNotifSent] = useState(false);
 
   const role = userRole || userData?.role || 'customer';
   const uid = userId || user?.uid || '';
-  const canAdd = role === 'admin' || role === 'coach';
+  const canAdd = role === 'admin'; // Only Club Owners (admins) can schedule, edit, add links, or delete meetings
 
   const todayStr = new Date().toISOString().split('T')[0];
-
-  // ── Notification setup: run once on mount ──────────────────────────────────
-  const notifCleanupRef = useRef(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function initNotifications() {
-      await requestNotificationPermission();
-      await createNotificationChannel();
-      await registerNotificationActionTypes();
-      const cleanup = await setupActionListener();
-      if (!cancelled) notifCleanupRef.current = cleanup;
-    }
-
-    initNotifications();
-
-    return () => {
-      cancelled = true;
-      if (notifCleanupRef.current) notifCleanupRef.current();
-    };
-  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 60000);
@@ -409,7 +382,7 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
   const fetchMeetings = async () => {
     try {
       setLoading(true);
-      const snap = await getDocs(collection(db, 'meetings'));
+      const snap = await getDocs(query(collection(db, 'meetings')));
       const allMeetings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
       const filtered = allMeetings.filter(m => {
@@ -427,8 +400,35 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
         return false;
       });
 
-      filtered.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-      setMeetings(filtered);
+      // ── Smart sort: Active/Ongoing/Upcoming first → Ended (after 60 mins) last ────
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const toMinutes = (timeStr = '') => {
+        if (!timeStr) return 0;
+        const ampm = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (ampm) {
+          let h = parseInt(ampm[1]);
+          const m = parseInt(ampm[2]);
+          const period = ampm[3].toUpperCase();
+          if (period === 'PM' && h !== 12) h += 12;
+          if (period === 'AM' && h === 12) h = 0;
+          return h * 60 + m;
+        }
+        const parts = timeStr.split(':');
+        return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
+      };
+
+      // Meetings stay active during their 60-minute duration
+      const active = filtered.filter(m => toMinutes(m.time) + 60 >= nowMinutes);
+      const ended  = filtered.filter(m => toMinutes(m.time) + 60 <  nowMinutes);
+
+      active.sort((a, b) => toMinutes(a.time) - toMinutes(b.time)); // soonest first
+      ended.sort((a, b)  => toMinutes(a.time) - toMinutes(b.time));
+
+      const sorted = [...active, ...ended];
+      // ── End smart sort ───────────────────────────────────────────────────────
+      setMeetings(sorted);
 
       // ── Schedule a notification for each upcoming meeting ──────────────────
       // We pass the first meeting's URL as a fallback for the action listener.
@@ -441,7 +441,7 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
   };
 
   const handleDelete = async (meetingId) => {
-    if (!confirm('Delete this meeting schedule?')) return;
+    if (!confirm(language === 'gu' ? 'શું તમે આ મીટિંગ રદ કરવા માંગો છો?' : 'Delete this meeting schedule?')) return;
     try {
       await deleteDoc(doc(db, 'meetings', meetingId));
       fetchMeetings();
@@ -450,53 +450,71 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
     }
   };
 
-  const handleJoin = (m) => {
-    if (!m.meetingUrl) return;
+// ── Strict Attendance Time Slot Validator ──────────────────────
+// Locked Time Windows:
+//  - Morning Session: 11:00 AM to 12:00 PM (660 to 720 mins)
+//  - Evening Session: 07:45 PM to 08:45 PM (1185 to 1245 mins)
+//  - Thursday Coach Training: 01:45 PM to 02:45 PM (825 to 885 mins, Thu Only)
+function resolveAllowedAttendanceSession(meeting, now = new Date()) {
+  const dayOfWeek = now.getDay(); // 0 = Sun, 4 = Thu
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const totalMinutes = (hours * 60) + minutes;
 
-    const finalUrl = buildCustomizedZoomUrl(
-      m.meetingUrl,
-      user,
-      userData
-    );
+  // Thursday Coach Training (Thu 1:45 PM to 2:45 PM)
+  if (dayOfWeek === 4 && totalMinutes >= 825 && totalMinutes <= 885) {
+    return 'training';
+  }
 
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes(); // mins past midnight
-    const dayOfWeek = now.getDay(); // 0 = Sun, 4 = Thu
+  // Morning Session (11:00 AM to 12:00 PM)
+  if (totalMinutes >= 660 && totalMinutes <= 720) {
+    return 'morning';
+  }
 
-    // Exact Official Time Windows:
-    // 1. Morning: 11:00 AM (660m) to 12:30 PM (750m)
-    // 2. Evening: 7:45 PM (1185m) to 9:00 PM (1260m)
-    // 3. Thursday Training: 1:45 PM (825m) to 5:00 PM (1020m) on Thursday only
-    const isMorningWindow  = currentMinutes >= 660 && currentMinutes <= 750;
-    const isEveningWindow  = currentMinutes >= 1185 && currentMinutes <= 1260;
-    const isTrainingWindow = dayOfWeek === 4 && currentMinutes >= 825 && currentMinutes <= 1020;
+  // Evening Session (07:45 PM to 08:45 PM)
+  if (totalMinutes >= 1185 && totalMinutes <= 1245) {
+    return 'evening';
+  }
 
-    let sessionTypeToMark = null;
+  // Outside allowed slots → return null
+  return null;
+}
 
-    if (isTrainingWindow && (m.visibleTo === 'coaches' || role === 'coach' || role === 'admin')) {
-      sessionTypeToMark = 'training';
-    } else if (isMorningWindow) {
-      sessionTypeToMark = 'morning';
-    } else if (isEveningWindow) {
-      sessionTypeToMark = 'evening';
+  const handleJoin = async (m) => {
+    if (!m?.meetingUrl) return;
+
+    let urlToOpen = buildCustomizedZoomUrl(m.meetingUrl, user, userData);
+    if (!urlToOpen.startsWith('http://') && !urlToOpen.startsWith('https://')) {
+      urlToOpen = 'https://' + urlToOpen;
     }
 
-    // ONLY mark attendance in database IF inside official time window!
-    if (sessionTypeToMark && uid) {
-      addDoc(collection(db, 'meeting_attendance'), {
-        uid: uid,
-        customerName: userData?.name || 'Customer',
-        coachId: userData?.coachId || '',
-        userRole: role,
-        date: todayStr,
-        sessionType: sessionTypeToMark,
-        meetingId: m.id,
-        meetingTitle: m.title,
-        attendedAt: serverTimestamp(),
-      }).catch(err => console.error('Attendance mark error:', err));
+    const sessionTypeToMark = resolveAllowedAttendanceSession(m, new Date());
+    const targetUid = uid || user?.uid || '';
+
+    if (sessionTypeToMark && targetUid) {
+      try {
+        await addDoc(collection(db, 'meeting_attendance'), {
+          uid: targetUid,
+          customerName: userData?.name || user?.displayName || 'Member',
+          coachId: userData?.coachId || userData?.coachUid || '',
+          userRole: role,
+          date: todayStr,
+          sessionType: sessionTypeToMark,
+          meetingId: m.id || '',
+          meetingTitle: m.title || 'Live Session',
+          attendedAt: serverTimestamp(),
+        });
+        console.log('[Attendance] Successfully recorded present for:', sessionTypeToMark, targetUid);
+      } catch (err) {
+        console.error('[Attendance] Attendance mark error:', err);
+      }
+    } else {
+      console.log('[Attendance] Joined outside allowed time window — attendance not recorded.');
     }
 
-    window.open(finalUrl, '_blank');
+    if (typeof window !== 'undefined') {
+      window.open(urlToOpen, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const liveCount = meetings.filter(m => ['ongoing', 'starting'].includes(getMeetingStatus(m.time))).length;
@@ -515,9 +533,11 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '1.3rem' }}>🎥</span>
             <div>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', margin: 0 }}>Today's Meetings</h3>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: '800', margin: 0 }}>
+                {t.todayMeetingsTitle}
+              </h3>
               <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0 }}>
-                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                {new Date().toLocaleDateString(language === 'gu' ? 'gu-IN' : 'en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
             </div>
           </div>
@@ -532,31 +552,6 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
               </span>
             )}
 
-            {/* ── Test Notification button (coaches/admins only) ── */}
-            {canAdd && (
-              <button
-                id="test-notif-btn"
-                title="Send a test notification to verify sound & action buttons"
-                style={{
-                  padding: '4px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
-                  background: testNotifSent ? '#f0fdf4' : '#faf5ff',
-                  color: testNotifSent ? '#16a34a' : '#7c3aed',
-                  border: testNotifSent ? '1px solid #86efac' : '1px solid #c4b5fd',
-                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s ease',
-                }}
-                onClick={async () => {
-                  // Use the first meeting's URL as the test URL (or a generic one)
-                  const testUrl = meetings.find(m => m.meetingUrl)?.meetingUrl || 'https://zoom.us/test';
-                  await fireTestNotification(testUrl);
-                  setTestNotifSent(true);
-                  // Reset button label after 10 seconds
-                  setTimeout(() => setTestNotifSent(false), 10000);
-                }}
-              >
-                {testNotifSent ? '✅ Sent! Check in 5s' : '🔔 Test Notification'}
-              </button>
-            )}
-
             {canAdd && (
               <button
                 className="btn btn-primary"
@@ -564,7 +559,7 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
                 onClick={() => setShowAdd(true)}
                 id="add-meeting-btn"
               >
-                + Schedule
+                + {language === 'gu' ? 'મીટિંગ ઉમેરો' : 'Schedule'}
               </button>
             )}
           </div>
@@ -574,14 +569,14 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
         <div style={{ maxHeight: '320px', overflowY: 'auto', flex: 1 }}>
           {loading ? (
             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              ⏳ Loading meetings...
+              ⏳ {t.loading}
             </div>
           ) : meetings.length === 0 ? (
-            <div style={{ padding: '28px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
-              <p style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px', fontSize: '0.9rem' }}>No meetings scheduled today</p>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                {canAdd ? 'Click "+ Schedule" to set up a daily or one-time meeting.' : 'Check back later for scheduled live sessions.'}
+            <div className="empty-state" style={{ padding: '32px 16px', textAlign: 'center' }}>
+              <span className="empty-state-icon" style={{ fontSize: '2rem' }}>📅</span>
+              <h4 style={{ fontSize: '0.9rem', margin: '8px 0 4px' }}>{t.noMeetingsToday}</h4>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {canAdd ? (language === 'gu' ? 'નવી મીટિંગ ગોઠવવા માટે "+ મીટિંગ ઉમેરો" દબાવો.' : 'Click "+ Schedule" to set up a daily or one-time meeting.') : (language === 'gu' ? 'મીટિંગનો સમય થશે એટલે નોટિફિકેશન આવશે.' : 'Check back later for scheduled live sessions.')}
               </p>
             </div>
           ) : (
@@ -639,13 +634,16 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
                           className="btn btn-primary"
                           style={{
                             flex: 1,
-                            padding: '8px 14px',
-                            fontSize: '0.82rem',
-                            fontWeight: '800',
+                            padding: '13px 18px',
+                            fontSize: '1rem',
+                            fontWeight: '900',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: '6px',
+                            gap: '8px',
+                            borderRadius: '10px',
+                            letterSpacing: '0.01em',
+                            boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
                           }}
                           onClick={() => handleJoin(m)}
                           id={`join-meeting-btn-${m.id}`}

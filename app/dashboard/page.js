@@ -20,6 +20,9 @@ import MyCoachesTab from '@/components/MyCoachesTab';
 import AttendanceTab from '@/components/AttendanceTab';
 import SessionLeadAttendees from '@/components/SessionLeadAttendees';
 import UpdatePrompt from '@/components/UpdatePrompt';
+import SendNotificationTab from '@/components/SendNotificationTab';
+import NotificationInit from '@/components/NotificationInit';
+import LanguageToggle from '@/components/LanguageToggle';
 import {
   LayoutDashboard, CalendarCheck, Users, ClipboardList, BarChart3,
   GraduationCap, Settings2, Scale, Flame, Target, TrendingUp,
@@ -29,19 +32,19 @@ import {
 
 // ── Sidebar nav items ────────────────────────────────────
 const NAV_ITEMS = [
-  { id: 'dashboard',     Icon: LayoutDashboard, label: 'My Dashboard',    roles: ['customer', 'coach', 'admin'] },
-  { id: 'attendance',    Icon: CalendarCheck,   label: 'Attendance',      roles: ['customer', 'coach', 'admin'] },
-  { id: 'customers',     Icon: Users,           label: 'My Customers',    roles: ['coach', 'admin'] },
-  { id: 'crm',          Icon: ClipboardList,   label: 'CRM',             roles: ['coach', 'admin'] },
-  { id: 'crm_analytics', Icon: BarChart3,       label: 'CRM Analytics',   roles: ['coach', 'admin'] },
-  { id: 'my_coaches',   Icon: GraduationCap,   label: 'My Coaches',      roles: ['coach', 'admin'] },
-  { id: 'admin',        Icon: Settings2,       label: 'Club Owner Panel', roles: ['admin'] },
+  { id: 'dashboard',       Icon: LayoutDashboard, label: 'My Dashboard',       roles: ['customer', 'coach', 'admin'] },
+  { id: 'attendance',      Icon: CalendarCheck,   label: 'Attendance',         roles: ['customer', 'coach', 'admin'] },
+  { id: 'customers',       Icon: Users,           label: 'My Customers',       roles: ['coach', 'admin'] },
+  { id: 'crm',             Icon: ClipboardList,   label: 'CRM',                roles: ['coach', 'admin'] },
+  { id: 'crm_analytics',   Icon: BarChart3,       label: 'CRM Analytics',      roles: ['coach', 'admin'] },
+  { id: 'my_coaches',      Icon: GraduationCap,   label: 'My Coaches',         roles: ['admin'] },
+  { id: 'send_notif',      Icon: Bell,            label: 'Send Notification',  roles: ['admin'] },
+  { id: 'admin',           Icon: Settings2,       label: 'Club Owner Panel',   roles: ['admin'] },
 ];
 
 // ── Mifflin-St Jeor BMR ──────────────────────────────────
-function computeBMR(weight, diagnosis) {
-  if (!weight || !diagnosis) return 0;
-  const { height, age, gender } = diagnosis;
+function calculateBMR(weight, height, age, gender) {
+  if (!weight || !height || !age) return 0;
   if (gender === 'male') return Math.round(10 * weight + 6.25 * height - 5 * age + 5);
   if (gender === 'female') return Math.round(10 * weight + 6.25 * height - 5 * age - 161);
   return Math.round(10 * weight + 6.25 * height - 5 * age - 78);
@@ -49,7 +52,7 @@ function computeBMR(weight, diagnosis) {
 
 export default function DashboardPage() {
   const { loading: authLoading } = useAuthGuard();
-  const { user, userData, logout } = useAuth();
+  const { user, userData, logout, t, language } = useAuth();
 
   const [diagnosis, setDiagnosis] = useState(null);
   const [weightHistory, setWeightHistory] = useState([]);
@@ -85,64 +88,52 @@ export default function DashboardPage() {
       history.sort((a, b) => new Date(b.date) - new Date(a.date));
       setWeightHistory(history);
     } catch (err) {
-      console.error('Fetch error:', err);
+      console.error('Error fetching dashboard data:', err);
     } finally {
       setLoadingData(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      fetchData();
-    } else {
-      setLoadingData(false);
-    }
-  }, [user?.uid]);
+    fetchData();
+  }, [user]);
 
   // ── Derived values ────────────────────────────────────────
-  const latestWeight = weightHistory.length > 0 ? weightHistory[0].weight : (diagnosis?.initialWeight || 0);
-  const bmr = computeBMR(latestWeight, diagnosis);
+  const latestWeightRecord = weightHistory[0];
+  const latestWeight = latestWeightRecord?.weight || diagnosis?.initialWeight || 0;
+
+  const bmr = (diagnosis?.weight && diagnosis?.height && diagnosis?.age)
+    ? calculateBMR(latestWeight, diagnosis.height, diagnosis.age, diagnosis.gender)
+    : '—';
 
   const today = new Date();
-  const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const dateOptions = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+  const dateStr = today.toLocaleDateString(language === 'gu' ? 'gu-IN' : 'en-US', dateOptions);
 
   // ── Weight update ─────────────────────────────────────────
   const handleUpdateWeight = async (e) => {
     e.preventDefault();
     setModalError('');
-    const val = parseFloat(newWeight);
 
-    if (isNaN(val) || val <= 0) {
-      setModalError('Please enter a valid weight (e.g. 70.5)');
+    const wNum = parseFloat(newWeight);
+    if (isNaN(wNum) || wNum <= 10 || wNum > 300) {
+      setModalError(language === 'gu' ? 'કૃપા કરીને સાચું વજન લખો (10-300 kg)' : 'Please enter a valid weight between 10 and 300 kg.');
       return;
     }
 
+    setModalSubmitting(true);
     try {
-      setModalSubmitting(true);
-      const todayStr = new Date().toISOString().split('T')[0];
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayDateStr = `${year}-${month}-${day}`;
 
-      const existingSnap = await getDocs(
-        query(
-          collection(db, 'weight_history'),
-          where('uid', '==', user.uid)
-        )
-      );
-
-      const existingDoc = existingSnap.docs.find(d => d.data().date === todayStr);
-
-      if (existingDoc) {
-        await updateDoc(doc(db, 'weight_history', existingDoc.id), {
-          weight: val,
-          updatedAt: serverTimestamp(),
-        });
-      } else {
-        await addDoc(collection(db, 'weight_history'), {
-          uid: user.uid,
-          weight: val,
-          date: todayStr,
-          createdAt: serverTimestamp(),
-        });
-      }
+      await addDoc(collection(db, 'weight_history'), {
+        uid: user.uid,
+        weight: wNum,
+        date: todayDateStr,
+        createdAt: serverTimestamp()
+      });
 
       await fetchData();
       setShowWeightModal(false);
@@ -155,33 +146,44 @@ export default function DashboardPage() {
     }
   };
 
-  const requiresDiagnosis = role === 'customer' && userData?.registrationCompleted === false;
-
-  if (authLoading) {
+  if (authLoading || !user) {
     return (
       <div className="auth-wrapper">
         <div style={{ textAlign: 'center' }}>
-          <div className="brand-logo">Vriddhi</div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading wellness dashboard...</p>
+          <div className="brand-logo">{t?.brandName || 'Vriddhi'}</div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t?.loading || 'Loading...'}</p>
         </div>
       </div>
     );
   }
 
-  const pageTitles = { dashboard: 'My Dashboard', attendance: 'Attendance Calendar', customers: 'My Customers', followup: '10-Day Follow-Up', crm: 'CRM — Pipeline', crm_analytics: 'CRM Analytics & Ratios', my_coaches: 'My Coaches', admin: 'Club Owner Panel' };
+  const pageTitles = {
+    dashboard: t.navDashboard,
+    attendance: t.navAttendance,
+    customers: t.navCustomers,
+    crm: t.navCrm,
+    crm_analytics: t.navCrmAnalytics,
+    my_coaches: t.navCoaches,
+    admin: t.navAdmin,
+    send_notif: t.navSendNotif
+  };
+
   const pageSubtitles = {
-    dashboard: `Today is ${dateStr}`,
-    attendance: 'Live Zoom session attendance & Thursday coach training log',
-    customers: 'Customers assigned to you',
-    followup: 'Track each new customer through their 10-day journey',
+    dashboard: `${t.todayIs} ${dateStr}`,
+    attendance: language === 'gu' ? 'લાઈવ ઝૂમ સેશન હાજરી' : 'Live Zoom session attendance & Thursday coach training log',
+    customers: language === 'gu' ? 'તમને સોંપાયેલા સભ્યો' : 'Customers assigned to you',
     crm: 'Manage your leads across pipeline stages',
     crm_analytics: 'Analyze conversion rates, ratios and performance insights',
-    my_coaches: 'Manage team coaches & view individual performance',
-    admin: 'Manage all users, roles and assignments as Club Owner',
+    my_coaches: language === 'gu' ? 'તમારા સહ-કોચની વિગત' : 'Manage team coaches & view individual performance',
+    admin: language === 'gu' ? 'ક્લબ ઓનર પેનલ' : 'Manage all users, roles and assignments as Club Owner',
+    send_notif: language === 'gu' ? 'સભ્યો અને કોચને સંદેશ મોકલો' : 'Broadcast a notification to customers, coaches or everyone',
   };
 
   return (
     <div className="app-shell">
+
+      {/* ── NOTIFICATION INIT (permission + broadcast checker) ── */}
+      <NotificationInit uid={user?.uid || ''} userRole={role} />
 
       {/* ── IN-APP UPDATE PROMPT ── */}
       <UpdatePrompt />
@@ -198,19 +200,10 @@ export default function DashboardPage() {
           >
             <Menu size={18} />
           </button>
-          <div className="mobile-top-bar-logo">Vriddhi</div>
+          <div className="mobile-top-bar-logo">{t.brandName}</div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {activeTab === 'dashboard' && (
-            <button
-              onClick={() => { setNewWeight(latestWeight.toString()); setShowWeightModal(true); }}
-              className="btn btn-primary btn-sm"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '0.75rem', gap: '4px' }}
-            >
-              <Plus size={13} /> Log Weight
-            </button>
-          )}
 
           <button
             type="button"
@@ -240,14 +233,17 @@ export default function DashboardPage() {
       {/* ── DESKTOP LEFT SIDEBAR ────────────────────── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-text">Vriddhi</div>
+          <div className="sidebar-logo-text">{t.brandName}</div>
           <div className="sidebar-logo-sub">Wellness Platform</div>
         </div>
 
         <nav className="sidebar-nav">
-          <div className="sidebar-section-label">Navigation</div>
+          <div className="sidebar-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '8px' }}>
+            <span>Navigation</span>
+          </div>
           {visibleNav.map(item => {
             const IconComp = item.Icon;
+            const itemLabel = t[item.labelKey] || item.label;
             return (
               <button
                 key={item.id}
@@ -256,13 +252,18 @@ export default function DashboardPage() {
                 id={`nav-${item.id}`}
               >
                 <span className="sidebar-link-icon"><IconComp size={16} /></span>
-                {item.label}
+                {itemLabel}
               </button>
             );
           })}
         </nav>
 
         <div className="sidebar-footer">
+          {/* Language Toggle in Sidebar */}
+          <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+            <LanguageToggle />
+          </div>
+
           {role !== 'customer' && (
             <div style={{ marginBottom: '10px' }}>
               <span style={{
@@ -303,7 +304,7 @@ export default function DashboardPage() {
             }}
             id="sidebar-logout-btn"
           >
-            <LogOut size={15} /> Log Out
+            <LogOut size={15} /> {t.logout}
           </button>
         </div>
       </aside>
@@ -315,7 +316,7 @@ export default function DashboardPage() {
           <div className="sidebar-drawer">
             <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div className="sidebar-logo-text">Vriddhi</div>
+                <div className="sidebar-logo-text">{t.brandName}</div>
                 <div className="sidebar-logo-sub">Wellness Platform</div>
               </div>
               <button
@@ -331,10 +332,15 @@ export default function DashboardPage() {
               </button>
             </div>
 
+            <div style={{ padding: '12px 16px' }}>
+              <LanguageToggle />
+            </div>
+
             <nav className="sidebar-nav">
               <div className="sidebar-section-label">Navigation</div>
               {visibleNav.map(item => {
                 const IconComp = item.Icon;
+                const itemLabel = t[item.labelKey] || item.label;
                 return (
                   <button
                     key={item.id}
@@ -342,7 +348,7 @@ export default function DashboardPage() {
                     onClick={() => { setActiveTab(item.id); setDrawerOpen(false); }}
                   >
                     <span className="sidebar-link-icon"><IconComp size={16} /></span>
-                    {item.label}
+                    {itemLabel}
                   </button>
                 );
               })}
@@ -371,7 +377,7 @@ export default function DashboardPage() {
                   background: 'transparent'
                 }}
               >
-                <LogOut size={15} /> Log Out
+                <LogOut size={15} /> {t.logout}
               </button>
             </div>
           </div>
@@ -382,6 +388,7 @@ export default function DashboardPage() {
       <nav className="mobile-bottom-nav">
         {visibleNav.filter(n => ['dashboard', 'attendance', 'customers', 'crm'].includes(n.id)).map(item => {
           const IconComp = item.Icon;
+          const itemLabel = t[item.labelKey] || item.label;
           return (
             <button
               key={item.id}
@@ -391,7 +398,7 @@ export default function DashboardPage() {
               id={`mobile-tab-${item.id}`}
             >
               <IconComp size={20} />
-              <span className="mobile-tab-label">{item.label.replace('My ', '')}</span>
+              <span className="mobile-tab-label">{itemLabel.split(' ')[0]}</span>
             </button>
           );
         })}
@@ -428,20 +435,20 @@ export default function DashboardPage() {
                 style={{ width: 'auto', gap: '6px' }}
                 id="update-weight-btn"
               >
-                <Plus size={16} /> Log Weight
+                <Plus size={16} /> {t.logWeightBtn}
               </button>
             )}
           </div>
         </div>
 
-        <div className="main-panel-body">
+        <div className="main-panel-body tab-content-enter" key={activeTab}>
 
           {/* ── MY DASHBOARD TAB ── */}
           {activeTab === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
               <div
-                className="resp-grid-tasks"
+                className="resp-grid-tasks stagger-child stagger-1"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: isCoach ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
@@ -450,16 +457,16 @@ export default function DashboardPage() {
                 }}
               >
                 {isCoach && (
-                  <CoachTodayTasks coachUid={user.uid} coachName={userData?.name || ''} userRole={userData?.role || 'coach'} />
+                  <CoachTodayTasks coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={userData?.role || 'coach'} />
                 )}
-                <TodaysMeetings user={user} userData={userData} />
+                <TodaysMeetings user={user} userData={userData} userRole={role} />
                 {isCoach && (
-                  <SessionLeadAttendees coachUid={user.uid} userRole={userData?.role || 'coach'} />
+                  <SessionLeadAttendees coachUid={user?.uid || ''} userRole={userData?.role || 'coach'} />
                 )}
               </div>
 
               {/* Stats Row */}
-              <div className="resp-grid-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              <div className="resp-grid-stats stagger-child stagger-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                 {/* Weight */}
                 <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '14px', padding: '18px 20px' }}>
                   <div style={{
@@ -471,7 +478,9 @@ export default function DashboardPage() {
                     <Scale size={22} color="#2563eb" />
                   </div>
                   <div>
-                    <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Current Weight</p>
+                    <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>
+                      {language === 'gu' ? 'અત્યારનું વજન' : 'Current Weight'}
+                    </p>
                     <p style={{ fontSize: '1.7rem', fontWeight: '900', fontFamily: 'var(--font-heading)', color: 'var(--text-main)', lineHeight: 1 }}>{latestWeight} <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>kg</span></p>
                   </div>
                 </div>
@@ -503,18 +512,20 @@ export default function DashboardPage() {
                     <Target size={22} color="#059669" />
                   </div>
                   <div>
-                    <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Goal</p>
+                    <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>
+                      {language === 'gu' ? 'મુખ્ય લક્ષ્ય' : 'Goal'}
+                    </p>
                     <p style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--primary)', lineHeight: 1.3 }}>{diagnosis?.fitnessGoal || '—'}</p>
                     {diagnosis?.goalWeight && <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Target: {diagnosis.goalWeight} kg</p>}
                   </div>
                 </div>
               </div>
 
-              <div className="resp-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+              <div className="resp-grid-3 stagger-child stagger-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
                   <h3 className="card-title">
                     <Flame size={17} color="#f97316" style={{ flexShrink: 0 }} />
-                    Streak & Achievements
+                    {language === 'gu' ? 'સિદ્ધિઓ અને સળંગ રેકોર્ડ' : 'Streak & Achievements'}
                   </h3>
                   <StreakBadges
                     weightHistory={weightHistory}
@@ -527,7 +538,7 @@ export default function DashboardPage() {
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
                   <h3 className="card-title">
                     <Activity size={17} color="#6366f1" style={{ flexShrink: 0 }} />
-                    Progress & Insights
+                    {language === 'gu' ? 'પ્રગતિ અને રિપોર્ટ' : 'Progress & Insights'}
                   </h3>
                   <WeeklyInsight
                     weightHistory={weightHistory}
@@ -541,30 +552,33 @@ export default function DashboardPage() {
                 <div className="dashboard-card" style={{ minWidth: 0 }}>
                   <h3 className="card-title">
                     <TrendingUp size={17} color="#059669" style={{ flexShrink: 0 }} />
-                    Weight Trend
+                    {language === 'gu' ? 'વજનનો ચાર્ટ' : 'Weight Trend'}
                   </h3>
                   <WeightChart weightHistory={weightHistory} />
                 </div>
               </div>
 
-              <div className="dashboard-grid">
+              <div className="dashboard-grid stagger-child stagger-4">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div className="dashboard-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 className="card-title"><Heart size={17} color="#ef4444" style={{ flexShrink: 0 }} /> My Health Profile</h3>
+                      <h3 className="card-title">
+                        <Heart size={17} color="#ef4444" style={{ flexShrink: 0 }} />
+                        {language === 'gu' ? 'મારી પ્રોફાઈલ વિગત' : 'My Health Profile'}
+                      </h3>
                       <button onClick={() => setShowProfile(true)} className="btn btn-outline btn-sm" style={{ width: 'auto', gap: '5px' }} id="edit-profile-btn">
-                        <Pencil size={13} /> Edit
+                        <Pencil size={13} /> {t.edit}
                       </button>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {[
-                        { label: 'Height', value: `${diagnosis?.height} cm` },
-                        { label: 'Age / Gender', value: `${diagnosis?.age} yrs / ${diagnosis?.gender}` },
-                        { label: 'Fitness Goal', value: diagnosis?.fitnessGoal, accent: true },
-                        { label: 'Goal Weight', value: diagnosis?.goalWeight ? `${diagnosis.goalWeight} kg` : 'Not set' },
-                        { label: 'Breakfast', value: diagnosis?.preferredTimes?.breakfast },
-                        { label: 'Lunch', value: diagnosis?.preferredTimes?.lunch },
-                        { label: 'Dinner', value: diagnosis?.preferredTimes?.dinner },
+                        { label: language === 'gu' ? 'ઊંચાઈ' : 'Height', value: `${diagnosis?.height} cm` },
+                        { label: language === 'gu' ? 'ઉંમર / જાતિ' : 'Age / Gender', value: `${diagnosis?.age} yrs / ${diagnosis?.gender}` },
+                        { label: language === 'gu' ? 'મુખ્ય લક્ષ્ય' : 'Fitness Goal', value: diagnosis?.fitnessGoal, accent: true },
+                        { label: language === 'gu' ? 'લક્ષ્યાંક વજન' : 'Goal Weight', value: diagnosis?.goalWeight ? `${diagnosis.goalWeight} kg` : 'Not set' },
+                        { label: language === 'gu' ? 'નાસ્તો' : 'Breakfast', value: diagnosis?.preferredTimes?.breakfast },
+                        { label: language === 'gu' ? 'બપોરનું જમવાનું' : 'Lunch', value: diagnosis?.preferredTimes?.lunch },
+                        { label: language === 'gu' ? 'સાંજનું ભોજન' : 'Dinner', value: diagnosis?.preferredTimes?.dinner },
                       ].map(row => (
                         <div key={row.label} className="profile-info-row">
                           <span className="profile-info-label">{row.label}</span>
@@ -584,7 +598,10 @@ export default function DashboardPage() {
 
                 {/* Weight log history */}
                 <div className="dashboard-card">
-                  <h3 className="card-title"><Calendar size={17} color="#059669" style={{ flexShrink: 0 }} /> Weight Log History</h3>
+                  <h3 className="card-title">
+                    <Calendar size={17} color="#059669" style={{ flexShrink: 0 }} />
+                    {t.weightHistoryTitle}
+                  </h3>
                   {weightHistory.length === 0 ? (
                     <div className="empty-state">
                       <span className="empty-state-icon"><Scale size={40} color="#94a3b8" /></span>
@@ -595,7 +612,11 @@ export default function DashboardPage() {
                     <div className="history-table-container">
                       <table className="history-table" id="weight-history-table">
                         <thead>
-                          <tr><th>Date</th><th>Weight</th><th>Change</th></tr>
+                          <tr>
+                            <th>{t.weightDateLabel}</th>
+                            <th>{t.weightInputLabel}</th>
+                            <th>ફેરફાર (Change)</th>
+                          </tr>
                         </thead>
                         <tbody>
                           {weightHistory.map((item, idx) => {
@@ -607,7 +628,7 @@ export default function DashboardPage() {
                             }
                             return (
                               <tr key={item.id}>
-                                <td>{new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
+                                <td>{new Date(item.date).toLocaleDateString(language === 'gu' ? 'gu-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
                                 <td style={{ fontWeight: '600' }}>{item.weight.toFixed(1)} kg</td>
                                 <td style={{ color, fontWeight: '600' }}>{txt}</td>
                               </tr>
@@ -623,25 +644,28 @@ export default function DashboardPage() {
           )}
 
           {/* ── MY CUSTOMERS TAB ── */}
-          {activeTab === 'customers' && isCoach && <MyCustomersTab coachUid={user.uid} />}
+          {activeTab === 'customers' && isCoach && <MyCustomersTab coachUid={user?.uid || ''} />}
 
           {/* ── 10-DAY FOLLOW-UP TAB ── */}
-          {activeTab === 'followup' && isCoach && <FollowUpTab coachUid={user.uid} coachName={userData?.name || ''} />}
+          {activeTab === 'followup' && isCoach && <FollowUpTab coachUid={user?.uid || ''} coachName={userData?.name || ''} />}
 
           {/* ── CRM TAB ── */}
-          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user.uid} />}
+          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} />}
 
           {/* ── CRM ANALYTICS TAB ── */}
-          {activeTab === 'crm_analytics' && isCoach && <CrmAnalyticsTab coachUid={user.uid} />}
+          {activeTab === 'crm_analytics' && isCoach && <CrmAnalyticsTab coachUid={user?.uid || ''} />}
 
           {/* ── MY COACHES TAB ── */}
-          {activeTab === 'my_coaches' && isCoach && <MyCoachesTab coachUid={user.uid} />}
+          {activeTab === 'my_coaches' && isCoach && <MyCoachesTab coachUid={user?.uid || ''} />}
 
           {/* ── ATTENDANCE TAB ── */}
           {activeTab === 'attendance' && <AttendanceTab user={user} userData={userData} />}
 
           {/* ── ADMIN TAB ── */}
-          {activeTab === 'admin' && isAdmin && <AdminTab currentAdminUid={user.uid} />}
+          {activeTab === 'admin' && isAdmin && <AdminTab currentAdminUid={user?.uid || ''} />}
+
+          {/* ── SEND NOTIFICATION TAB ── */}
+          {activeTab === 'send_notif' && isAdmin && <SendNotificationTab adminUid={user?.uid || ''} />}
         </div>
       </div>
 
@@ -650,13 +674,13 @@ export default function DashboardPage() {
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-header">
-              <h3>Log Today's Weight</h3>
+              <h3>{t.weightLogTitle}</h3>
               <button onClick={() => { setShowWeightModal(false); setModalError(''); }} className="modal-close"><X size={14} /></button>
             </div>
             {modalError && <div className="alert alert-danger">{modalError}</div>}
             <form onSubmit={handleUpdateWeight}>
               <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label className="form-label" htmlFor="weight-input">Weight (kg)</label>
+                <label className="form-label" htmlFor="weight-input">{t.weightInputLabel}</label>
                 <input
                   type="number" step="0.1" id="weight-input"
                   className="form-input" placeholder="e.g. 70.5"
@@ -665,9 +689,11 @@ export default function DashboardPage() {
                 />
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button type="button" className="btn btn-outline" onClick={() => { setShowWeightModal(false); setModalError(''); }} disabled={modalSubmitting} style={{ width: '40%' }}>Cancel</button>
+                <button type="button" className="btn btn-outline" onClick={() => { setShowWeightModal(false); setModalError(''); }} disabled={modalSubmitting} style={{ width: '40%' }}>
+                  {t.cancel}
+                </button>
                 <button type="submit" className="btn btn-primary" disabled={modalSubmitting} style={{ width: '60%', gap: '6px' }} id="modal-submit-weight">
-                  {modalSubmitting ? 'Saving...' : <><Plus size={15} /> Save Weight</>}
+                  {modalSubmitting ? t.saving : <><Plus size={15} /> {t.saveWeightBtn}</>}
                 </button>
               </div>
             </form>

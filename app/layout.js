@@ -1,6 +1,7 @@
 import "./globals.css";
 import FirebaseConfigGuard from "@/components/FirebaseConfigGuard";
 import { AuthContextProvider } from "@/context/AuthContext";
+import UpdatePrompt from "@/components/UpdatePrompt";
 
 export const metadata = {
   title: "Vriddhi | Fitness & Wellness Coaching",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }) {
       <body>
         <FirebaseConfigGuard>
           <AuthContextProvider>
+            <UpdatePrompt />
             {children}
           </AuthContextProvider>
         </FirebaseConfigGuard>
