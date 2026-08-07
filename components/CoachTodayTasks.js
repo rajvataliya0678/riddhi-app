@@ -636,59 +636,62 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
                   id={`task-item-${task.id}`}
                   onClick={() => handleTaskAction(task)}
                   style={{
-                    padding: '12px 14px',
+                    padding: '14px 16px',
                     borderRadius: '12px',
                     border: `1px solid ${u.border}`,
                     background: u.bg,
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
+                    flexDirection: 'column',
+                    gap: '10px',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      width: '38px', height: '38px', borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #d97706, #2563eb)',
-                      color: '#fff', fontWeight: '800', fontSize: '0.9rem',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0
+                  {/* Top Row: Avatar + Info + Urgency Badge */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        width: '38px', height: '38px', borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #d97706, #2563eb)',
+                        color: '#fff', fontWeight: '800', fontSize: '0.9rem',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        {task.name ? task.name.charAt(0).toUpperCase() : 'T'}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <p style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-main)', margin: 0, lineHeight: '1.35', wordBreak: 'break-word' }}>
+                          {task.title}
+                        </p>
+                        <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: '3px 0 0', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                          {task.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span style={{
+                      padding: '3px 8px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800',
+                      background: u.bg, color: u.color, border: `1px solid ${u.border}`, whiteSpace: 'nowrap', flexShrink: 0
                     }}>
-                      {task.name ? task.name.charAt(0).toUpperCase() : 'T'}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--text-main)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {task.title}
-                      </p>
-                      <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {task.description}
-                      </p>
-                    </div>
+                      {u.icon} {u.label}
+                    </span>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {/* Bottom Row: Action Buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%', paddingTop: '6px', borderTop: '1px dashed rgba(0,0,0,0.06)' }}>
                     {task.phone && (
                       <a
                         href={`tel:${task.phone}`}
                         onClick={e => e.stopPropagation()}
                         style={{
-                          padding: '6px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700',
+                          padding: '5px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '700',
                           background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
-                          display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none'
+                          display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none'
                         }}
                       >
                         📞 Call
                       </a>
                     )}
-                    <span style={{
-                      padding: '3px 8px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800',
-                      background: u.bg, color: u.color, border: `1px solid ${u.border}`
-                    }}>
-                      {u.icon} {u.label}
-                    </span>
 
                     {task.actionType === 'open_crm_modal' && (
                       <button
