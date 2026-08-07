@@ -26,11 +26,17 @@ import {
 } from '@/lib/meetingNotifications';
 
 // ── Broadcast Notification Checker ────────────────────────────────────────────
-async function checkBroadcastNotifications(uid, userRole) {
+async function checkBroadcastNotifications(uid, userRole, userCreatedAt) {
   if (!Capacitor.isNativePlatform()) return;
   if (!uid) return;
 
   try {
+    const regDate = userCreatedAt?.toDate
+      ? userCreatedAt.toDate()
+      : userCreatedAt
+        ? new Date(userCreatedAt)
+        : new Date(0);
+
     // Fetch last 10 broadcast notifications not yet read by this user
     const snap = await getDocs(
       query(
@@ -45,6 +51,10 @@ async function checkBroadcastNotifications(uid, userRole) {
       .filter(n => {
         if (n.deleted) return false;
         if ((n.readBy || []).includes(uid)) return false; // already seen
+
+        // Registration time filter: ONLY push notifications sent AFTER user registered
+        const sentDate = n.sentAt?.toDate ? n.sentAt.toDate() : new Date(n.sentAt || 0);
+        if (sentDate < regDate) return false;
 
         // Audience filter
         if (n.audience === 'all') return true;
@@ -80,7 +90,7 @@ async function checkBroadcastNotifications(uid, userRole) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function NotificationInit({ uid, userRole }) {
+export default function NotificationInit({ uid, userRole, userCreatedAt }) {
   useEffect(() => {
     let cleanupFn = null;
     let mounted = true;
@@ -94,7 +104,7 @@ export default function NotificationInit({ uid, userRole }) {
 
       // Check for admin-sent broadcast notifications (after 3s to let auth settle)
       if (uid) {
-        setTimeout(() => checkBroadcastNotifications(uid, userRole), 3000);
+        setTimeout(() => checkBroadcastNotifications(uid, userRole, userCreatedAt), 3000);
       }
     }
 

@@ -22,6 +22,7 @@ import SessionLeadAttendees from '@/components/SessionLeadAttendees';
 import UpdatePrompt from '@/components/UpdatePrompt';
 import SendNotificationTab from '@/components/SendNotificationTab';
 import NotificationInit from '@/components/NotificationInit';
+import NotificationModal from '@/components/NotificationModal';
 import LanguageToggle from '@/components/LanguageToggle';
 import {
   LayoutDashboard, CalendarCheck, Users, ClipboardList, BarChart3,
@@ -64,6 +65,8 @@ export default function DashboardPage() {
   const [modalError, setModalError] = useState('');
   const [modalSubmitting, setModalSubmitting] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showNotifModal, setShowNotifModal] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const role = userData?.role || 'customer';
   const isCoach = role === 'coach' || role === 'admin';
@@ -87,6 +90,7 @@ export default function DashboardPage() {
       const history = weightSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       history.sort((a, b) => new Date(b.date) - new Date(a.date));
       setWeightHistory(history);
+      fetchUnreadNotifCount();
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
@@ -94,9 +98,38 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchUnreadNotifCount = async () => {
+    if (!user) return;
+    try {
+      const snap = await getDocs(query(collection(db, 'broadcast_notifications'), orderBy('sentAt', 'desc')));
+      const userRegDate = userData?.createdAt?.toDate
+        ? userData.createdAt.toDate()
+        : user?.metadata?.creationTime
+          ? new Date(user.metadata.creationTime)
+          : new Date(0);
+
+      const count = snap.docs.filter(d => {
+        const n = d.data();
+        if (n.deleted) return false;
+
+        const sentDate = n.sentAt?.toDate ? n.sentAt.toDate() : new Date(n.sentAt || 0);
+        if (sentDate < userRegDate) return false;
+
+        if (n.audience === 'all' || (n.audience === 'coaches' && isCoach) || (n.audience === 'customers' && role === 'customer')) {
+          return !(n.readBy || []).includes(user.uid);
+        }
+        return false;
+      }).length;
+
+      setUnreadNotifCount(count);
+    } catch (e) {
+      console.warn('Error fetching unread notif count:', e);
+    }
+  };
+
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, [user, userData]);
 
   // ── Derived values ────────────────────────────────────────
   const latestWeightRecord = weightHistory[0];
@@ -183,7 +216,7 @@ export default function DashboardPage() {
     <div className="app-shell">
 
       {/* ── NOTIFICATION INIT (permission + broadcast checker) ── */}
-      <NotificationInit uid={user?.uid || ''} userRole={role} />
+      <NotificationInit uid={user?.uid || ''} userRole={role} userCreatedAt={userData?.createdAt || user?.metadata?.creationTime} />
 
       {/* ── IN-APP UPDATE PROMPT ── */}
       <UpdatePrompt />
@@ -423,9 +456,14 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button className="notif-btn" id="notif-bell-btn" title="Notifications">
+            <button
+              className="notif-btn"
+              id="notif-bell-btn"
+              title="Notifications"
+              onClick={() => setShowNotifModal(true)}
+            >
               <Bell size={18} />
-              <span className="notif-badge">2</span>
+              {unreadNotifCount > 0 && <span className="notif-badge">{unreadNotifCount}</span>}
             </button>
 
             {activeTab === 'dashboard' && (
@@ -709,6 +747,20 @@ export default function DashboardPage() {
           diagnosis={diagnosis}
           onClose={() => setShowProfile(false)}
           onSaved={fetchData}
+        />
+      )}
+
+      {/* ── NOTIFICATION MODAL ── */}
+      {showNotifModal && (
+        <NotificationModal
+          uid={user?.uid || ''}
+          userRole={role}
+          userCreatedAt={userData?.createdAt || user?.metadata?.creationTime}
+          onClose={() => {
+            setShowNotifModal(false);
+            fetchUnreadNotifCount();
+          }}
+          onReadUpdated={fetchUnreadNotifCount}
         />
       )}
     </div>
