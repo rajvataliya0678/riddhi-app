@@ -336,14 +336,21 @@ export default function AdminTab({ currentAdminUid }) {
                     {/* App Version & Device */}
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <span style={{
-                          padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '800',
-                          background: 'rgba(16,185,129,0.15)', color: '#059669',
-                          border: '1px solid rgba(16,185,129,0.3)',
-                          display: 'inline-flex', alignItems: 'center', gap: '4px', width: 'fit-content'
-                        }}>
-                          v{userRow.appVersion || '1.0'}
-                        </span>
+                        {(() => {
+                          const v = userRow.appVersion || '1.0';
+                          const isUpToDate = v === '1.0' || v === '1.1' || v === '1.2';
+                          return (
+                            <span style={{
+                              padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '800',
+                              background: isUpToDate ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                              color: isUpToDate ? '#059669' : '#d97706',
+                              border: isUpToDate ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(245,158,11,0.3)',
+                              display: 'inline-flex', alignItems: 'center', gap: '4px', width: 'fit-content'
+                            }}>
+                              v{v} {isUpToDate ? '✓ Latest' : '⚠️ Outdated'}
+                            </span>
+                          );
+                        })()}
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                           📱 {userRow.platform || 'Mobile / Web'}
                         </span>
