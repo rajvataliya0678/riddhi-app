@@ -225,6 +225,37 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
     }
   };
 
+  const handleDeleteCallLog = async (logId) => {
+    if (!window.confirm('શું તમે આ Call Log ની એન્ટ્રી ડીલીટ કરવા માંગો છો?')) {
+      return;
+    }
+    const updatedLogs = callLogs.filter(log => (log.id || log.calledAt) !== logId);
+    setCallLogs(updatedLogs);
+    if (editingLogId === logId) {
+      setEditingLogId(null);
+    }
+
+    if (isEditing && enquiry?.id) {
+      try {
+        await onSave({
+          name: name.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          healthCondition,
+          source,
+          status,
+          followUpDate,
+          nextMeetingDate,
+          nextMeetingSession,
+          notes: notes.trim(),
+          callLogs: updatedLogs,
+        }, enquiry.id, true);
+      } catch (err) {
+        console.error('Delete call log error:', err);
+      }
+    }
+  };
+
   const handleAddCallLog = async (e) => {
     e.preventDefault();
     if (!newCallNotes.trim()) {
@@ -781,15 +812,29 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                           />
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleSaveEditedLog(logId)}
-                          className="btn btn-primary btn-sm"
-                          style={{ width: '100%', fontSize: '0.78rem', fontWeight: '800', padding: '6px 12px' }}
-                          id={`save-call-log-edit-btn-${logId}`}
-                        >
-                          💾 Save Call Details
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEditedLog(logId)}
+                            className="btn btn-primary btn-sm"
+                            style={{ flex: 1, fontSize: '0.78rem', fontWeight: '800', padding: '6px 12px' }}
+                            id={`save-call-log-edit-btn-${logId}`}
+                          >
+                            💾 Save Call Details
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCallLog(logId)}
+                            style={{
+                              padding: '6px 12px', fontSize: '0.78rem', fontWeight: '800',
+                              background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5',
+                              borderRadius: '6px', cursor: 'pointer'
+                            }}
+                            title="Delete this call log entry"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </div>
                     );
                   }
@@ -818,7 +863,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                             {(log.callType === 'Invitation' || (!log.callType && (status === 'New Lead' || status === 'New'))) ? '📩 Invitation Call' : '📞 Follow-up Call'}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                             {log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : ''}
                           </span>
@@ -833,6 +878,18 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                             title="Edit notes & outcome for this call"
                           >
                             ✏️ Edit Log
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCallLog(logId)}
+                            style={{
+                              padding: '2px 8px', fontSize: '0.72rem', fontWeight: '800',
+                              background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5',
+                              borderRadius: '4px', cursor: 'pointer',
+                            }}
+                            title="Delete this call log entry"
+                          >
+                            🗑️ Delete
                           </button>
                         </div>
                       </div>
