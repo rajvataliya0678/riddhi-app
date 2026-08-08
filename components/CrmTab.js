@@ -94,9 +94,11 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
         getDocs(collection(db, 'users'))
       ]);
 
-      const coachesList = usersSnap.docs
-        .map(d => ({ uid: d.id, ...d.data() }))
-        .filter(u => u.role === 'coach' || u.role === 'admin');
+      const allUsers = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+      const designatedStaff = allUsers.filter(u => u.isStaff === true);
+      const coachesList = designatedStaff.length > 0
+        ? designatedStaff
+        : allUsers.filter(u => u.role === 'coach' || u.role === 'admin');
       setCoaches(coachesList);
 
       const list = snap.docs.map(d => {

@@ -157,6 +157,21 @@ export default function AdminTab({ currentAdminUid }) {
     }
   };
 
+  // Toggle whether user is marked as CRM Staff (for CRM dropdown selection)
+  const handleStaffToggle = async (uid, currentVal) => {
+    const newVal = !currentVal;
+    setSavingUids(prev => ({ ...prev, [uid]: 'isStaff' }));
+    try {
+      await updateDoc(doc(db, 'users', uid), { isStaff: newVal });
+      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, isStaff: newVal } : u));
+      showSaved(uid);
+    } catch (err) {
+      console.error('Error toggling staff status:', err);
+    } finally {
+      setSavingUids(prev => { const n = { ...prev }; delete n[uid]; return n; });
+    }
+  };
+
   const showSaved = (uid) => {
     setSavedUids(prev => ({ ...prev, [uid]: true }));
     setTimeout(() => {
@@ -376,6 +391,7 @@ export default function AdminTab({ currentAdminUid }) {
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Role</th>
+                <th>CRM Staff (લિસ્ટ પસંદગી)</th>
                 <th>App Version & Device</th>
                 <th>Assign Coach / Senior Coach</th>
                 <th>Joined</th>
@@ -425,6 +441,27 @@ export default function AdminTab({ currentAdminUid }) {
                           </option>
                         ))}
                       </select>
+                    </td>
+
+                    {/* CRM Staff Toggle */}
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => handleStaffToggle(userRow.uid, !!userRow.isStaff)}
+                        disabled={isSaving}
+                        style={{
+                          padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800',
+                          cursor: 'pointer', border: userRow.isStaff ? '1px solid #3b82f6' : '1px solid #cbd5e1',
+                          background: userRow.isStaff ? '#eff6ff' : '#f8fafc',
+                          color: userRow.isStaff ? '#1d4ed8' : '#64748b',
+                          boxShadow: userRow.isStaff ? '0 2px 4px rgba(59,130,246,0.15)' : 'none',
+                          transition: 'all 0.2s ease',
+                        }}
+                        title="Toggle whether this user appears in the CRM Staff selection list"
+                        id={`staff-toggle-btn-${userRow.uid}`}
+                      >
+                        {userRow.isStaff ? '👤 Staff: YES' : '👤 Staff: NO'}
+                      </button>
                     </td>
 
                     {/* App Version & Device */}
