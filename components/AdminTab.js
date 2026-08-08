@@ -23,69 +23,9 @@ export default function AdminTab({ currentAdminUid }) {
   const [savingUids, setSavingUids] = useState({});
   const [savedUids, setSavedUids] = useState({});
 
-  // App Update Broadcast Config
-  const [updateConfig, setUpdateConfig] = useState({
-    latestVersion: '1.1',
-    apkUrl: 'https://vriddhi-app-eight.vercel.app/vriddhi.apk',
-    releaseNotes: 'નવા ફેરફાર અને સ્પીડ અપડેટ સાથે નવી વર્ઝન બિલ્ડ ઇન્સ્ટોલ કરો.',
-    forceUpdate: true,
-  });
-  const [savingConfig, setSavingConfig] = useState(false);
-  const [configSuccess, setConfigSuccess] = useState('');
-
   useEffect(() => {
     fetchAllUsers();
-    fetchUpdateConfig();
   }, []);
-
-  const fetchUpdateConfig = async () => {
-    try {
-      const snap = await getDoc(doc(db, 'app_config', 'version'));
-      if (snap.exists()) {
-        const data = snap.data();
-        setUpdateConfig({
-          latestVersion: data.latestVersion || '1.1',
-          apkUrl: data.apkUrl || '',
-          releaseNotes: data.releaseNotes || 'નવા ફેરફાર અને સ્પીડ અપડેટ સાથે નવી વર્ઝન બિલ્ડ ઇન્સ્ટોલ કરો.',
-          forceUpdate: data.forceUpdate ?? true,
-        });
-      }
-    } catch (err) {
-      console.warn('Error fetching update config:', err);
-    }
-  };
-
-  const handleSaveUpdateConfig = async (e) => {
-    e.preventDefault();
-    if (!updateConfig.latestVersion.trim()) {
-      alert('કૃપા કરીને વર્ઝન નંબર લખો (e.g. 1.1)');
-      return;
-    }
-    if (!updateConfig.apkUrl.trim()) {
-      alert('કૃપા કરીને APK Download URL પેસ્ટ કરો.');
-      return;
-    }
-
-    setSavingConfig(true);
-    setConfigSuccess('');
-    try {
-      await setDoc(doc(db, 'app_config', 'version'), {
-        latestVersion: updateConfig.latestVersion.trim(),
-        apkUrl: updateConfig.apkUrl.trim(),
-        releaseNotes: updateConfig.releaseNotes.trim(),
-        forceUpdate: updateConfig.forceUpdate,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-
-      setConfigSuccess('🚀 નવી એપ અપડેટ પબ્લિશ થઈ ગઈ! હવે બધા સભ્યોને સ્ક્રીન પર નવું અપડેટ બતાવાશે.');
-      setTimeout(() => setConfigSuccess(''), 5000);
-    } catch (err) {
-      console.error('Error saving app_config:', err);
-      alert('અપડેટ સેવ કરવામાં ભૂલ થઈ. ફરી ટ્રાય કરો.');
-    } finally {
-      setSavingConfig(false);
-    }
-  };
 
   const fetchAllUsers = async () => {
     try {
@@ -270,108 +210,6 @@ export default function AdminTab({ currentAdminUid }) {
         </div>
       </div>
 
-      {/* ── App Update Broadcast Manager ── */}
-      <div className="dashboard-card" style={{ marginBottom: '24px', background: 'linear-gradient(145deg, #1e1b4b, #312e81)', color: '#fff', border: '1px solid rgba(139,92,246,0.3)', padding: '20px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <div style={{
-            width: '42px', height: '42px', borderRadius: '12px',
-            background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.4rem', boxShadow: '0 4px 12px rgba(124,58,237,0.4)'
-          }}>
-            📲
-          </div>
-          <div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '900', margin: 0, color: '#fff' }}>
-              એપ અપડેટ મેનેજર (App Update Broadcast)
-            </h3>
-            <p style={{ fontSize: '0.78rem', color: '#a5b4fc', margin: 0 }}>
-              જૂની APK વાપરતા તમામ યુઝર્સને નવી એપ ડાઉનલોડ કરવાનો પોપઅપ મોકલો
-            </p>
-          </div>
-        </div>
-
-        {configSuccess && (
-          <div style={{ background: 'rgba(16,185,129,0.2)', border: '1px solid #10b981', color: '#a7f3d0', padding: '10px 14px', borderRadius: '10px', fontSize: '0.82rem', marginBottom: '16px', fontWeight: '700' }}>
-            {configSuccess}
-          </div>
-        )}
-
-        <form onSubmit={handleSaveUpdateConfig} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
-            <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#c7d2fe', display: 'block', marginBottom: '6px' }}>
-                નવો વર્ઝન નંબર (e.g. 1.1, 1.2) *
-              </label>
-              <input
-                type="text"
-                className="form-input"
-                style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }}
-                placeholder="e.g. 1.1"
-                value={updateConfig.latestVersion}
-                onChange={(e) => setUpdateConfig(prev => ({ ...prev, latestVersion: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#c7d2fe', display: 'block', marginBottom: '6px' }}>
-                Direct APK Link (Google Drive Link) *
-              </label>
-              <input
-                type="text"
-                className="form-input"
-                style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }}
-                placeholder="https://drive.google.com/uc?export=download&id=..."
-                value={updateConfig.apkUrl}
-                onChange={(e) => setUpdateConfig(prev => ({ ...prev, apkUrl: e.target.value }))}
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#c7d2fe', display: 'block', marginBottom: '6px' }}>
-              નવા સુધારાની વિગત (Release Notes)
-            </label>
-            <input
-              type="text"
-              className="form-input"
-              style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }}
-              placeholder="નવા ફીચર્સ અને સ્પીડ સુધારા સાથે નવી એપ ડાઉનલોડ કરો."
-              value={updateConfig.releaseNotes}
-              onChange={(e) => setUpdateConfig(prev => ({ ...prev, releaseNotes: e.target.value }))}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px', flexWrap: 'wrap', gap: '12px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', color: '#e0e7ff', fontWeight: '700' }}>
-              <input
-                type="checkbox"
-                checked={updateConfig.forceUpdate}
-                onChange={(e) => setUpdateConfig(prev => ({ ...prev, forceUpdate: e.target.checked }))}
-                style={{ width: '18px', height: '18px', accentColor: '#7c3aed', cursor: 'pointer' }}
-              />
-              🛑 Force Update (જૂની એપ વાપરનારા તમામ યુઝર્સ માટે સ્ક્રીન બ્લોક કરીને નવી એપ ફરજિયાત ઇન્સ્ટોલ કરાવશે)
-            </label>
-
-            <button
-              type="submit"
-              disabled={savingConfig}
-              className="btn btn-primary"
-              style={{
-                width: 'auto', padding: '11px 22px',
-                background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-                fontWeight: '900', fontSize: '0.88rem',
-                boxShadow: '0 4px 16px rgba(124,58,237,0.4)'
-              }}
-            >
-              {savingConfig ? '⏳ Publishing...' : '🚀 Publish App Update'}
-            </button>
-          </div>
-        </form>
-      </div>
-
       {/* Search + Filter Toolbar */}
       <div className="admin-toolbar">
         <input
@@ -435,7 +273,6 @@ export default function AdminTab({ currentAdminUid }) {
                 const isSelf = userRow.uid === currentAdminUid;
                 const isSaving = !!savingUids[userRow.uid];
                 const isSaved = !!savedUids[userRow.uid];
-                const isUpToDate = userRow.appVersion === updateConfig.latestVersion;
 
                 return (
                   <tr key={userRow.uid} id={`admin-row-${userRow.uid}`}>
@@ -501,12 +338,11 @@ export default function AdminTab({ currentAdminUid }) {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <span style={{
                           padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '800',
-                          background: isUpToDate ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-                          color: isUpToDate ? '#059669' : '#d97706',
-                          border: isUpToDate ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(245,158,11,0.3)',
+                          background: 'rgba(16,185,129,0.15)', color: '#059669',
+                          border: '1px solid rgba(16,185,129,0.3)',
                           display: 'inline-flex', alignItems: 'center', gap: '4px', width: 'fit-content'
                         }}>
-                          v{userRow.appVersion || '1.0'} {isUpToDate ? '✓ Latest' : '⚠️ Outdated'}
+                          v{userRow.appVersion || '1.0'}
                         </span>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                           📱 {userRow.platform || 'Mobile / Web'}
