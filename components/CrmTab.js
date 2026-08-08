@@ -529,8 +529,8 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                           } else {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setMenuPos({
-                              top: rect.bottom + 6,
-                              right: window.innerWidth - rect.right,
+                              top: rect.bottom + 4,
+                              left: rect.right - 170,
                             });
                             setActiveMenuId(enquiry.id);
                           }
@@ -558,7 +558,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                           style={{
                             position: 'fixed',
                             top: menuPos.top,
-                            right: menuPos.right,
+                            left: menuPos.left,
                             background: '#ffffff',
                             border: '1px solid var(--border-color)',
                             borderRadius: '12px',
