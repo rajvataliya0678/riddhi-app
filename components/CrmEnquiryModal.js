@@ -314,8 +314,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
   if (!mounted) return null;
 
   return createPortal(
-    <div className="modal-overlay" style={{ zIndex: 99999 }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="detail-modal-card" style={{ maxWidth: '620px', width: '94vw', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div className="modal-overlay" style={{ zIndex: 99999, overflowX: 'hidden' }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="detail-modal-card" style={{ maxWidth: '620px', width: '100%', maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box' }}>
 
         {/* Load error fallback — shows if useEffect throws */}
         {loadError && (
@@ -328,12 +328,12 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
         )}
         
         {/* Header */}
-        <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800' }}>
+        <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', wordBreak: 'break-word' }}>
               {isEditing ? `Lead Details: ${enquiry.name}` : '➕ New Lead Entry'}
             </h3>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0', wordBreak: 'break-word' }}>
               Manage lead information, status history, and phone call logs
             </p>
           </div>
@@ -484,7 +484,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
               />
             </div>
             <div className="form-group">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
                 <label className="form-label" htmlFor="crm-phone" style={{ margin: 0 }}>Mobile Number *</label>
                 {phone && (
                   <button

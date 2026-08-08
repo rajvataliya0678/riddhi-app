@@ -2243,13 +2243,16 @@ button:active:not(:disabled),
   .modal-overlay {
     padding: 0 !important;
     align-items: flex-end !important;
+    overflow-x: hidden !important;
   }
 
   .modal-card, .profile-modal-card, .detail-modal-card {
+    width: 100% !important;
     max-width: 100% !important;
     border-radius: 22px 22px 0 0 !important;
     max-height: 92vh !important;
     overflow-y: auto !important;
+    overflow-x: hidden !important;
     padding: 20px 16px !important;
     box-sizing: border-box !important;
     animation: sheetUp 0.3s cubic-bezier(0.34,1.4,0.64,1) !important;
