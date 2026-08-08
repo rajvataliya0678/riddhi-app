@@ -154,10 +154,14 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
 
   const handleCallClick = async () => {
     const activePhone = phone || enquiry?.phone;
-    if (activePhone) {
-      window.open(`tel:${activePhone}`);
+    try {
+      if (activePhone) {
+        window.location.href = `tel:${activePhone}`;
+      }
+      await punchAutoCallLog(enquiry || { phone: activePhone }, callLogs);
+    } catch (err) {
+      console.error('Call click error:', err);
     }
-    await punchAutoCallLog(enquiry || { phone: activePhone }, callLogs);
   };
 
   const handleStartEditLog = (log) => {

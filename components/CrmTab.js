@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import { collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
@@ -39,6 +39,29 @@ function getStatusBadgeStyle(status) {
       return { bg: '#fee2e2', color: '#991b1b', border: '#f87171' };
     default:
       return { bg: '#f3f4f6', color: '#374151', border: '#d1d5db' };
+  }
+}
+
+// Local Error Boundary — catches CrmEnquiryModal crashes without crashing the whole page
+class ModalErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hasError: false, msg: '' }; }
+  static getDerivedStateFromError(error) { return { hasError: true, msg: error?.message || 'Unknown error' }; }
+  componentDidCatch(error) { console.error('[CRM Modal Error]', error); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '24px', textAlign: 'center', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '12px', margin: '16px' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⚠️</div>
+          <p style={{ fontSize: '0.85rem', color: '#dc2626', fontWeight: '700', marginBottom: '12px' }}>Lead ખોલવામાં error આવ્યો. ફરી try કરો.</p>
+          <p style={{ fontSize: '0.72rem', color: '#9ca3af', fontFamily: 'monospace', marginBottom: '12px' }}>{this.state.msg}</p>
+          <button
+            onClick={() => { this.setState({ hasError: false, msg: '' }); this.props.onClose?.(); }}
+            style={{ padding: '8px 20px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
+          >✕ બંધ કરો</button>
+        </div>
+      );
+    }
+    return this.props.children;
   }
 }
 
@@ -641,16 +664,18 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
 
       {/* CRM Details / Edit Modal */}
       {showModal && (
-        <CrmEnquiryModal
-          enquiry={editingEnquiry}
-          onSave={handleSaveEnquiry}
-          onClose={() => setShowModal(false)}
-          onConvert={(enquiry) => setConvertLead(enquiry)}
-          onDelete={(id, name) => handleDeleteEnquiry(id, name)}
-          coaches={coaches}
-          userRole={userRole}
-          autoCallLogFocus={autoCallLogFocus}
-        />
+        <ModalErrorBoundary onClose={() => setShowModal(false)}>
+          <CrmEnquiryModal
+            enquiry={editingEnquiry}
+            onSave={handleSaveEnquiry}
+            onClose={() => setShowModal(false)}
+            onConvert={(enquiry) => setConvertLead(enquiry)}
+            onDelete={(id, name) => handleDeleteEnquiry(id, name)}
+            coaches={coaches}
+            userRole={userRole}
+            autoCallLogFocus={autoCallLogFocus}
+          />
+        </ModalErrorBoundary>
       )}
 
       {/* Bulk Add Leads Modal */}
