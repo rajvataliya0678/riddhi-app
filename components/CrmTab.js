@@ -81,6 +81,17 @@ function getLeadCallPriority(enquiry) {
   const lastLog = logs[0];
   const outcome = lastLog?.outcome || '📞 Call Placed';
 
+  if (outcome === '📞 Called' || outcome.includes('Called')) {
+    return {
+      key: 'outcome_called',
+      label: '📞 Called',
+      bg: '#e0f2fe',
+      color: '#0369a1',
+      border: '#bae6fd',
+      priorityRank: 2,
+    };
+  }
+
   if (outcome.includes('Answered') || outcome.includes('Interested')) {
     return {
       key: 'outcome_answered',
@@ -586,6 +597,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
         >
           <option value="All">All Call Statuses</option>
           <option value="first_call_pending">🚨 First Call Pending</option>
+          <option value="outcome_called">📞 Called</option>
           <option value="meeting_scheduled">🎥 Meeting Scheduled</option>
           <option value="followup_scheduled">📅 Follow-up Scheduled</option>
           <option value="outcome_answered">📞 Answered & Interested</option>

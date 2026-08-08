@@ -18,6 +18,7 @@ const HEALTH_OPTIONS = [
 ];
 
 const CALL_OUTCOME_OPTIONS = [
+  { label: '📞 Called',                 color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd' },
   { label: '📞 Answered & Interested', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
   { label: '📅 Session 1 Scheduled',   color: '#7e22ce', bg: '#fdf4ff', border: '#e9d5ff' },
   { label: '📅 Session 2 Scheduled',   color: '#9d174d', bg: '#fce7f3', border: '#f472b6' },
@@ -65,10 +66,10 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
 
   // New & Editing Call Log States
   const [editingLogId, setEditingLogId]       = useState(null);
-  const [editingOutcome, setEditingOutcome]   = useState('📞 Answered & Interested');
+  const [editingOutcome, setEditingOutcome]   = useState('📞 Called');
   const [editingNotes, setEditingNotes]       = useState('');
 
-  const [newCallOutcome, setNewCallOutcome]   = useState('📞 Answered & Interested');
+  const [newCallOutcome, setNewCallOutcome]   = useState('📞 Called');
   const [newCallNotes, setNewCallNotes]       = useState('');
 
   const [error, setError]                     = useState('');
@@ -128,7 +129,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
       id: newLogId,
       callType,
       statusAtCall: currentStatus,
-      outcome: '📞 Answered & Interested',
+      outcome: '📞 Called',
       notes: '',
       calledAt: new Date().toISOString(),
     };
@@ -184,7 +185,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
 
   const handleStartEditLog = (log) => {
     setEditingLogId(log.id);
-    setEditingOutcome(log.outcome || '📞 Answered & Interested');
+    setEditingOutcome(log.outcome || '📞 Called');
     setEditingNotes(log.notes || '');
   };
 

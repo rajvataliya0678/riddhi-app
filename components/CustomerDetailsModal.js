@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { MonthAttendanceCalendar } from './AttendanceTab';
 
 const CALL_OUTCOME_OPTIONS = [
+  { label: '📞 Called',                 color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd' },
   { label: '📞 Answered & Interested', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
   { label: '📅 Follow-up Scheduled',  color: '#7e22ce', bg: '#fdf4ff', border: '#e9d5ff' },
   { label: '⏰ Call Back Later',      color: '#b45309', bg: '#fef3c7', border: '#fde68a' },
@@ -22,10 +23,10 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
 
   // New & Inline Editing Call Log States
   const [editingLogId, setEditingLogId]       = useState(null);
-  const [editingOutcome, setEditingOutcome]   = useState('📞 Answered & Interested');
+  const [editingOutcome, setEditingOutcome]   = useState('📞 Called');
   const [editingNotes, setEditingNotes]       = useState('');
 
-  const [newCallOutcome, setNewCallOutcome]   = useState('📞 Answered & Interested');
+  const [newCallOutcome, setNewCallOutcome]   = useState('📞 Called');
   const [newCallNotes, setNewCallNotes]       = useState('');
   const [saving, setSaving]                   = useState(false);
 
@@ -104,7 +105,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
     const newLogId = `call-${Date.now()}`;
     const autoEntry = {
       id: newLogId,
-      outcome: '📞 Answered & Interested',
+      outcome: '📞 Called',
       notes: '',
       calledAt: new Date().toISOString(),
     };
@@ -138,7 +139,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
 
   const handleStartEditLog = (log) => {
     setEditingLogId(log.id);
-    setEditingOutcome(log.outcome || '📞 Answered & Interested');
+    setEditingOutcome(log.outcome || '📞 Called');
     setEditingNotes(log.notes || '');
   };
 
