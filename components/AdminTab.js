@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, updateDoc, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const ROLES = ['customer', 'coach', 'admin'];
@@ -18,6 +18,7 @@ export default function AdminTab({ currentAdminUid }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('All');
+  const [activeMenuUid, setActiveMenuUid] = useState(null);
   // Track which rows are saving and which have just saved
   const [savingUids, setSavingUids] = useState({});
   const [savedUids, setSavedUids] = useState({});
@@ -152,6 +153,36 @@ export default function AdminTab({ currentAdminUid }) {
       showSaved(uid);
     } catch (err) {
       console.error('Error setting senior coach name:', err);
+    } finally {
+      setSavingUids(prev => { const n = { ...prev }; delete n[uid]; return n; });
+    }
+  };
+
+  useEffect(() => {
+    const handleOutsideClick = () => setActiveMenuUid(null);
+    if (activeMenuUid) {
+      window.addEventListener('click', handleOutsideClick);
+    }
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, [activeMenuUid]);
+
+  // Delete a user entry permanently (e.g. for duplicate registrations)
+  const handleDeleteUser = async (uid, name, e) => {
+    if (e) e.stopPropagation();
+    if (uid === currentAdminUid) {
+      alert('તમે તમારું પોતાનું ઓનર એકાઉન્ટ ડિલીટ કરી શકતા નથી.');
+      return;
+    }
+    if (!window.confirm(`શું તમે ખરેખર "${name || 'User'}" ની નોંધણી/એન્ટ્રી કાયમ માટે ડિલીટ કરવા માંગો છો?`)) {
+      return;
+    }
+    setSavingUids(prev => ({ ...prev, [uid]: 'delete' }));
+    try {
+      await deleteDoc(doc(db, 'users', uid));
+      setUsers(prev => prev.filter(u => u.uid !== uid));
+    } catch (err) {
+      console.error('Error deleting user entry:', err);
+      alert('એન્ટ્રી ડિલીટ કરવામાં ભૂલ થઈ. ફરી ટ્રાય કરો.');
     } finally {
       setSavingUids(prev => { const n = { ...prev }; delete n[uid]; return n; });
     }
@@ -396,6 +427,7 @@ export default function AdminTab({ currentAdminUid }) {
                 <th>Assign Coach / Senior Coach</th>
                 <th>Joined</th>
                 <th>Status</th>
+                <th style={{ width: '60px', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -526,13 +558,54 @@ export default function AdminTab({ currentAdminUid }) {
                         : '—'}
                     </td>
 
-                    {/* Save Status */}
-                    <td style={{ minWidth: '80px' }}>
-                      {isSaving && (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Saving...</span>
-                      )}
-                      {isSaved && !isSaving && (
-                        <span className="save-indicator">✓ Saved</span>
+                    {/* Actions Menu */}
+                    <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuUid(activeMenuUid === userRow.uid ? null : userRow.uid);
+                        }}
+                        style={{
+                          background: activeMenuUid === userRow.uid ? 'var(--bg-secondary)' : 'transparent',
+                          border: '1px solid var(--border-color)',
+                          padding: '3px 8px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          color: 'var(--text-main)',
+                          fontSize: '1.1rem',
+                          fontWeight: '900',
+                          lineHeight: 1,
+                        }}
+                        title="User Options"
+                        id={`admin-menu-btn-${userRow.uid}`}
+                      >
+                        ⋮
+                      </button>
+
+                      {activeMenuUid === userRow.uid && (
+                        <div style={{
+                          position: 'absolute', right: '10px', top: '40px', zIndex: 99,
+                          background: 'var(--card-bg)', border: '1px solid var(--border-color)',
+                          borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                          padding: '6px', minWidth: '160px', textAlign: 'left'
+                        }}>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteUser(userRow.uid, userRow.name, e)}
+                            disabled={isSelf}
+                            style={{
+                              width: '100%', padding: '8px 12px', border: 'none', background: 'transparent',
+                              color: isSelf ? '#94a3b8' : '#ef4444', fontWeight: '800', fontSize: '0.8rem',
+                              borderRadius: '6px', cursor: isSelf ? 'not-allowed' : 'pointer',
+                              display: 'flex', alignItems: 'center', gap: '8px'
+                            }}
+                            title={isSelf ? "Cannot delete your own account" : "Delete duplicate user entry"}
+                            id={`admin-delete-user-btn-${userRow.uid}`}
+                          >
+                            🗑️ Delete Entry
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
