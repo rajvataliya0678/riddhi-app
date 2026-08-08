@@ -57,6 +57,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   const [editingEnquiry, setEditingEnquiry] = useState(null);
   const [autoCallLogFocus, setAutoCallLogFocus] = useState(false);
   const [activeMenuId, setActiveMenuId]     = useState(null);
+  const [menuPos, setMenuPos]               = useState({ top: 0, right: 0 });
 
   useEffect(() => {
     const handleOutsideClick = () => setActiveMenuId(null);
@@ -523,7 +524,16 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActiveMenuId(activeMenuId === enquiry.id ? null : enquiry.id);
+                          if (activeMenuId === enquiry.id) {
+                            setActiveMenuId(null);
+                          } else {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setMenuPos({
+                              top: rect.bottom + 6,
+                              right: window.innerWidth - rect.right,
+                            });
+                            setActiveMenuId(enquiry.id);
+                          }
                         }}
                         style={{
                           background: activeMenuId === enquiry.id ? 'var(--bg-secondary)' : 'transparent',
@@ -546,15 +556,15 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                       {activeMenuId === enquiry.id && (
                         <div
                           style={{
-                            position: 'absolute',
-                            right: '12px',
-                            top: '40px',
+                            position: 'fixed',
+                            top: menuPos.top,
+                            right: menuPos.right,
                             background: '#ffffff',
                             border: '1px solid var(--border-color)',
                             borderRadius: '12px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
-                            zIndex: 100,
-                            minWidth: '160px',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+                            zIndex: 99999,
+                            minWidth: '170px',
                             padding: '6px 0',
                             display: 'flex',
                             flexDirection: 'column',
