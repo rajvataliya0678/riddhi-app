@@ -43,6 +43,25 @@ export default function AdminTab({ currentAdminUid }) {
     return () => unsubscribe();
   }, []);
 
+  const fetchAllUsers = async () => {
+    try {
+      setLoading(true);
+      const snap = await getDocs(collection(db, 'users'));
+      const list = snap.docs.map(d => ({ ...d.data() }));
+      list.sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const db2 = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return db2 - da;
+      });
+      setUsers(list);
+      setCoaches(list.filter(u => u.role === 'coach' || u.role === 'admin'));
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Change user's role
   const handleRoleChange = async (uid, newRole) => {
     setSavingUids(prev => ({ ...prev, [uid]: 'role' }));
