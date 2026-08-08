@@ -410,8 +410,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
           
-          {/* Assigned Staff (Internal tag for management) */}
-          {coaches && coaches.length > 0 && (
+          {/* Assigned Staff (Internal tag — Club Owner only) */}
+          {userRole === 'admin' && coaches && coaches.length > 0 && (
             <div className="form-group">
               <label className="form-label" htmlFor="crm-staff-name" style={{ fontSize: '0.78rem', fontWeight: '800' }}>
                 👤 Internal Staff Tag (જવાબદાર સ્ટાફ/કોચ - ઈન્ટરનલ રેકોર્ડ માટે)
