@@ -68,10 +68,19 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
   const [newCallNotes, setNewCallNotes]       = useState('');
 
   const [error, setError]                     = useState('');
+  const [loadError, setLoadError]             = useState('');
   const [submitting, setSubmitting]           = useState(false);
 
+  // Escape key → close modal (safety for mobile freeze)
   useEffect(() => {
-    if (enquiry) {
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!enquiry) return;
+    try {
       setName(enquiry.name || '');
       setPhone(enquiry.phone || '');
       setAddress(enquiry.address || '');
@@ -96,6 +105,11 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
       } else {
         setCallLogs(existingLogs);
       }
+    } catch (err) {
+      console.error('[CrmModal useEffect] Error loading enquiry:', err);
+      setLoadError(err?.message || 'Lead load error');
+      // Close modal after short delay to free the screen
+      setTimeout(() => onClose?.(), 1200);
     }
   }, [enquiry, autoCallLogFocus]);
 
@@ -296,6 +310,16 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="detail-modal-card" style={{ maxWidth: '620px', width: '94vw', maxHeight: '90vh', overflowY: 'auto' }}>
+
+        {/* Load error fallback — shows if useEffect throws */}
+        {loadError && (
+          <div style={{ padding: '24px', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⚠️</div>
+            <p style={{ fontSize: '0.85rem', color: '#dc2626', fontWeight: '700', marginBottom: '8px' }}>Lead load error</p>
+            <p style={{ fontSize: '0.72rem', color: '#9ca3af', fontFamily: 'monospace', marginBottom: '16px' }}>{loadError}</p>
+            <button onClick={onClose} style={{ padding: '8px 20px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>Close</button>
+          </div>
+        )}
         
         {/* Header */}
         <div className="modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
