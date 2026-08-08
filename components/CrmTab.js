@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import BulkAddLeadsModal from './BulkAddLeadsModal';
@@ -83,42 +83,41 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   };
 
   useEffect(() => {
-    fetchEnquiries();
-  }, [coachUid, userRole]);
+    if (!coachUid) return;
 
-  const fetchEnquiries = async () => {
-    try {
-      setLoading(true);
-      const crmQuery = query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid));
+    setLoading(true);
 
-      const [snap, usersSnap] = await Promise.all([
-        getDocs(crmQuery),
-        getDocs(collection(db, 'users'))
-      ]);
-
+    // Load coaches/staff list once
+    getDocs(collection(db, 'users')).then(usersSnap => {
       const allUsers = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
       const designatedStaff = allUsers.filter(u => u.isStaff === true);
       const coachesList = designatedStaff.length > 0
         ? designatedStaff
         : allUsers.filter(u => u.role === 'coach' || u.role === 'admin');
       setCoaches(coachesList);
+    }).catch(console.error);
 
-      const list = snap.docs.map(d => {
-        const data = d.data();
-        return { id: d.id, ...data };
-      });
-
+    // Real-time live listener for CRM enquiries
+    const crmQuery = query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid));
+    const unsubscribe = onSnapshot(crmQuery, (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
         const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
         return dateB - dateA;
       });
       setEnquiries(list);
-    } catch (error) {
-      console.error('Error fetching CRM enquiries:', error);
-    } finally {
       setLoading(false);
-    }
+    }, (err) => {
+      console.error('CRM enquiries snapshot error:', err);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [coachUid, userRole]);
+
+  const fetchEnquiries = async () => {
+    // No-op: real-time onSnapshot handles updates automatically
   };
 
   const handleSaveEnquiry = async (data, existingId, keepOpen = false) => {
@@ -482,9 +481,8 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                               if (enquiry.phone) {
                                 window.open(`tel:${enquiry.phone}`);
                               }
-                              // Auto-log call immediately
-                              logCrmCall(db, enquiry.id, enquiry);
-                              openEditModal(enquiry, true);
+                              // Auto-log call immediately — onSnapshot will update the list
+                              await logCrmCall(db, enquiry.id, enquiry);
                             }}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: '4px',
