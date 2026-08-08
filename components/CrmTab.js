@@ -43,6 +43,95 @@ function getStatusBadgeStyle(status) {
   }
 }
 
+function getLeadCallPriority(enquiry) {
+  if (enquiry.nextMeetingDate) {
+    return {
+      key: 'meeting_scheduled',
+      label: `🎥 Meeting (${enquiry.nextMeetingSession === 'evening' ? 'Evening' : 'Morning'} ${enquiry.nextMeetingDate})`,
+      bg: enquiry.nextMeetingSession === 'evening' ? '#faf5ff' : '#e0f2fe',
+      color: enquiry.nextMeetingSession === 'evening' ? '#7e22ce' : '#0369a1',
+      border: enquiry.nextMeetingSession === 'evening' ? '#e9d5ff' : '#bae6fd',
+      priorityRank: 2,
+    };
+  }
+
+  if (enquiry.followUpDate) {
+    return {
+      key: 'followup_scheduled',
+      label: `📅 Follow-up (${enquiry.followUpDate})`,
+      bg: '#eff6ff',
+      color: '#1d4ed8',
+      border: '#bfdbfe',
+      priorityRank: 3,
+    };
+  }
+
+  const logs = enquiry.callLogs || [];
+  if (!logs || logs.length === 0) {
+    return {
+      key: 'first_call_pending',
+      label: '🚨 First Call Pending',
+      bg: '#fff1f2',
+      color: '#e11d48',
+      border: '#fecdd3',
+      priorityRank: 1, // Highest Priority!
+    };
+  }
+
+  const lastLog = logs[0];
+  const outcome = lastLog?.outcome || '📞 Call Placed';
+
+  if (outcome.includes('Answered') || outcome.includes('Interested')) {
+    return {
+      key: 'outcome_answered',
+      label: outcome,
+      bg: '#f0fdf4',
+      color: '#15803d',
+      border: '#bbf7d0',
+      priorityRank: 4,
+    };
+  }
+  if (outcome.includes('Later') || outcome.includes('Back')) {
+    return {
+      key: 'outcome_callback',
+      label: outcome,
+      bg: '#fffbeb',
+      color: '#b45309',
+      border: '#fde68a',
+      priorityRank: 2,
+    };
+  }
+  if (outcome.includes('No Answer') || outcome.includes('Busy')) {
+    return {
+      key: 'outcome_noanswer',
+      label: outcome,
+      bg: '#fef2f2',
+      color: '#b91c1c',
+      border: '#fca5a5',
+      priorityRank: 1, // High Priority to retry!
+    };
+  }
+  if (outcome.includes('Not Interested')) {
+    return {
+      key: 'outcome_not_interested',
+      label: outcome,
+      bg: '#f3f4f6',
+      color: '#4b5563',
+      border: '#e5e7eb',
+      priorityRank: 5,
+    };
+  }
+
+  return {
+    key: 'other',
+    label: outcome,
+    bg: '#f3f4f6',
+    color: '#374151',
+    border: '#d1d5db',
+    priorityRank: 4,
+  };
+}
+
 // Local Error Boundary — catches CrmEnquiryModal crashes without crashing the whole page
 class ModalErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, msg: '' }; }
@@ -86,6 +175,8 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   // Filters
   const [filterStatus, setFilterStatus]     = useState('All');
   const [filterFollowUp, setFilterFollowUp] = useState('');
+  const [filterCallStatus, setFilterCallStatus] = useState('All');
+  const [sortBy, setSortBy]                   = useState('priority');
 
   // Modals & Menu
   const [showModal, setShowModal]           = useState(false);
@@ -261,6 +352,36 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
       }
     }
 
+    if (filterCallStatus !== 'All') {
+      filtered = filtered.filter(e => {
+        const prio = getLeadCallPriority(e);
+        return prio.key === filterCallStatus;
+      });
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      if (sortBy === 'priority') {
+        const prioA = getLeadCallPriority(a).priorityRank;
+        const prioB = getLeadCallPriority(b).priorityRank;
+        if (prioA !== prioB) return prioA - prioB;
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB - dateA;
+      } else if (sortBy === 'oldest') {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateA - dateB;
+      } else if (sortBy === 'name') {
+        return (a.name || '').localeCompare(b.name || '');
+      } else {
+        // newest
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB - dateA;
+      }
+    });
+
     return filtered;
   };
 
@@ -268,6 +389,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
 
   const stats = {
     total: activeEnquiries.length,
+    pendingCall: activeEnquiries.filter(e => (!e.callLogs || e.callLogs.length === 0) && !e.nextMeetingDate).length,
     newLead: activeEnquiries.filter(e => e.status === 'New Lead' || e.status === 'New').length,
     sess1: activeEnquiries.filter(e => e.status === '1 Session').length,
     sess2: activeEnquiries.filter(e => e.status === '2 Session').length,
@@ -328,6 +450,20 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
         >
           <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-main)' }}>{stats.total}</span>
           <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800' }}>TOTAL</span>
+        </div>
+
+        <div
+          className="dashboard-card"
+          onClick={() => { setFilterStatus('All'); setFilterCallStatus('first_call_pending'); }}
+          style={{
+            padding: '12px 10px', textAlign: 'center', gap: '2px', cursor: 'pointer',
+            border: filterCallStatus === 'first_call_pending' ? '2px solid #e11d48' : '1px solid #fecdd3',
+            background: filterCallStatus === 'first_call_pending' ? '#fff1f2' : '#fff1f2',
+          }}
+          title="Click to view First Call Pending leads"
+        >
+          <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#e11d48' }}>{stats.pendingCall}</span>
+          <span style={{ fontSize: '0.68rem', color: '#e11d48', textTransform: 'uppercase', fontWeight: '800' }}>CALL PENDING</span>
         </div>
 
         <div
@@ -415,8 +551,8 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
         </div>
       </div>
 
-      {/* Toolbar: Filters */}
-      <div className="crm-toolbar" style={{ marginBottom: '20px' }}>
+      {/* Toolbar: Filters & Sorting */}
+      <div className="crm-toolbar" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
         <select
           className="crm-filter-select"
           value={filterStatus}
@@ -440,6 +576,55 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
           <option value="today">Today</option>
           <option value="upcoming">Upcoming</option>
         </select>
+
+        <select
+          className="crm-filter-select"
+          value={filterCallStatus}
+          onChange={(e) => setFilterCallStatus(e.target.value)}
+          id="crm-filter-call-status"
+          style={{ fontWeight: '700' }}
+        >
+          <option value="All">All Call Statuses</option>
+          <option value="first_call_pending">🚨 First Call Pending</option>
+          <option value="meeting_scheduled">🎥 Meeting Scheduled</option>
+          <option value="followup_scheduled">📅 Follow-up Scheduled</option>
+          <option value="outcome_answered">📞 Answered & Interested</option>
+          <option value="outcome_callback">⏰ Call Back Later</option>
+          <option value="outcome_noanswer">❌ No Answer / Busy</option>
+          <option value="outcome_not_interested">🚫 Not Interested</option>
+        </select>
+
+        <select
+          className="crm-filter-select"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          id="crm-sort-by"
+          style={{ fontWeight: '800', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}
+        >
+          <option value="priority">⚡ Priority (Pending Calls First)</option>
+          <option value="newest">📅 Newest First</option>
+          <option value="oldest">🗓️ Oldest First</option>
+          <option value="name">🔤 Name (A-Z)</option>
+        </select>
+
+        {(filterStatus !== 'All' || filterFollowUp || filterCallStatus !== 'All' || sortBy !== 'priority') && (
+          <button
+            type="button"
+            onClick={() => {
+              setFilterStatus('All');
+              setFilterFollowUp('');
+              setFilterCallStatus('All');
+              setSortBy('priority');
+            }}
+            style={{
+              padding: '6px 12px', fontSize: '0.78rem', fontWeight: '800',
+              background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5',
+              borderRadius: '8px', cursor: 'pointer'
+            }}
+          >
+            ✕ Reset Filters
+          </button>
+        )}
       </div>
 
       {/* Enquiries Table */}
@@ -464,6 +649,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
             <tbody>
               {filteredEnquiries.map((enquiry, index) => {
                 const badge = getStatusBadgeStyle(enquiry.status);
+                const callPrio = getLeadCallPriority(enquiry);
 
                 return (
                   <tr
@@ -478,28 +664,41 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                       #{index + 1}
                     </td>
 
-                    {/* Black Lead Name + Status Badge + Staff Badge next to it */}
+                    {/* Black Lead Name + Status Badge + Staff Badge + Call Status Badge */}
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ color: '#000000', fontWeight: '900', fontSize: '0.92rem' }}>
-                          {enquiry.name}
-                        </span>
-                        <span style={{
-                          padding: '2px 9px', borderRadius: '99px',
-                          fontSize: '0.72rem', fontWeight: '800', whiteSpace: 'nowrap',
-                          background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
-                        }}>
-                          {enquiry.status}
-                        </span>
-                        {(enquiry.staffName || enquiry.coachName) && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ color: '#000000', fontWeight: '900', fontSize: '0.92rem' }}>
+                            {enquiry.name}
+                          </span>
+                          <span style={{
+                            padding: '2px 9px', borderRadius: '99px',
+                            fontSize: '0.72rem', fontWeight: '800', whiteSpace: 'nowrap',
+                            background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
+                          }}>
+                            {enquiry.status}
+                          </span>
+                          {(enquiry.staffName || enquiry.coachName) && (
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '6px',
+                              fontSize: '0.7rem', fontWeight: '800', whiteSpace: 'nowrap',
+                              background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1'
+                            }}>
+                              👤 Staff: {enquiry.staffName || enquiry.coachName}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Last Call / Priority Status Badge */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
                           <span style={{
                             padding: '2px 8px', borderRadius: '6px',
-                            fontSize: '0.7rem', fontWeight: '800', whiteSpace: 'nowrap',
-                            background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1'
+                            fontSize: '0.72rem', fontWeight: '800', whiteSpace: 'nowrap',
+                            background: callPrio.bg, color: callPrio.color, border: `1px solid ${callPrio.border}`
                           }}>
-                            👤 Staff: {enquiry.staffName || enquiry.coachName}
+                            {callPrio.label}
                           </span>
-                        )}
+                        </div>
                       </div>
                     </td>
 
