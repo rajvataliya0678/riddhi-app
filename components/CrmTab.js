@@ -7,6 +7,7 @@ import CrmEnquiryModal from './CrmEnquiryModal';
 import BulkAddLeadsModal from './BulkAddLeadsModal';
 import ConvertLeadModal from './ConvertLeadModal';
 import { ClipboardList, MoreVertical, Trash2, Edit3, UserCheck } from 'lucide-react';
+import { logCrmCall } from '@/lib/logCrmCall';
 
 const STATUS_OPTIONS = [
   'All',
@@ -476,11 +477,13 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                         {enquiry.phone && (
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
                               if (enquiry.phone) {
                                 window.open(`tel:${enquiry.phone}`);
                               }
+                              // Auto-log call immediately
+                              logCrmCall(db, enquiry.id, enquiry);
                               openEditModal(enquiry, true);
                             }}
                             style={{

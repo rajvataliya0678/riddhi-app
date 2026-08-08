@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { logCrmCall } from '@/lib/logCrmCall';
 import FollowUpFormModal from './FollowUpFormModal';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import CustomerDetailsModal from './CustomerDetailsModal';
@@ -515,6 +516,10 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       }
     } else if (task.actionType === 'call_phone' && task.phone) {
       window.location.href = `tel:${task.phone}`;
+      // Auto-log if this is a CRM lead call
+      if (task.leadId || task.leadObj?.id) {
+        logCrmCall(db, task.leadId || task.leadObj?.id, task.leadObj || {});
+      }
     }
   };
 
@@ -680,17 +685,23 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
                   {/* Bottom Row: Action Buttons */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%', paddingTop: '6px', borderTop: '1px dashed rgba(0,0,0,0.06)' }}>
                     {task.phone && (
-                      <a
-                        href={`tel:${task.phone}`}
-                        onClick={e => e.stopPropagation()}
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          window.location.href = `tel:${task.phone}`;
+                          if (task.leadId || task.leadObj?.id) {
+                            logCrmCall(db, task.leadId || task.leadObj?.id, task.leadObj || {});
+                          }
+                        }}
                         style={{
                           padding: '5px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '700',
                           background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0',
-                          display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none'
+                          display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer'
                         }}
                       >
                         📞 Call
-                      </a>
+                      </button>
                     )}
 
                     {task.actionType === 'open_crm_modal' && (

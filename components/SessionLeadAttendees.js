@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { logCrmCall } from '@/lib/logCrmCall';
 import CrmEnquiryModal from './CrmEnquiryModal';
 
 // Quick Reschedule / Schedule Next Meeting Modal Component
@@ -318,17 +319,23 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                   {/* Row 2: Action Buttons */}
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
                     {lead.phone && (
-                      <a
-                        href={`tel:${lead.phone}`}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          window.location.href = `tel:${lead.phone}`;
+                          if (lead.id) {
+                            logCrmCall(db, lead.id, lead);
+                          }
+                        }}
                         style={{
-                          color: '#16a34a', fontSize: '0.74rem', fontWeight: '800', textDecoration: 'none',
+                          color: '#16a34a', fontSize: '0.74rem', fontWeight: '800',
                           background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '5px 10px', borderRadius: '6px',
-                          display: 'inline-flex', alignItems: 'center', gap: '4px'
+                          display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer'
                         }}
                         title={`Call ${lead.phone}`}
                       >
                         📞 Call
-                      </a>
+                      </button>
                     )}
 
                     {isAttendedToday ? (
