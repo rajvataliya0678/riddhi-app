@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export default function BulkAddLeadsModal({ coachUid, onClose, onSaved }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [inputText, setInputText] = useState('');
   const [source, setSource]       = useState('Bulk Import');
   const [saving, setSaving]       = useState(false);
@@ -82,8 +85,10 @@ export default function BulkAddLeadsModal({ coachUid, onClose, onSaved }) {
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="modal-overlay" style={{ zIndex: 99999 }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-card" style={{ maxWidth: '520px', width: '94vw' }}>
         <div className="modal-header">
           <div>
@@ -134,6 +139,7 @@ export default function BulkAddLeadsModal({ coachUid, onClose, onSaved }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

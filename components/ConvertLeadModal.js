@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, addDoc, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [form, setForm] = useState({
     name: lead?.name || '',
     phone: lead?.phone || '',
@@ -91,8 +94,10 @@ export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted 
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="modal-overlay" style={{ zIndex: 99999 }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-card" style={{ maxWidth: '540px', width: '94vw' }}>
         <div className="modal-header">
           <div>
@@ -167,6 +172,7 @@ export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted 
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

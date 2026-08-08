@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 const STATUS_OPTIONS = ['New Lead', '1 Session', '2 Session', 'Closing', 'Waiting List', 'Rejected'];
 const SOURCE_OPTIONS = ['Referral', 'Social Media', 'Walk-in', 'Bulk Import', 'Other'];
@@ -41,6 +42,9 @@ function getStatusBadgeClass(status) {
 }
 
 export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, onDelete, coaches = [], userRole = 'coach', autoCallLogFocus = false }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const isEditing = !!enquiry;
 
   const [showMenu, setShowMenu]               = useState(false);
@@ -307,8 +311,10 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="modal-overlay" style={{ zIndex: 99999 }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="detail-modal-card" style={{ maxWidth: '620px', width: '94vw', maxHeight: '90vh', overflowY: 'auto' }}>
 
         {/* Load error fallback — shows if useEffect throws */}
@@ -891,6 +897,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

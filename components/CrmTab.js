@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Component } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, query, where, getDocs, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
@@ -49,16 +50,28 @@ class ModalErrorBoundary extends Component {
   componentDidCatch(error) { console.error('[CRM Modal Error]', error); }
   render() {
     if (this.state.hasError) {
-      return (
-        <div style={{ padding: '24px', textAlign: 'center', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '12px', margin: '16px' }}>
-          <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⚠️</div>
-          <p style={{ fontSize: '0.85rem', color: '#dc2626', fontWeight: '700', marginBottom: '12px' }}>Lead ખોલવામાં error આવ્યો. ફરી try કરો.</p>
-          <p style={{ fontSize: '0.72rem', color: '#9ca3af', fontFamily: 'monospace', marginBottom: '12px' }}>{this.state.msg}</p>
-          <button
-            onClick={() => { this.setState({ hasError: false, msg: '' }); this.props.onClose?.(); }}
-            style={{ padding: '8px 20px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}
-          >✕ બંધ કરો</button>
-        </div>
+      if (typeof window === 'undefined') return null;
+      return createPortal(
+        <div className="modal-overlay" style={{ zIndex: 99999 }} onClick={() => { this.setState({ hasError: false, msg: '' }); this.props.onClose?.(); }}>
+          <div className="modal-card" style={{ maxWidth: '440px', width: '92vw', padding: '24px', textAlign: 'center', background: '#ffffff', borderRadius: '16px' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⚠️</div>
+            <h4 style={{ fontSize: '1rem', fontWeight: '800', color: '#dc2626', marginBottom: '8px' }}>Lead Details Error</h4>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              Lead વિગતો ખોલવામાં સહેજ સમસ્યા આવી.
+            </p>
+            <p style={{ fontSize: '0.72rem', color: '#6b7280', fontFamily: 'monospace', background: '#f3f4f6', padding: '8px', borderRadius: '6px', marginBottom: '16px', wordBreak: 'break-word' }}>
+              {this.state.msg}
+            </p>
+            <button
+              type="button"
+              onClick={() => { this.setState({ hasError: false, msg: '' }); this.props.onClose?.(); }}
+              style={{ width: '100%', padding: '10px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer' }}
+            >
+              ✕ બંધ કરો (Close)
+            </button>
+          </div>
+        </div>,
+        document.body
       );
     }
     return this.props.children;
