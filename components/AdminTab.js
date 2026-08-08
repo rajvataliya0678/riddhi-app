@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const ROLES = ['customer', 'coach', 'admin'];
@@ -24,15 +24,9 @@ export default function AdminTab({ currentAdminUid }) {
   const [savedUids, setSavedUids] = useState({});
 
   useEffect(() => {
-    fetchAllUsers();
-  }, []);
-
-  const fetchAllUsers = async () => {
-    try {
-      setLoading(true);
-      const snap = await getDocs(collection(db, 'users'));
+    setLoading(true);
+    const unsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
       const list = snap.docs.map(d => ({ ...d.data() }));
-      // Sort by createdAt descending
       list.sort((a, b) => {
         const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
         const db2 = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
@@ -40,12 +34,14 @@ export default function AdminTab({ currentAdminUid }) {
       });
       setUsers(list);
       setCoaches(list.filter(u => u.role === 'coach' || u.role === 'admin'));
-    } catch (err) {
-      console.error('Error fetching users:', err);
-    } finally {
       setLoading(false);
-    }
-  };
+    }, (err) => {
+      console.error('Error in users real-time listener:', err);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Change user's role
   const handleRoleChange = async (uid, newRole) => {
