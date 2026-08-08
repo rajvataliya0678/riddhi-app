@@ -338,7 +338,7 @@ export default function AdminTab({ currentAdminUid }) {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         {(() => {
                           const v = userRow.appVersion || '1.0';
-                          const isUpToDate = v === '1.0' || v === '1.1' || v === '1.2';
+                          const isUpToDate = parseFloat(v) >= 1.1;
                           return (
                             <span style={{
                               padding: '3px 8px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '800',
