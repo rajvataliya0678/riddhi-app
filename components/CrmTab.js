@@ -57,7 +57,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   const [editingEnquiry, setEditingEnquiry] = useState(null);
   const [autoCallLogFocus, setAutoCallLogFocus] = useState(false);
   const [activeMenuId, setActiveMenuId]     = useState(null);
-  const [menuPos, setMenuPos]               = useState({ top: 0, right: 0 });
+  const [menuPos, setMenuPos]               = useState({ top: 0, right: 0, left: 'auto' });
 
   useEffect(() => {
     const handleOutsideClick = () => setActiveMenuId(null);
@@ -530,7 +530,8 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                             const rect = e.currentTarget.getBoundingClientRect();
                             setMenuPos({
                               top: rect.bottom + 4,
-                              left: rect.right - 170,
+                              right: window.innerWidth - rect.right,
+                              left: 'auto',
                             });
                             setActiveMenuId(enquiry.id);
                           }
@@ -558,6 +559,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                           style={{
                             position: 'fixed',
                             top: menuPos.top,
+                            right: menuPos.right,
                             left: menuPos.left,
                             background: '#ffffff',
                             border: '1px solid var(--border-color)',
