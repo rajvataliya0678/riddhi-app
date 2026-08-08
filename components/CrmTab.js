@@ -478,11 +478,15 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                             type="button"
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (enquiry.phone) {
-                                window.open(`tel:${enquiry.phone}`);
+                              try {
+                                if (enquiry.phone) {
+                                  window.location.href = `tel:${enquiry.phone}`;
+                                }
+                                // Auto-log call immediately — onSnapshot will update the list
+                                await logCrmCall(db, enquiry.id, enquiry);
+                              } catch (err) {
+                                console.error('Call/log error:', err);
                               }
-                              // Auto-log call immediately — onSnapshot will update the list
-                              await logCrmCall(db, enquiry.id, enquiry);
                             }}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: '4px',

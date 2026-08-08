@@ -25,6 +25,14 @@ export default function GlobalErrorPage({ error, reset }) {
     }
   };
 
+  const handleReset = () => {
+    try {
+      reset();
+    } catch (_) {
+      window.location.reload();
+    }
+  };
+
   return (
     <div className="auth-wrapper" style={{ padding: '24px' }}>
       <div className="decor-gradient"></div>
@@ -34,7 +42,7 @@ export default function GlobalErrorPage({ error, reset }) {
           એપ ફરી શરૂ કરો (Reload App)
         </h2>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
-          એપ્લિકેશન લોડ કરવામાં નાની સમસ્યા આવી છે. કૃપા કરીને નીચેનું બટન દબાવીને લોગઆઉટ કરીને ફરી લોગિન કરો.
+          એપ્લિકેશન લોડ કરવામાં નાની સમસ્યા આવી છે. કૃપા કરીને નીચેનું બટન દબાવીને ફરી try કરો.
         </p>
 
         {error?.message && (
@@ -54,10 +62,20 @@ export default function GlobalErrorPage({ error, reset }) {
           </div>
         )}
 
+        {/* Primary: Try Again without logout */}
+        <button
+          onClick={handleReset}
+          className="btn btn-primary"
+          style={{ width: '100%', padding: '12px', fontSize: '0.95rem', fontWeight: '800', marginBottom: '10px', background: '#10b981' }}
+        >
+          🔄 ફરી Try કરો (Try Again)
+        </button>
+
+        {/* Secondary: Full logout */}
         <button
           onClick={handleLogoutAndLogin}
-          className="btn btn-primary"
-          style={{ width: '100%', padding: '12px', fontSize: '0.95rem', fontWeight: '800', background: 'var(--accent-danger, #ef4444)' }}
+          className="btn btn-outline"
+          style={{ width: '100%', padding: '10px', fontSize: '0.85rem', fontWeight: '700' }}
         >
           🚪 લોગ આઉટ અને ફરી લોગિન કરો (Logout & Login)
         </button>
