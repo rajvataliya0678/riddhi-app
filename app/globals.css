@@ -2275,12 +2275,12 @@ button:active:not(:disabled),
 
   /* ── CRM Pipeline Stats ── */
   .crm-pipeline-stats {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 6px !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
   }
 
   .crm-pipeline-stats .dashboard-card {
-    padding: 8px 4px !important;
+    padding: 6px 2px !important;
   }
 
   /* ── Tables ── */
