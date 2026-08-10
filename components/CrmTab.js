@@ -785,12 +785,6 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                           if (activeMenuId === enquiry.id) {
                             setActiveMenuId(null);
                           } else {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setMenuPos({
-                              top: rect.bottom + 4,
-                              right: window.innerWidth - rect.right,
-                              left: 'auto',
-                            });
                             setActiveMenuId(enquiry.id);
                           }
                         }}
@@ -815,15 +809,15 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                       {activeMenuId === enquiry.id && (
                         <div
                           style={{
-                            position: 'fixed',
-                            top: menuPos.top,
-                            right: menuPos.right,
-                            left: menuPos.left,
+                            position: 'absolute',
+                            top: 'calc(100% + 2px)',
+                            right: 0,
+                            left: 'auto',
                             background: '#ffffff',
                             border: '1px solid var(--border-color)',
                             borderRadius: '12px',
                             boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
-                            zIndex: 99999,
+                            zIndex: 9999,
                             minWidth: '170px',
                             padding: '6px 0',
                             display: 'flex',
