@@ -715,10 +715,18 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
 
   // Recalculate coach readiness score from day 10 form data
   const scoreKeys = ['scoreConsistency', 'scoreCommunication', 'scoreHelping', 'scorePositive', 'scoreLearning', 'scoreShares', 'scorePeople', 'scoreInterest'];
   const coachReadinessScore = scoreKeys.reduce((sum, k) => sum + (typeof dayData[k] === 'number' ? dayData[k] : 0), 0);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const existing = followups.find(f => f.day === selectedDay);
@@ -801,83 +809,134 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
 
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
-      <div style={{ display: 'flex', width: '95vw', maxWidth: '1100px', height: '90vh', background: 'var(--card-bg)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ alignItems: 'flex-start', paddingTop: isMobile ? '0' : '20px', padding: isMobile ? '0' : undefined }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        width: isMobile ? '100vw' : '95vw',
+        maxWidth: '1100px',
+        height: isMobile ? '100dvh' : '90vh',
+        background: 'var(--card-bg)',
+        borderRadius: isMobile ? '0' : 'var(--radius-lg)',
+        overflow: 'hidden',
+        boxShadow: 'var(--shadow-lg)',
+      }}>
 
-        {/* ── Left: Day Navigator ── */}
-        <div style={{ width: '200px', flexShrink: 0, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', padding: '20px 0', overflowY: 'auto' }}>
-          {/* Customer mini-profile */}
-          <div style={{ padding: '0 16px 16px', borderBottom: '1px solid var(--border-color)', marginBottom: '8px' }}>
-            <div style={{ fontWeight: '800', fontSize: '0.88rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{customer.fullName}</div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{customer.primaryGoal}</div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{customer.customerId}</div>
+        {/* ── Day Navigator: Sidebar on Desktop, Horizontal Tabs on Mobile ── */}
+        {isMobile ? (
+          // Mobile: horizontal scrollable day tabs at top
+          <div style={{ flexShrink: 0, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+            {/* Customer mini-profile strip */}
+            <div style={{ padding: '10px 16px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)' }}>
+              <div>
+                <div style={{ fontWeight: '800', fontSize: '0.85rem' }}>{customer.fullName}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{customer.primaryGoal}</div>
+              </div>
+              <button onClick={onClose} style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '4px 12px', fontSize: '0.8rem', cursor: 'pointer', color: 'var(--text-main)' }} id="followup-form-close-btn">✕ Close</button>
+            </div>
+            {/* Horizontal scrollable day tabs */}
+            <div style={{ display: 'flex', overflowX: 'auto', padding: '8px 12px', gap: '6px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+              {daysList.map(({ day, icon }) => {
+                const done = isDone(day);
+                const locked = isLocked(day);
+                const active = selectedDay === day;
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => !locked && setSelectedDay(day)}
+                    disabled={locked}
+                    id={`followup-nav-day-${day}`}
+                    style={{
+                      flexShrink: 0,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+                      padding: '6px 12px', border: 'none', borderRadius: '10px',
+                      cursor: locked ? 'not-allowed' : 'pointer',
+                      background: active ? 'var(--primary)' : locked ? 'transparent' : 'var(--card-bg)',
+                      color: active ? 'white' : locked ? 'var(--text-muted)' : 'var(--text-main)',
+                      boxShadow: active ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                      opacity: locked ? 0.45 : 1,
+                      transition: 'all 0.15s',
+                      minWidth: '52px',
+                    }}
+                  >
+                    <span style={{ fontSize: '1rem' }}>{done ? '✅' : locked ? '🔒' : icon}</span>
+                    <span style={{ fontSize: '0.68rem', fontWeight: active ? '800' : '500' }}>Day {day}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-
-          {daysList.map(({ day, icon, title }) => {
-            const done = isDone(day);
-            const locked = isLocked(day);
-            const active = selectedDay === day;
-            return (
-              <button
-                key={day}
-                type="button"
-                onClick={() => !locked && setSelectedDay(day)}
-                disabled={locked}
-                id={`followup-nav-day-${day}`}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px',
-                  textAlign: 'left', border: 'none', cursor: locked ? 'not-allowed' : 'pointer',
-                  background: active ? 'var(--primary)' : 'transparent',
-                  color: active ? 'white' : locked ? 'var(--text-muted)' : 'var(--text-main)',
-                  borderLeft: active ? '3px solid white' : '3px solid transparent',
-                  transition: 'all 0.15s',
-                  opacity: locked ? 0.5 : 1,
-                }}
-              >
-                <span style={{ fontSize: '0.85rem' }}>{done ? '✅' : locked ? '🔒' : icon}</span>
-                <span style={{ fontSize: '0.78rem', fontWeight: active ? '700' : '500', lineHeight: 1.3 }}>
-                  Day {day}
-                </span>
-              </button>
-            );
-          })}
-
-          <div style={{ marginTop: 'auto', padding: '16px' }}>
-            <button onClick={onClose} className="btn btn-outline btn-sm" style={{ width: '100%' }} id="followup-form-close-btn">✕ Close</button>
+        ) : (
+          // Desktop: vertical sidebar
+          <div style={{ width: '200px', flexShrink: 0, background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', padding: '20px 0', overflowY: 'auto' }}>
+            {/* Customer mini-profile */}
+            <div style={{ padding: '0 16px 16px', borderBottom: '1px solid var(--border-color)', marginBottom: '8px' }}>
+              <div style={{ fontWeight: '800', fontSize: '0.88rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{customer.fullName}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{customer.primaryGoal}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{customer.customerId}</div>
+            </div>
+            {daysList.map(({ day, icon }) => {
+              const done = isDone(day);
+              const locked = isLocked(day);
+              const active = selectedDay === day;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => !locked && setSelectedDay(day)}
+                  disabled={locked}
+                  id={`followup-nav-day-${day}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px',
+                    textAlign: 'left', border: 'none', cursor: locked ? 'not-allowed' : 'pointer',
+                    background: active ? 'var(--primary)' : 'transparent',
+                    color: active ? 'white' : locked ? 'var(--text-muted)' : 'var(--text-main)',
+                    borderLeft: active ? '3px solid white' : '3px solid transparent',
+                    transition: 'all 0.15s',
+                    opacity: locked ? 0.5 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: '0.85rem' }}>{done ? '✅' : locked ? '🔒' : icon}</span>
+                  <span style={{ fontSize: '0.78rem', fontWeight: active ? '700' : '500', lineHeight: 1.3 }}>Day {day}</span>
+                </button>
+              );
+            })}
+            <div style={{ marginTop: 'auto', padding: '16px' }}>
+              <button onClick={onClose} className="btn btn-outline btn-sm" style={{ width: '100%' }} id="followup-form-close-btn">✕ Close</button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Right: Form Content ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
 
           {/* Day header */}
-          <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border-color)', background: 'var(--card-bg)', flexShrink: 0 }}>
+          <div style={{ padding: isMobile ? '12px 16px 10px' : '20px 24px 16px', borderBottom: '1px solid var(--border-color)', background: 'var(--card-bg)', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <h3 style={{ fontSize: '1.1rem', marginBottom: '2px' }}>{currentDayConfig?.icon} {currentDayConfig?.title}</h3>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{currentDayConfig?.purpose}</p>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.1rem', marginBottom: '2px', lineHeight: 1.3 }}>{currentDayConfig?.icon} {currentDayConfig?.title}</h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{currentDayConfig?.purpose}</p>
               </div>
               {isDone(selectedDay) && (
-                <span style={{ background: '#f0fdf4', color: '#16a34a', padding: '4px 12px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: '700' }}>✅ Saved</span>
+                <span style={{ background: '#f0fdf4', color: '#16a34a', padding: '4px 10px', borderRadius: '99px', fontSize: '0.72rem', fontWeight: '700', flexShrink: 0, marginLeft: '8px' }}>✅ Saved</span>
               )}
             </div>
           </div>
 
           {/* Scrollable form body */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '14px 16px' : '20px 24px', WebkitOverflowScrolling: 'touch' }}>
 
             {/* Coach Rule Banner */}
             {selectedDay === 1 && !isDone(1) && (
-              <div style={{ background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: '16px', fontSize: '0.82rem', color: '#7e22ce', lineHeight: 1.6 }}>
+              <div style={{ background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: '14px', fontSize: '0.78rem', color: '#7e22ce', lineHeight: 1.6 }}>
                 💜 <strong>Coach Rule:</strong> "Do not rush the customer toward references or coaching. First build result, trust and relationship. Ask questions, listen carefully and record real answers. Coaching opportunity should arise naturally."
               </div>
             )}
 
-
-
             {/* Day-specific section */}
             <div>
-              <div className="followup-section-title" style={{ marginBottom: '12px' }}>
+              <div className="followup-section-title" style={{ marginBottom: '12px', fontSize: isMobile ? '0.82rem' : undefined }}>
                 {currentDayConfig?.icon} Day {selectedDay} — {selectedDay > 10 ? 'Ongoing Maintenance Questions' : 'Specific Questions'}
               </div>
               {selectedDay === 1  && <Day1Form  data={dayData} setData={setDayData} />}
@@ -895,17 +954,17 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
           </div>
 
           {/* Footer with save */}
-          <div style={{ borderTop: '1px solid var(--border-color)', padding: '16px 24px', background: 'var(--card-bg)', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-            {error && <span style={{ color: '#dc2626', fontSize: '0.82rem', flex: 1 }}>⚠️ {error}</span>}
-            {saveMsg && <span style={{ color: '#16a34a', fontSize: '0.82rem', flex: 1, fontWeight: '600' }}>{saveMsg}</span>}
-            {!error && !saveMsg && <span style={{ flex: 1, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Fill all required fields and save.</span>}
+          <div style={{ borderTop: '1px solid var(--border-color)', padding: isMobile ? '12px 16px' : '16px 24px', background: 'var(--card-bg)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            {error && <span style={{ color: '#dc2626', fontSize: '0.78rem', flex: 1 }}>⚠️ {error}</span>}
+            {saveMsg && <span style={{ color: '#16a34a', fontSize: '0.78rem', flex: 1, fontWeight: '600' }}>{saveMsg}</span>}
+            {!error && !saveMsg && <span style={{ flex: 1, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Fill all required fields and save.</span>}
             <button
               type="button"
               className="btn btn-primary"
               onClick={handleSave}
               disabled={saving}
               id={`followup-save-day-${selectedDay}`}
-              style={{ width: 'auto', minWidth: '160px' }}
+              style={{ width: 'auto', minWidth: isMobile ? '130px' : '160px', fontSize: isMobile ? '0.85rem' : undefined }}
             >
               {saving ? '⏳ Saving...' : `💾 Save Day ${selectedDay}`}
             </button>
