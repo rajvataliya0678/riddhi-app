@@ -13,10 +13,10 @@ export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted 
     phone: lead?.phone || '',
     email: '',
     fitnessGoal: 'Weight Loss',
-    initialWeight: '75',
+    initialWeight: lead?.weight || '75',
     goalWeight: '68',
-    height: '168',
-    age: '28',
+    height: lead?.height || '168',
+    age: lead?.age || '28',
     gender: 'male',
   });
   const [saving, setSaving] = useState(false);

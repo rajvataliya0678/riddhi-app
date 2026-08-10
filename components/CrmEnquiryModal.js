@@ -53,6 +53,9 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
   const [name, setName]                       = useState('');
   const [phone, setPhone]                     = useState('');
   const [address, setAddress]                 = useState('');
+  const [weight, setWeight]                   = useState('');
+  const [age, setAge]                         = useState('');
+  const [height, setHeight]                   = useState('');
   const [healthCondition, setHealthCondition] = useState('Weight Loss / Overweight');
   const [source, setSource]                   = useState('Referral');
   const [status, setStatus]                   = useState('New Lead');
@@ -89,6 +92,9 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
       setName(enquiry.name || '');
       setPhone(enquiry.phone || '');
       setAddress(enquiry.address || '');
+      setWeight(enquiry.weight || '');
+      setAge(enquiry.age || '');
+      setHeight(enquiry.height || '');
       setHealthCondition(enquiry.healthCondition || 'Weight Loss / Overweight');
       setSource(enquiry.source || 'Referral');
       setStatus(enquiry.status || 'New Lead');
@@ -148,6 +154,9 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           name: targetEnquiry.name || name || '',
           phone: targetEnquiry.phone || phone || '',
           address: targetEnquiry.address || address || '',
+          weight: targetEnquiry.weight || weight || '',
+          age: targetEnquiry.age || age || '',
+          height: targetEnquiry.height || height || '',
           healthCondition: targetEnquiry.healthCondition || healthCondition || 'Weight Loss / Overweight',
           source: targetEnquiry.source || source || 'Referral',
           status: targetEnquiry.status || status || 'New Lead',
@@ -211,6 +220,9 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           name: name.trim(),
           phone: phone.trim(),
           address: address.trim(),
+          weight: weight ? weight.toString().trim() : '',
+          age: age ? age.toString().trim() : '',
+          height: height ? height.toString().trim() : '',
           healthCondition,
           source,
           status,
@@ -242,6 +254,9 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           name: name.trim(),
           phone: phone.trim(),
           address: address.trim(),
+          weight: weight ? weight.toString().trim() : '',
+          age: age ? age.toString().trim() : '',
+          height: height ? height.toString().trim() : '',
           healthCondition,
           source,
           status,
@@ -287,6 +302,9 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           name: name.trim(),
           phone: phone.trim(),
           address: address.trim(),
+          weight: weight ? weight.toString().trim() : '',
+          age: age ? age.toString().trim() : '',
+          height: height ? height.toString().trim() : '',
           healthCondition,
           source,
           status,
@@ -318,6 +336,9 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
         name: name.trim(),
         phone: phone.trim(),
         address: address.trim(),
+        weight: weight ? weight.toString().trim() : '',
+        age: age ? age.toString().trim() : '',
+        height: height ? height.toString().trim() : '',
         healthCondition,
         source,
         status,
@@ -575,6 +596,47 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                   <option key={h} value={h}>{h}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* Row 2.5: Weight, Age, Height */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="crm-weight">Weight (kg)</label>
+              <input
+                type="number"
+                step="0.1"
+                id="crm-weight"
+                className="form-input"
+                placeholder="e.g. 70"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="crm-age">Age (yrs)</label>
+              <input
+                type="number"
+                id="crm-age"
+                className="form-input"
+                placeholder="e.g. 28"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="crm-height">Height (cm)</label>
+              <input
+                type="number"
+                id="crm-height"
+                className="form-input"
+                placeholder="e.g. 165"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                disabled={submitting}
+              />
             </div>
           </div>
 

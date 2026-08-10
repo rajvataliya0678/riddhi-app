@@ -346,7 +346,7 @@ function buildCustomizedZoomUrl(baseUrl, user, userData) {
   coachFirstName = coachFirstName.charAt(0).toUpperCase() + coachFirstName.slice(1);
 
   const roleTag = role === 'customer' ? 'CM' : 'CH';
-  const unameRaw = `PRV/${roleTag}/${firstName}/${coachFirstName}`;
+  const unameRaw = `PRV/${roleTag}/${firstName}/${coachFirstName}`.toUpperCase();
   const unameParam = `uname=${encodeURIComponent(unameRaw)}`;
 
   if (baseUrl.includes('uname=')) {
