@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import BulkAddLeadsModal from './BulkAddLeadsModal';
 import ConvertLeadModal from './ConvertLeadModal';
-import { ClipboardList, MoreVertical, Trash2, Edit3, UserCheck } from 'lucide-react';
+import { ClipboardList, MoreVertical, Trash2, Edit3, UserCheck, MessageCircle } from 'lucide-react';
 import { logCrmCall } from '@/lib/logCrmCall';
 
 const STATUS_OPTIONS = [
@@ -868,6 +868,29 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                           }}
                           onClick={(e) => e.stopPropagation()}
                         >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              const rawPhone = (enquiry.phone || '').replace(/\D/g, '');
+                              const phone = rawPhone.startsWith('91') && rawPhone.length === 12
+                                ? rawPhone
+                                : rawPhone.length === 10
+                                  ? `91${rawPhone}`
+                                  : rawPhone;
+                              window.open(`https://wa.me/${phone}`, '_blank');
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              padding: '9px 14px', background: 'none', border: 'none',
+                              width: '100%', textAlign: 'left', cursor: 'pointer',
+                              fontSize: '0.84rem', fontWeight: '700', color: '#16a34a',
+                            }}
+                            id={`crm-whatsapp-btn-${enquiry.id}`}
+                          >
+                            <MessageCircle size={15} color="#16a34a" /> WhatsApp Chat
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => {
