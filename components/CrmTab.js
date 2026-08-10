@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import BulkAddLeadsModal from './BulkAddLeadsModal';
 import ConvertLeadModal from './ConvertLeadModal';
-import { ClipboardList, MoreVertical, Trash2, Edit3, UserCheck, MessageCircle } from 'lucide-react';
+import { ClipboardList, MoreVertical, Trash2, Edit3, UserCheck, MessageCircle, Search } from 'lucide-react';
 import { logCrmCall } from '@/lib/logCrmCall';
 
 const STATUS_OPTIONS = [
@@ -582,8 +582,21 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
       {/* Toolbar: Filters & Sorting */}
       <div className="crm-toolbar" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
       {/* Search Bar */}
-        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: '200px', width: '100%', maxWidth: '100%' }}>
-          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem', pointerEvents: 'none', opacity: 0.5 }}>🔍</span>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: 'var(--card-bg)',
+          border: searchQuery ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+          borderRadius: '10px',
+          padding: '0 12px',
+          flex: '1 1 220px',
+          minWidth: '200px',
+          width: '100%',
+          boxSizing: 'border-box',
+          height: '38px',
+          transition: 'border-color 0.15s ease',
+        }}>
+          <Search size={16} color="var(--text-muted)" style={{ flexShrink: 0, marginRight: '8px' }} />
           <input
             type="text"
             id="crm-search-input"
@@ -591,12 +604,16 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
-              width: '100%', padding: '8px 34px 8px 32px',
-              border: searchQuery ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
-              borderRadius: '10px', fontSize: '0.84rem',
-              background: 'var(--card-bg)', color: 'var(--text-main)',
-              outline: 'none', boxSizing: 'border-box',
+              flex: 1,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-main)',
+              fontSize: '0.84rem',
+              outline: 'none',
+              padding: '6px 0',
               fontWeight: '500',
+              width: '100%',
+              minWidth: 0,
             }}
           />
           {searchQuery && (
@@ -604,11 +621,13 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
               type="button"
               onClick={() => setSearchQuery('')}
               style={{
-                position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem',
-                color: 'var(--text-muted)', lineHeight: 1,
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem',
+                color: 'var(--text-muted)', lineHeight: 1, padding: '2px', marginLeft: '4px',
+                flexShrink: 0,
               }}
-            >✕</button>
+            >
+              ✕
+            </button>
           )}
         </div>
 
