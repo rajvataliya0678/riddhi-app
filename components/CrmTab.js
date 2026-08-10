@@ -640,17 +640,6 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
           )}
         </div>
 
-        <select
-          className="crm-filter-select"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          id="crm-filter-status"
-          style={{ fontWeight: '700' }}
-        >
-          {STATUS_OPTIONS.map(s => (
-            <option key={s} value={s}>{s === 'All' ? 'All Stages' : s}</option>
-          ))}
-        </select>
 
         <select
           className="crm-filter-select"
