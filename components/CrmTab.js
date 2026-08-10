@@ -582,7 +582,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
       {/* Toolbar: Filters & Sorting */}
       <div className="crm-toolbar" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
       {/* Search Bar */}
-        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: '200px', maxWidth: '360px' }}>
+        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: '200px', width: '100%', maxWidth: '100%' }}>
           <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem', pointerEvents: 'none', opacity: 0.5 }}>🔍</span>
           <input
             type="text"
@@ -828,6 +828,21 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                           if (activeMenuId === enquiry.id) {
                             setActiveMenuId(null);
                           } else {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const menuWidth = 175;
+                            const menuHeight = 175;
+                            const spaceBelow = window.innerHeight - rect.bottom;
+
+                            let top = rect.bottom + 4;
+                            if (spaceBelow < menuHeight && rect.top > menuHeight) {
+                              top = rect.top - menuHeight - 4;
+                            }
+
+                            let left = rect.right - menuWidth;
+                            if (left < 10) left = 10;
+                            if (left + menuWidth > window.innerWidth - 10) left = window.innerWidth - menuWidth - 10;
+
+                            setMenuPos({ top, left });
                             setActiveMenuId(enquiry.id);
                           }
                         }}
@@ -852,15 +867,14 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                       {activeMenuId === enquiry.id && (
                         <div
                           style={{
-                            position: 'absolute',
-                            top: 'calc(100% + 2px)',
-                            right: 0,
-                            left: 'auto',
+                            position: 'fixed',
+                            top: menuPos.top,
+                            left: menuPos.left,
                             background: '#ffffff',
                             border: '1px solid var(--border-color)',
                             borderRadius: '12px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
-                            zIndex: 9999,
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.22)',
+                            zIndex: 99999,
                             minWidth: '170px',
                             padding: '6px 0',
                             display: 'flex',

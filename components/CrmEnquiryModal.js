@@ -600,7 +600,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           </div>
 
           {/* Row 2.5: Weight, Age, Height */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '10px', marginBottom: '14px' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label" htmlFor="crm-weight">Weight (kg)</label>
               <input
