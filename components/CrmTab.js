@@ -188,6 +188,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   const [filterFollowUp, setFilterFollowUp] = useState('');
   const [filterCallStatus, setFilterCallStatus] = useState('All');
   const [sortBy, setSortBy]                   = useState('priority');
+  const [searchQuery, setSearchQuery]         = useState('');
 
   // Modals & Menu
   const [showModal, setShowModal]           = useState(false);
@@ -354,6 +355,16 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
 
     if (filterStatus !== 'All') {
       filtered = filtered.filter(e => e.status === filterStatus);
+    }
+
+    // Search by name, phone, address
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter(e =>
+        (e.name || '').toLowerCase().includes(q) ||
+        (e.phone || '').toLowerCase().includes(q) ||
+        (e.address || '').toLowerCase().includes(q)
+      );
     }
 
     if (filterFollowUp) {
@@ -570,6 +581,37 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
 
       {/* Toolbar: Filters & Sorting */}
       <div className="crm-toolbar" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Search Bar */}
+        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: '200px', maxWidth: '360px' }}>
+          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem', pointerEvents: 'none', opacity: 0.5 }}>🔍</span>
+          <input
+            type="text"
+            id="crm-search-input"
+            placeholder="Search by name, mobile, address..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%', padding: '8px 34px 8px 32px',
+              border: searchQuery ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+              borderRadius: '10px', fontSize: '0.84rem',
+              background: 'var(--card-bg)', color: 'var(--text-main)',
+              outline: 'none', boxSizing: 'border-box',
+              fontWeight: '500',
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem',
+                color: 'var(--text-muted)', lineHeight: 1,
+              }}
+            >✕</button>
+          )}
+        </div>
+
         <select
           className="crm-filter-select"
           value={filterStatus}
@@ -625,7 +667,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
           <option value="name">🔤 Name (A-Z)</option>
         </select>
 
-        {(filterStatus !== 'All' || filterFollowUp || filterCallStatus !== 'All' || sortBy !== 'priority') && (
+        {(filterStatus !== 'All' || filterFollowUp || filterCallStatus !== 'All' || sortBy !== 'priority' || searchQuery) && (
           <button
             type="button"
             onClick={() => {
@@ -633,6 +675,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
               setFilterFollowUp('');
               setFilterCallStatus('All');
               setSortBy('priority');
+              setSearchQuery('');
             }}
             style={{
               padding: '6px 12px', fontSize: '0.78rem', fontWeight: '800',
