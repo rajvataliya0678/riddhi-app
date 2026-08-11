@@ -268,11 +268,19 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       const crmLeads = crmSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const attendanceList = attSnap.docs.map(d => d.data());
       const weightHistoryList = weightSnap.docs.map(d => d.data());
-      const completedIds = new Set(
-        completedSnap.docs
-          .map(d => d.data())
-          .map(d => d.taskId)
-      );
+      const completedIds = new Set();
+      completedSnap.docs.forEach(d => {
+        const data = d.data();
+        if (data.taskId) {
+          // If taskId has a date suffix (e.g. crm-123-2026-08-09 or fu-cust-1), keep completed permanently
+          if (data.taskId.includes('-202') || data.taskId.startsWith('fu-') || data.taskId.startsWith('custom-')) {
+            completedIds.add(data.taskId);
+          } else if (data.date === todayStr) {
+            // Legacy task ID without date: only filter if completed today
+            completedIds.add(data.taskId);
+          }
+        }
+      });
 
       setAllCustomersMap(customersMap);
       setAllFollowupsMap(followupsMap);
@@ -468,11 +476,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       const urgencyOrder = { overdue: 0, today: 1, upcoming: 2 };
       generatedTasks.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
 
-      const pendingTasks = generatedTasks.filter(t => {
-        if (completedIds.has(t.id)) return false;
-        if (t.legacyId && completedIds.has(t.legacyId)) return false;
-        return true;
-      });
+      const pendingTasks = generatedTasks.filter(t => !completedIds.has(t.id));
       setTasks(pendingTasks);
     } catch (err) {
       console.error('CoachTodayTasks fetch error:', err);
