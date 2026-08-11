@@ -399,20 +399,21 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         for (const coach of coachUsers) {
           if (yesterdayMeetings.length > 0) {
             for (const m of yesterdayMeetings) {
-              if (m.visibleTo === 'customers') continue;
               const coachAttended = attendanceList.some(
-                a => a.uid === coach.uid && a.date === yesterdayStr && (a.meetingId === m.id || a.meetingTitle === m.title || a.sessionType === m.title)
+                a => a.uid === coach.uid && (a.date === yesterdayStr || a.date === todayStr) &&
+                (a.meetingId === m.id || a.meetingTitle === m.title || a.sessionType === m.title)
               );
               if (!coachAttended) {
+                const meetingTitle = m.title || m.name || 'Live Session';
                 generatedTasks.push({
-                  id: `coach-missed-${coach.uid}-${m.id}-${yesterdayStr}`,
+                  id: `coach-missed-${coach.uid}-${m.id || 'session'}-${yesterdayStr}`,
                   type: 'coach_missed_meeting',
                   uid: coach.uid,
                   name: coach.name,
                   phone: coach.phone || '',
                   goal: '👨‍🏫 Coach',
-                  title: `🎓 Coach ${coach.name} missed yesterday's ${m.title || 'Live Session'}`,
-                  description: `Coach did not attend "${m.title || 'Live Session'}" scheduled yesterday (${yesterdayStr})`,
+                  title: `🎓 Coach Missed Training: Coach ${coach.name} (${meetingTitle})`,
+                  description: `Coach did not attend "${meetingTitle}" scheduled yesterday (${yesterdayStr})`,
                   urgency: 'overdue',
                   actionType: 'call_phone',
                 });
@@ -430,7 +431,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
                 name: coach.name,
                 phone: coach.phone || '',
                 goal: '👨‍🏫 Coach',
-                title: `🎓 Coach ${coach.name} missed yesterday's Live Session`,
+                title: `🎓 Coach Missed Training: Coach ${coach.name}`,
                 description: `Coach did not attend live session / scheduled training yesterday (${yesterdayStr})`,
                 urgency: 'overdue',
                 actionType: 'call_phone',
