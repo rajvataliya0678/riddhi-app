@@ -340,7 +340,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       }
 
       // ─────────────────────────────────────────────────────────────
-      // RULE 3: Customer Missed Weight Entry Yesterday Tasks
+      // RULE 3: Customer Missed Weight Entry Yesterday Tasks (For Assigned Coach)
       // ─────────────────────────────────────────────────────────────
       for (const cust of assignedCustomers) {
         const weightLogged = weightHistoryList.some(
@@ -348,14 +348,14 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         );
         if (!weightLogged) {
           generatedTasks.push({
-            id: `missed-weight-${cust.uid}`,
+            id: `missed-weight-${cust.uid}-${yesterdayStr}`,
             type: 'customer_missed_weight',
             uid: cust.uid,
             name: cust.name || cust.fullName || 'Customer',
             phone: cust.phone || '',
             goal: cust.diagnosis?.fitnessGoal || '',
             title: `⚖️ Missed Weight Entry: ${cust.name || cust.fullName || 'Customer'}`,
-            description: `No weight recorded for yesterday/today. Remind customer to log weight.`,
+            description: `No weight recorded yesterday (${yesterdayStr}). Remind customer to log weight.`,
             urgency: 'today',
             actionType: 'open_customer_details',
             customerObj: cust,
@@ -382,29 +382,6 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
               title: `🎓 Coach Missed Training: Coach ${coach.name}`,
               description: `Coach did not attend live session / scheduled training yesterday (${yesterdayStr})`,
               urgency: 'overdue',
-              actionType: 'call_phone',
-            });
-          }
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // RULE 5: Coach Missed Weight Entry Today (For Club Owner / Admin)
-        // ─────────────────────────────────────────────────────────────
-        for (const coach of coachUsers) {
-          const coachLoggedWeight = weightHistoryList.some(
-            w => w.uid === coach.uid && (w.date === todayStr || w.date === yesterdayStr)
-          );
-          if (!coachLoggedWeight) {
-            generatedTasks.push({
-              id: `coach-missed-weight-${coach.uid}`,
-              type: 'coach_missed_weight',
-              uid: coach.uid,
-              name: coach.name,
-              phone: coach.phone || '',
-              goal: '👨‍🏫 Coach',
-              title: `⚖️ Coach Weight Entry Missing: Coach ${coach.name}`,
-              description: `Coach has not recorded daily weight today (${todayStr})`,
-              urgency: 'today',
               actionType: 'call_phone',
             });
           }
