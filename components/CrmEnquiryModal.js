@@ -540,20 +540,44 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
                 <label className="form-label" htmlFor="crm-phone" style={{ margin: 0 }}>Mobile Number *</label>
                 {phone && (
-                  <button
-                    type="button"
-                    onClick={handleCallClick}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '4px',
-                      padding: '3px 10px', borderRadius: '4px',
-                      background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
-                      fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer',
-                    }}
-                    title={`Call ${name} (${phone}) & Auto-log entry`}
-                    id="crm-modal-call-lead-btn"
-                  >
-                    📞 Call & Log Response
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={handleCallClick}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        padding: '3px 10px', borderRadius: '4px',
+                        background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+                        fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer',
+                      }}
+                      title={`Call ${name} (${phone}) & Auto-log entry`}
+                      id="crm-modal-call-lead-btn"
+                    >
+                      📞 Call & Log Response
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rawPhone = (phone || '').replace(/\D/g, '');
+                        const formattedPhone = rawPhone.startsWith('91') && rawPhone.length === 12
+                          ? rawPhone
+                          : rawPhone.length === 10
+                            ? `91${rawPhone}`
+                            : rawPhone;
+                        window.open(`https://wa.me/${formattedPhone}`, '_blank');
+                      }}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '4px',
+                        padding: '3px 10px', borderRadius: '4px',
+                        background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
+                        fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer',
+                      }}
+                      title={`WhatsApp Chat with ${name} (${phone})`}
+                      id="crm-modal-chat-lead-btn"
+                    >
+                      💬 Chat
+                    </button>
+                  </div>
                 )}
               </div>
               <input

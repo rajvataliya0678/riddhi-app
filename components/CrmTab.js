@@ -780,39 +780,65 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                       </div>
                     </td>
 
-                    {/* Phone + Call Button */}
+                    {/* Phone + Call/Chat Buttons */}
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '0.88rem' }}>
                           {enquiry.phone}
                         </span>
                         {enquiry.phone && (
-                          <button
-                            type="button"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                if (enquiry.phone) {
-                                  window.location.href = `tel:${enquiry.phone}`;
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  if (enquiry.phone) {
+                                    window.location.href = `tel:${enquiry.phone}`;
+                                  }
+                                  // Auto-log call immediately — onSnapshot will update the list
+                                  await logCrmCall(db, enquiry.id, enquiry);
+                                } catch (err) {
+                                  console.error('Call/log error:', err);
                                 }
-                                // Auto-log call immediately — onSnapshot will update the list
-                                await logCrmCall(db, enquiry.id, enquiry);
-                              } catch (err) {
-                                console.error('Call/log error:', err);
-                              }
-                            }}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '4px',
-                              padding: '2px 8px', borderRadius: '6px',
-                              background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
-                              fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer',
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                            }}
-                            title={`Call ${enquiry.name} (${enquiry.phone}) & log response`}
-                            id={`crm-call-btn-${enquiry.id}`}
-                          >
-                            📞 Call
-                          </button>
+                              }}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                padding: '2px 8px', borderRadius: '6px',
+                                background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+                                fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                              }}
+                              title={`Call ${enquiry.name} (${enquiry.phone}) & log response`}
+                              id={`crm-call-btn-${enquiry.id}`}
+                            >
+                              📞 Call
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const rawPhone = (enquiry.phone || '').replace(/\D/g, '');
+                                const formattedPhone = rawPhone.startsWith('91') && rawPhone.length === 12
+                                  ? rawPhone
+                                  : rawPhone.length === 10
+                                    ? `91${rawPhone}`
+                                    : rawPhone;
+                                window.open(`https://wa.me/${formattedPhone}`, '_blank');
+                              }}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                padding: '2px 8px', borderRadius: '6px',
+                                background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
+                                fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                              }}
+                              title={`WhatsApp Chat with ${enquiry.name} (${enquiry.phone})`}
+                              id={`crm-chat-btn-${enquiry.id}`}
+                            >
+                              💬 Chat
+                            </button>
+                          </div>
                         )}
                       </div>
                     </td>

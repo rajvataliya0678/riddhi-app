@@ -237,20 +237,44 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
           </div>
 
           {phone && (
-            <button
-              type="button"
-              onClick={handleCallClick}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '6px 14px', borderRadius: '6px', cursor: 'pointer',
-                background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
-                fontSize: '0.8rem', fontWeight: '800', boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-              }}
-              title={`Call ${customer.name} (${phone}) & log notes`}
-              id="cust-modal-call-btn"
-            >
-              📞 Call Customer & Log
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={handleCallClick}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: '6px', cursor: 'pointer',
+                  background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+                  fontSize: '0.8rem', fontWeight: '800', boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                }}
+                title={`Call ${customer.name} (${phone}) & log notes`}
+                id="cust-modal-call-btn"
+              >
+                📞 Call Customer & Log
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const rawPhone = (phone || '').replace(/\D/g, '');
+                  const formattedPhone = rawPhone.startsWith('91') && rawPhone.length === 12
+                    ? rawPhone
+                    : rawPhone.length === 10
+                      ? `91${rawPhone}`
+                      : rawPhone;
+                  window.open(`https://wa.me/${formattedPhone}`, '_blank');
+                }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: '6px', cursor: 'pointer',
+                  background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
+                  fontSize: '0.8rem', fontWeight: '800', boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                }}
+                title={`WhatsApp Chat with ${customer.name} (${phone})`}
+                id="cust-modal-chat-btn"
+              >
+                💬 Chat
+              </button>
+            </div>
           )}
         </div>
 
