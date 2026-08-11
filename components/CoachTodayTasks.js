@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, query, where, getDocs, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
@@ -163,6 +164,31 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
   const [selectedCrmLead, setSelectedCrmLead]               = useState(null);
   const [selectedDetailsCustomer, setSelectedDetailsCustomer] = useState(null);
   const [showAddTaskModal, setShowAddTaskModal]             = useState(false);
+
+  // Three-dots menu & Old Completed Tasks Modal
+  const [showTaskMenu, setShowTaskMenu]       = useState(false);
+  const [showOldTasksModal, setShowOldTasksModal] = useState(false);
+  const [oldTasksHistory, setOldTasksHistory] = useState([]);
+  const [loadingOldTasks, setLoadingOldTasks] = useState(false);
+
+  const fetchOldTasksHistory = async () => {
+    if (!coachUid) return;
+    setLoadingOldTasks(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid)));
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a, b) => {
+        const timeA = a.completedAt?.toDate ? a.completedAt.toDate().getTime() : (a.date ? new Date(a.date).getTime() : 0);
+        const timeB = b.completedAt?.toDate ? b.completedAt.toDate().getTime() : (b.date ? new Date(b.date).getTime() : 0);
+        return timeB - timeA;
+      });
+      setOldTasksHistory(list);
+    } catch (err) {
+      console.error('Error fetching old tasks history:', err);
+    } finally {
+      setLoadingOldTasks(false);
+    }
+  };
 
   const [allCustomersMap, setAllCustomersMap] = useState({});
   const [allFollowupsMap, setAllFollowupsMap] = useState({});
@@ -630,6 +656,72 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
             >
               + Add Task
             </button>
+
+            {/* Three dots (⋮) menu for Old Completed Tasks */}
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setShowTaskMenu(!showTaskMenu)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '1.1rem',
+                  fontWeight: '900',
+                  borderRadius: '20px',
+                  background: showTaskMenu ? '#059669' : '#f1f5f9',
+                  color: showTaskMenu ? '#fff' : '#475569',
+                  border: '1px solid #cbd5e1',
+                  cursor: 'pointer',
+                  lineHeight: 1,
+                }}
+                title="Task Options & History"
+                id="today-tasks-three-dots-btn"
+              >
+                ⋮
+              </button>
+
+              {showTaskMenu && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '32px',
+                    background: 'var(--card-bg)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    zIndex: 100,
+                    minWidth: '200px',
+                    padding: '6px 0',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTaskMenu(false);
+                      fetchOldTasksHistory();
+                      setShowOldTasksModal(true);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: '#0284c7',
+                      fontSize: '0.84rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                    id="today-tasks-old-history-btn"
+                  >
+                    📋 Old Completed Tasks
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -794,6 +886,67 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
           onClose={closeModal}
           autoCallLogFocus={true}
         />
+      )}
+      {/* Old Completed Tasks Modal */}
+      {showOldTasksModal && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 99999 }} onClick={() => setShowOldTasksModal(false)}>
+          <div className="modal-card" style={{ maxWidth: '540px', width: '92vw', maxHeight: '82vh', overflowY: 'auto', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800' }}>
+                  📋 Old Completed Tasks
+                </h4>
+                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  All completed tasks history for Coach
+                </p>
+              </div>
+              <button onClick={() => setShowOldTasksModal(false)} className="modal-close">&times;</button>
+            </div>
+
+            {loadingOldTasks ? (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: '0.85rem', fontWeight: '700' }}>⏳ Loading completed tasks...</p>
+              </div>
+            ) : oldTasksHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📂</div>
+                <p style={{ fontSize: '0.85rem', fontWeight: '800', margin: 0 }}>No completed tasks found yet.</p>
+                <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Tasks marked Done from dashboard will appear here with task date & completion date.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {oldTasksHistory.map((task, idx) => {
+                  const completedDateStr = task.completedAt?.toDate
+                    ? new Date(task.completedAt.toDate()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                    : (task.date || '—');
+                  const scheduledDateStr = task.taskDate || task.date || '—';
+
+                  return (
+                    <div key={task.id || idx} style={{ padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontWeight: '800', fontSize: '0.86rem', color: 'var(--text-main)', marginBottom: '4px' }}>
+                        {task.taskTitle || 'Task'}
+                      </div>
+                      {task.taskDescription && (
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                          {task.taskDescription}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                        <span>🗓️ Task Date: <strong style={{ color: 'var(--text-main)' }}>{scheduledDateStr}</strong></span>
+                        <span>✅ Completed Date: <strong style={{ color: '#16a34a' }}>{completedDateStr}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: '16px', textAlign: 'right' }}>
+              <button type="button" onClick={() => setShowOldTasksModal(false)} className="btn btn-secondary btn-sm" style={{ width: 'auto' }}>✕ Close</button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );
