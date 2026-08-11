@@ -691,71 +691,33 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
               + Add Task
             </button>
 
-            {/* Three dots (⋮) menu for Old Completed Tasks */}
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => setShowTaskMenu(!showTaskMenu)}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '1.1rem',
-                  fontWeight: '900',
-                  borderRadius: '20px',
-                  background: showTaskMenu ? '#059669' : '#f1f5f9',
-                  color: showTaskMenu ? '#fff' : '#475569',
-                  border: '1px solid #cbd5e1',
-                  cursor: 'pointer',
-                  lineHeight: 1,
-                }}
-                title="Task Options & History"
-                id="today-tasks-three-dots-btn"
-              >
-                ⋮
-              </button>
-
-              {showTaskMenu && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: '32px',
-                    background: 'var(--card-bg)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-md)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                    zIndex: 100,
-                    minWidth: '200px',
-                    padding: '6px 0',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowTaskMenu(false);
-                      fetchOldTasksHistory();
-                      setShowOldTasksModal(true);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      width: '100%',
-                      padding: '10px 14px',
-                      border: 'none',
-                      background: 'transparent',
-                      color: '#0284c7',
-                      fontSize: '0.84rem',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                    id="today-tasks-old-history-btn"
-                  >
-                    📋 Old Completed Tasks
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Direct Old Tasks History Chip Button */}
+            <button
+              type="button"
+              onClick={() => {
+                fetchOldTasksHistory();
+                setShowOldTasksModal(true);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 10px',
+                borderRadius: '20px',
+                fontSize: '0.72rem',
+                fontWeight: '800',
+                background: '#eff6ff',
+                color: '#0284c7',
+                border: '1px solid #bae6fd',
+                cursor: 'pointer',
+                outline: 'none',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+              title="View Old Completed Tasks History"
+              id="today-tasks-old-history-btn"
+            >
+              📋 Old Tasks
+            </button>
           </div>
         </div>
 
