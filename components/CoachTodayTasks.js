@@ -223,7 +223,8 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         attSnap,
         weightSnap,
         completedSnap,
-        customTasksSnap
+        customTasksSnap,
+        meetingsSnap
       ] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'diagnosis')),
@@ -232,7 +233,8 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         getDocs(query(collection(db, 'meeting_attendance'), where('date', '>=', threeDaysAgoStr))),
         getDocs(query(collection(db, 'weight_history'), where('date', '>=', threeDaysAgoStr))),
         getDocs(query(collection(db, 'completed_tasks'), where('coachUid', '==', coachUid))),
-        getDocs(query(collection(db, 'coach_custom_tasks'), where('coachUid', '==', coachUid)))
+        getDocs(query(collection(db, 'coach_custom_tasks'), where('coachUid', '==', coachUid))),
+        getDocs(collection(db, 'meetings'))
       ]);
 
       // Diagnosis map in memory
@@ -268,6 +270,9 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       const crmLeads = crmSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const attendanceList = attSnap.docs.map(d => d.data());
       const weightHistoryList = weightSnap.docs.map(d => d.data());
+      const meetingsList = meetingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      const yesterdayMeetings = meetingsList.filter(m => m.recurrence === 'daily' || m.date === yesterdayStr);
       const completedIds = new Set();
       completedSnap.docs.forEach(d => {
         const data = d.data();
@@ -319,23 +324,47 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       // RULE 2: Customer Missed Live Meeting Yesterday Tasks
       // ─────────────────────────────────────────────────────────────
       for (const cust of assignedCustomers) {
-        const attendedYesterday = attendanceList.some(
-          a => a.uid === cust.uid && a.date === yesterdayStr
-        );
-        if (!attendedYesterday) {
-          generatedTasks.push({
-            id: `missed-meeting-${cust.uid}`,
-            type: 'customer_missed_meeting',
-            uid: cust.uid,
-            name: cust.name || cust.fullName || 'Customer',
-            phone: cust.phone || '',
-            goal: cust.diagnosis?.fitnessGoal || '',
-            title: `🌅 Missed Live Meeting Yesterday: ${cust.name || cust.fullName || 'Customer'}`,
-            description: `Customer did not join morning or evening session yesterday (${yesterdayStr})`,
-            urgency: 'today',
-            actionType: 'open_customer_details',
-            customerObj: cust,
-          });
+        if (yesterdayMeetings.length > 0) {
+          for (const m of yesterdayMeetings) {
+            if (m.visibleTo === 'coaches') continue;
+            const attendedYesterday = attendanceList.some(
+              a => a.uid === cust.uid && a.date === yesterdayStr && (a.meetingId === m.id || a.meetingTitle === m.title || a.sessionType === m.title)
+            );
+            if (!attendedYesterday) {
+              generatedTasks.push({
+                id: `missed-meeting-${cust.uid}-${m.id}-${yesterdayStr}`,
+                type: 'customer_missed_meeting',
+                uid: cust.uid,
+                name: cust.name || cust.fullName || 'Customer',
+                phone: cust.phone || '',
+                goal: cust.diagnosis?.fitnessGoal || '',
+                title: `🌅 ${cust.name || cust.fullName || 'Customer'} missed yesterday's ${m.title || 'Live Meeting'}`,
+                description: `Customer did not join "${m.title || 'Live Session'}" yesterday (${yesterdayStr})`,
+                urgency: 'today',
+                actionType: 'open_customer_details',
+                customerObj: cust,
+              });
+            }
+          }
+        } else {
+          const attendedYesterday = attendanceList.some(
+            a => a.uid === cust.uid && a.date === yesterdayStr
+          );
+          if (!attendedYesterday) {
+            generatedTasks.push({
+              id: `missed-meeting-${cust.uid}-${yesterdayStr}`,
+              type: 'customer_missed_meeting',
+              uid: cust.uid,
+              name: cust.name || cust.fullName || 'Customer',
+              phone: cust.phone || '',
+              goal: cust.diagnosis?.fitnessGoal || '',
+              title: `🌅 Missed Live Meeting Yesterday: ${cust.name || cust.fullName || 'Customer'}`,
+              description: `Customer did not join morning or evening session yesterday (${yesterdayStr})`,
+              urgency: 'today',
+              actionType: 'open_customer_details',
+              customerObj: cust,
+            });
+          }
         }
       }
 
@@ -368,22 +397,45 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       // ─────────────────────────────────────────────────────────────
       if (isAdmin) {
         for (const coach of coachUsers) {
-          const coachAttended = attendanceList.some(
-            a => a.uid === coach.uid && (a.date === yesterdayStr || a.date === todayStr)
-          );
-          if (!coachAttended) {
-            generatedTasks.push({
-              id: `coach-missed-meeting-${coach.uid}`,
-              type: 'coach_missed_meeting',
-              uid: coach.uid,
-              name: coach.name,
-              phone: coach.phone || '',
-              goal: '👨‍🏫 Coach',
-              title: `🎓 Coach Missed Training: Coach ${coach.name}`,
-              description: `Coach did not attend live session / scheduled training yesterday (${yesterdayStr})`,
-              urgency: 'overdue',
-              actionType: 'call_phone',
-            });
+          if (yesterdayMeetings.length > 0) {
+            for (const m of yesterdayMeetings) {
+              if (m.visibleTo === 'customers') continue;
+              const coachAttended = attendanceList.some(
+                a => a.uid === coach.uid && a.date === yesterdayStr && (a.meetingId === m.id || a.meetingTitle === m.title || a.sessionType === m.title)
+              );
+              if (!coachAttended) {
+                generatedTasks.push({
+                  id: `coach-missed-${coach.uid}-${m.id}-${yesterdayStr}`,
+                  type: 'coach_missed_meeting',
+                  uid: coach.uid,
+                  name: coach.name,
+                  phone: coach.phone || '',
+                  goal: '👨‍🏫 Coach',
+                  title: `🎓 Coach ${coach.name} missed yesterday's ${m.title || 'Live Session'}`,
+                  description: `Coach did not attend "${m.title || 'Live Session'}" scheduled yesterday (${yesterdayStr})`,
+                  urgency: 'overdue',
+                  actionType: 'call_phone',
+                });
+              }
+            }
+          } else {
+            const coachAttended = attendanceList.some(
+              a => a.uid === coach.uid && (a.date === yesterdayStr || a.date === todayStr)
+            );
+            if (!coachAttended) {
+              generatedTasks.push({
+                id: `coach-missed-meeting-${coach.uid}-${yesterdayStr}`,
+                type: 'coach_missed_meeting',
+                uid: coach.uid,
+                name: coach.name,
+                phone: coach.phone || '',
+                goal: '👨‍🏫 Coach',
+                title: `🎓 Coach ${coach.name} missed yesterday's Live Session`,
+                description: `Coach did not attend live session / scheduled training yesterday (${yesterdayStr})`,
+                urgency: 'overdue',
+                actionType: 'call_phone',
+              });
+            }
           }
         }
       }
