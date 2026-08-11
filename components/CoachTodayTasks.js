@@ -245,7 +245,6 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       const completedIds = new Set(
         completedSnap.docs
           .map(d => d.data())
-          .filter(d => d.date === todayStr)
           .map(d => d.taskId)
       );
 
@@ -266,7 +265,8 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         if (fuDateStr <= todayStr) {
           const isOverdue = fuDateStr < todayStr;
           generatedTasks.push({
-            id: `crm-${lead.id}`,
+            id: `crm-${lead.id}-${fuDateStr}`,
+            legacyId: `crm-${lead.id}`,
             type: 'crm_followup',
             uid: lead.id,
             name: lead.name,
@@ -442,7 +442,11 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       const urgencyOrder = { overdue: 0, today: 1, upcoming: 2 };
       generatedTasks.sort((a, b) => urgencyOrder[a.urgency] - urgencyOrder[b.urgency]);
 
-      const pendingTasks = generatedTasks.filter(t => !completedIds.has(t.id));
+      const pendingTasks = generatedTasks.filter(t => {
+        if (completedIds.has(t.id)) return false;
+        if (t.legacyId && completedIds.has(t.legacyId)) return false;
+        return true;
+      });
       setTasks(pendingTasks);
     } catch (err) {
       console.error('CoachTodayTasks fetch error:', err);
@@ -479,11 +483,20 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
     if (e) e.stopPropagation();
     try {
       setTasks(prev => prev.filter(t => t.id !== task.id));
+
+      const leadId = task.leadObj?.id || (task.type === 'crm_followup' ? task.uid : null);
+      const taskDate = task.leadObj?.followUpDate || task.taskDate || todayStr;
+
       await addDoc(collection(db, 'completed_tasks'), {
         taskId: task.id,
+        legacyTaskId: task.legacyId || task.id,
         coachUid: coachUid || '',
         date: todayStr,
         taskTitle: task.title,
+        taskDescription: task.description || '',
+        leadId: leadId || '',
+        leadName: task.name || '',
+        taskDate: taskDate || todayStr,
         completedAt: serverTimestamp(),
       });
     } catch (err) {

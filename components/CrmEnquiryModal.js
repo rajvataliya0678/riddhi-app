@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const STATUS_OPTIONS = ['New Lead', '1 Session', '2 Session', 'Closing', 'Waiting List', 'Rejected'];
 const SOURCE_OPTIONS = ['Referral', 'Social Media', 'Walk-in', 'Bulk Import', 'Other'];
@@ -78,6 +80,34 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
   const [error, setError]                     = useState('');
   const [loadError, setLoadError]             = useState('');
   const [submitting, setSubmitting]           = useState(false);
+
+  // Old Completed Tasks History state
+  const [showOldTasks, setShowOldTasks]                   = useState(false);
+  const [completedTasksHistory, setCompletedTasksHistory] = useState([]);
+  const [loadingOldTasks, setLoadingOldTasks]             = useState(false);
+
+  const fetchOldTasks = async () => {
+    if (!enquiry?.id) return;
+    setLoadingOldTasks(true);
+    try {
+      const snap = await getDocs(collection(db, 'completed_tasks'));
+      const list = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(d => (d.leadId && d.leadId === enquiry.id) || (d.taskId && d.taskId.includes(enquiry.id)));
+
+      list.sort((a, b) => {
+        const timeA = a.completedAt?.toDate ? a.completedAt.toDate().getTime() : (a.date ? new Date(a.date).getTime() : 0);
+        const timeB = b.completedAt?.toDate ? b.completedAt.toDate().getTime() : (b.date ? new Date(b.date).getTime() : 0);
+        return timeB - timeA;
+      });
+
+      setCompletedTasksHistory(list);
+    } catch (err) {
+      console.error('Error fetching old tasks:', err);
+    } finally {
+      setLoadingOldTasks(false);
+    }
+  };
 
   // Escape key → close modal (safety for mobile freeze)
   useEffect(() => {
@@ -392,7 +422,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {isEditing && (onConvert || onDelete) && (
+            {isEditing && (
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -429,6 +459,31 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                       padding: '6px 0',
                     }}
                   >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenu(false);
+                        fetchOldTasks();
+                        setShowOldTasks(true);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '10px 14px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#0284c7',
+                        fontSize: '0.84rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                      id="crm-menu-old-tasks-action"
+                    >
+                      📋 Old Completed Tasks
+                    </button>
                     {onConvert && (enquiry.status !== 'Closing' && enquiry.status !== 'Converted') && (
                       <button
                         type="button"
@@ -450,6 +505,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                           fontWeight: '800',
                           cursor: 'pointer',
                           textAlign: 'left',
+                          borderTop: '1px solid var(--border-color)',
                         }}
                         id="crm-menu-convert-action"
                       >
@@ -1041,6 +1097,67 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           </div>
         </form>
       </div>
+
+      {/* Old Tasks Modal Overlay */}
+      {showOldTasks && (
+        <div className="modal-overlay" style={{ zIndex: 100000 }} onClick={() => setShowOldTasks(false)}>
+          <div className="modal-card" style={{ maxWidth: '520px', width: '92vw', maxHeight: '82vh', overflowY: 'auto', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800' }}>
+                  📋 Old Completed Tasks
+                </h4>
+                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Lead: {enquiry?.name}
+                </p>
+              </div>
+              <button onClick={() => setShowOldTasks(false)} className="modal-close">&times;</button>
+            </div>
+
+            {loadingOldTasks ? (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: '0.85rem', fontWeight: '700' }}>⏳ Loading completed tasks...</p>
+              </div>
+            ) : completedTasksHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📂</div>
+                <p style={{ fontSize: '0.85rem', fontWeight: '800', margin: 0 }}>No completed tasks found for this lead yet.</p>
+                <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Tasks marked Done from dashboard will appear here with task date & completion date.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {completedTasksHistory.map((task, idx) => {
+                  const completedDateStr = task.completedAt?.toDate
+                    ? new Date(task.completedAt.toDate()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                    : (task.date || '—');
+                  const scheduledDateStr = task.taskDate || task.date || '—';
+
+                  return (
+                    <div key={task.id || idx} style={{ padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontWeight: '800', fontSize: '0.86rem', color: 'var(--text-main)', marginBottom: '6px' }}>
+                        {task.taskTitle || 'CRM Follow-up Task'}
+                      </div>
+                      {task.taskDescription && (
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                          {task.taskDescription}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                        <span>🗓️ Task Date: <strong style={{ color: 'var(--text-main)' }}>{scheduledDateStr}</strong></span>
+                        <span>✅ Completed Date: <strong style={{ color: '#16a34a' }}>{completedDateStr}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: '16px', textAlign: 'right' }}>
+              <button type="button" onClick={() => setShowOldTasks(false)} className="btn btn-secondary btn-sm" style={{ width: 'auto' }}>✕ Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );
