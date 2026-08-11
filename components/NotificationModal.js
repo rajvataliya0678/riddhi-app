@@ -5,6 +5,18 @@ import { collection, query, getDocs, orderBy, updateDoc, doc, arrayUnion } from 
 import { db } from '@/lib/firebase';
 import { Bell, X, ExternalLink, Clock, CheckCheck } from 'lucide-react';
 
+function parseTimestamp(ts) {
+  if (!ts) return null;
+  if (typeof ts.toDate === 'function') return ts.toDate();
+  if (ts instanceof Date) return ts;
+  if (typeof ts === 'number') return new Date(ts);
+  if (typeof ts === 'string') {
+    const parsed = new Date(ts);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
 export default function NotificationModal({ uid, userRole, userCreatedAt, onClose, onReadUpdated }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,11 +32,7 @@ export default function NotificationModal({ uid, userRole, userCreatedAt, onClos
         query(collection(db, 'broadcast_notifications'), orderBy('sentAt', 'desc'))
       );
 
-      const regDate = userCreatedAt?.toDate
-        ? userCreatedAt.toDate()
-        : userCreatedAt
-          ? new Date(userCreatedAt)
-          : new Date(0);
+      const regDate = parseTimestamp(userCreatedAt);
 
       const filtered = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
@@ -32,8 +40,10 @@ export default function NotificationModal({ uid, userRole, userCreatedAt, onClos
           if (n.deleted) return false;
 
           // Sent time filter: ONLY show notifications sent AFTER user registered
-          const sentDate = n.sentAt?.toDate ? n.sentAt.toDate() : new Date(n.sentAt || 0);
-          if (sentDate < regDate) return false;
+          const sentDate = parseTimestamp(n.sentAt);
+          if (regDate && sentDate && sentDate.getTime() < (regDate.getTime() - 60000)) {
+            return false;
+          }
 
           // Audience filter
           if (n.audience === 'all') return true;

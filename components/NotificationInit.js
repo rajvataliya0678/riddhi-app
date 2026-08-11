@@ -25,20 +25,29 @@ import {
   setupActionListener,
 } from '@/lib/meetingNotifications';
 
+// Helper: Robust timestamp parser for Firestore Timestamps, Date objects, ISO strings, etc.
+function parseTimestamp(ts) {
+  if (!ts) return null;
+  if (typeof ts.toDate === 'function') return ts.toDate();
+  if (ts instanceof Date) return ts;
+  if (typeof ts === 'number') return new Date(ts);
+  if (typeof ts === 'string') {
+    const parsed = new Date(ts);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+}
+
 // ── Real-Time Broadcast Notification Listener (0-Second Instant Delivery) ──────
 function subscribeBroadcastNotifications(uid, userRole, userCreatedAt) {
   if (!uid) return () => {};
 
-  const regDate = userCreatedAt?.toDate
-    ? userCreatedAt.toDate()
-    : userCreatedAt
-      ? new Date(userCreatedAt)
-      : new Date(0);
+  const regDate = parseTimestamp(userCreatedAt);
 
   const q = query(
     collection(db, 'broadcast_notifications'),
     orderBy('sentAt', 'desc'),
-    limit(10)
+    limit(20)
   );
 
   const unsubscribe = onSnapshot(q, async (snap) => {
@@ -50,8 +59,10 @@ function subscribeBroadcastNotifications(uid, userRole, userCreatedAt) {
           if ((n.readBy || []).includes(uid)) return false; // already seen
 
           // Registration time filter: ONLY push notifications sent AFTER user registered
-          const sentDate = n.sentAt?.toDate ? n.sentAt.toDate() : new Date(n.sentAt || 0);
-          if (sentDate < regDate) return false;
+          const sentDate = parseTimestamp(n.sentAt);
+          if (regDate && sentDate && sentDate.getTime() < (regDate.getTime() - 60000)) {
+            return false;
+          }
 
           // Audience filter
           if (n.audience === 'all') return true;
@@ -71,7 +82,7 @@ function subscribeBroadcastNotifications(uid, userRole, userCreatedAt) {
           channelId: 'meeting_reminders',
           sound: 'session_reminder',
           extra: { link: n.link || '' },
-          schedule: { at: new Date(Date.now() + 200) }, // Instant 0s trigger
+          schedule: { at: new Date(Date.now() + 100) }, // Instant 0.1s trigger
         }));
 
         await LocalNotifications.schedule({ notifications });
@@ -98,12 +109,14 @@ function subscribeMeetingAutoBroadcast(uid, userRole) {
   const q = query(collection(db, 'meetings'));
   const todayStr = new Date().toISOString().split('T')[0];
   const notifiedMeetings = new Set();
+  let currentDocs = [];
 
-  const checkAndNotify = (snapDocs) => {
+  const checkAndNotify = () => {
+    if (!currentDocs || currentDocs.length === 0) return;
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-    snapDocs.forEach(d => {
+    currentDocs.forEach(d => {
       const m = { id: d.id, ...d.data() };
       if (!m.time) return;
 
@@ -147,7 +160,7 @@ function subscribeMeetingAutoBroadcast(uid, userRole) {
               channelId: 'meeting_reminders',
               actionTypeId: 'MEETING_ACTIONS',
               extra: { meetingUrl: m.meetingUrl || '' },
-              schedule: { at: new Date(Date.now() + 200) },
+              schedule: { at: new Date(Date.now() + 100) },
             }]
           }).catch(err => console.warn('[AutoMeetingNotif] Schedule error:', err));
         }
@@ -156,13 +169,12 @@ function subscribeMeetingAutoBroadcast(uid, userRole) {
   };
 
   const unsubscribe = onSnapshot(q, (snap) => {
-    checkAndNotify(snap.docs);
+    currentDocs = snap.docs;
+    checkAndNotify();
   }, (err) => console.warn('[NotificationInit] Meeting snapshot error:', err));
 
-  // Check every 30 seconds for exact minute match
-  const timer = setInterval(() => {
-    onSnapshot(q, (snap) => checkAndNotify(snap.docs))();
-  }, 30000);
+  // Check every 10 seconds for exact minute match without re-subscribing!
+  const timer = setInterval(checkAndNotify, 10000);
 
   return () => {
     unsubscribe();

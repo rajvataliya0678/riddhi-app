@@ -102,18 +102,28 @@ export default function DashboardPage() {
     if (!user) return;
     try {
       const snap = await getDocs(query(collection(db, 'broadcast_notifications'), orderBy('sentAt', 'desc')));
-      const userRegDate = userData?.createdAt?.toDate
-        ? userData.createdAt.toDate()
-        : user?.metadata?.creationTime
-          ? new Date(user.metadata.creationTime)
-          : new Date(0);
+      const parseTs = (ts) => {
+        if (!ts) return null;
+        if (typeof ts.toDate === 'function') return ts.toDate();
+        if (ts instanceof Date) return ts;
+        if (typeof ts === 'number') return new Date(ts);
+        if (typeof ts === 'string') {
+          const parsed = new Date(ts);
+          if (!isNaN(parsed.getTime())) return parsed;
+        }
+        return null;
+      };
+
+      const userRegDate = parseTs(userData?.createdAt) || parseTs(user?.metadata?.creationTime);
 
       const count = snap.docs.filter(d => {
         const n = d.data();
         if (n.deleted) return false;
 
-        const sentDate = n.sentAt?.toDate ? n.sentAt.toDate() : new Date(n.sentAt || 0);
-        if (sentDate < userRegDate) return false;
+        const sentDate = parseTs(n.sentAt);
+        if (userRegDate && sentDate && sentDate.getTime() < (userRegDate.getTime() - 60000)) {
+          return false;
+        }
 
         if (n.audience === 'all' || (n.audience === 'coaches' && isCoach) || (n.audience === 'customers' && role === 'customer')) {
           return !(n.readBy || []).includes(user.uid);
