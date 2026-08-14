@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { openWhatsAppChat } from '@/lib/whatsapp';
 
 const STATUS_OPTIONS = ['New Lead', '1 Session', '2 Session', 'Closing', 'Waiting List', 'Rejected'];
 const SOURCE_OPTIONS = ['Referral', 'Social Media', 'Walk-in', 'Bulk Import', 'Other'];
@@ -613,15 +614,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const rawPhone = (phone || '').replace(/\D/g, '');
-                        const formattedPhone = rawPhone.startsWith('91') && rawPhone.length === 12
-                          ? rawPhone
-                          : rawPhone.length === 10
-                            ? `91${rawPhone}`
-                            : rawPhone;
-                        window.open(`https://wa.me/${formattedPhone}`, '_blank');
-                      }}
+                      onClick={() => openWhatsAppChat(phone)}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: '4px',
                         padding: '3px 10px', borderRadius: '4px',

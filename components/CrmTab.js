@@ -9,6 +9,7 @@ import BulkAddLeadsModal from './BulkAddLeadsModal';
 import ConvertLeadModal from './ConvertLeadModal';
 import { ClipboardList, MoreVertical, Trash2, Edit3, UserCheck, MessageCircle, Search } from 'lucide-react';
 import { logCrmCall } from '@/lib/logCrmCall';
+import { openWhatsAppChat } from '@/lib/whatsapp';
 
 const STATUS_OPTIONS = [
   'All',
@@ -818,13 +819,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const rawPhone = (enquiry.phone || '').replace(/\D/g, '');
-                                const formattedPhone = rawPhone.startsWith('91') && rawPhone.length === 12
-                                  ? rawPhone
-                                  : rawPhone.length === 10
-                                    ? `91${rawPhone}`
-                                    : rawPhone;
-                                window.open(`https://wa.me/${formattedPhone}`, '_blank');
+                                openWhatsAppChat(enquiry.phone);
                               }}
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -929,13 +924,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
                             type="button"
                             onClick={() => {
                               setActiveMenuId(null);
-                              const rawPhone = (enquiry.phone || '').replace(/\D/g, '');
-                              const phone = rawPhone.startsWith('91') && rawPhone.length === 12
-                                ? rawPhone
-                                : rawPhone.length === 10
-                                  ? `91${rawPhone}`
-                                  : rawPhone;
-                              window.open(`https://wa.me/${phone}`, '_blank');
+                              openWhatsAppChat(enquiry.phone);
                             }}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '8px',

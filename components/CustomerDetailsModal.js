@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { MonthAttendanceCalendar } from './AttendanceTab';
+import { openWhatsAppChat } from '@/lib/whatsapp';
 
 const CALL_OUTCOME_OPTIONS = [
   { label: '📞 Called',                 color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd' },
@@ -254,15 +255,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  const rawPhone = (phone || '').replace(/\D/g, '');
-                  const formattedPhone = rawPhone.startsWith('91') && rawPhone.length === 12
-                    ? rawPhone
-                    : rawPhone.length === 10
-                      ? `91${rawPhone}`
-                      : rawPhone;
-                  window.open(`https://wa.me/${formattedPhone}`, '_blank');
-                }}
+                onClick={() => openWhatsAppChat(phone || customer?.phone)}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '6px',
                   padding: '6px 14px', borderRadius: '6px', cursor: 'pointer',

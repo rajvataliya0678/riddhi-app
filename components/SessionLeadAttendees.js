@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } fr
 import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
 import CrmEnquiryModal from './CrmEnquiryModal';
+import { openWhatsAppChat } from '@/lib/whatsapp';
 
 // Quick Reschedule / Schedule Next Meeting Modal Component
 function QuickRescheduleModal({ lead, onClose, onSaved }) {
@@ -340,15 +341,7 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            const rawPhone = (lead.phone || '').replace(/\D/g, '');
-                            const phone = rawPhone.startsWith('91') && rawPhone.length === 12
-                              ? rawPhone
-                              : rawPhone.length === 10
-                                ? `91${rawPhone}`
-                                : rawPhone;
-                            window.open(`https://wa.me/${phone}`, '_blank');
-                          }}
+                          onClick={() => openWhatsAppChat(lead.phone)}
                           style={{
                             color: '#15803d', fontSize: '0.74rem', fontWeight: '800',
                             background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '5px 10px', borderRadius: '6px',
