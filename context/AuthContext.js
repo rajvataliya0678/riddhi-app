@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
+  sendPasswordResetEmail,
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
@@ -239,7 +240,9 @@ export function AuthContextProvider({ children }) {
         error.code === 'auth/user-not-found' ||
         error.code === 'auth/invalid-email'
       ) {
-        errMsg = 'Incorrect mobile number / email or password. Please try again.';
+        errMsg = 'Incorrect mobile number / email or password. Please check and try again.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errMsg = 'ખોટો પાસવર્ડ વધારે વાર નાખવાને કારણે આ એકાઉન્ટ સિક્યોરિટી માટે લોક થયું છે. કૃપા કરીને થોડીવાર (૧૫-૩૦ મિનિટ) પછી ફરી પ્રયાસ કરો અથવા પાસવર્ડ રીસેટ કરો. (Account temporarily locked due to multiple failed login attempts. Please try again later or reset password.)';
       }
       return { success: false, error: errMsg };
     }
@@ -274,10 +277,19 @@ export function AuthContextProvider({ children }) {
     }
   }, [language]);
 
+  const resetPassword = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      return { success: true };
+    } catch (err) {
+      console.error('Password reset error:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, userData, loading, language, changeLanguage, t, signUp, login, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ user, userData, loading, language, changeLanguage, t, signUp, login, logout, refreshProfile, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
 }
-
