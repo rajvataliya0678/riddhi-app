@@ -705,7 +705,7 @@ export default function DashboardPage() {
           {activeTab === 'followup' && isCoach && <FollowUpTab coachUid={user?.uid || ''} coachName={userData?.name || ''} />}
 
           {/* ── CRM TAB ── */}
-          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} userRole={role} />}
+          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} />}
 
           {/* ── CRM ANALYTICS TAB ── */}
           {activeTab === 'crm_analytics' && isCoach && <CrmAnalyticsTab coachUid={user?.uid || ''} />}

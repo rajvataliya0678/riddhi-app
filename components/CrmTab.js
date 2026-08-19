@@ -179,7 +179,7 @@ class ModalErrorBoundary extends Component {
   }
 }
 
-export default function CrmTab({ coachUid, userRole = 'coach' }) {
+export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' }) {
   const [enquiries, setEnquiries]   = useState([]);
   const [coaches, setCoaches]       = useState([]);
   const [loading, setLoading]       = useState(true);
