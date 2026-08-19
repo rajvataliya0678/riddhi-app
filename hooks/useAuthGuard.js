@@ -21,7 +21,7 @@ export function useAuthGuard() {
       return;
     }
 
-    // 3. User is logged in — wait until Firestore user document is fetched
+    // 3. User is logged in — wait until Firestore user document / fallback is set in AuthContext
     if (userData === null) return;
 
     const role = userData.role || 'customer';

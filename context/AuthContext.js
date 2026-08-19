@@ -67,11 +67,26 @@ export function AuthContextProvider({ children }) {
           updateDoc(targetRef, { preferredLanguage: currentLang }).catch(err => console.warn(err));
         }
         return data;
+      } else {
+        // Fallback profile if user document does not exist in Firestore
+        const fallbackData = {
+          uid,
+          role: 'customer',
+          registrationCompleted: false,
+        };
+        setUserData(fallbackData);
+        return fallbackData;
       }
     } catch (error) {
       console.error("Error fetching user data from Firestore:", error);
+      const fallbackData = {
+        uid,
+        role: 'customer',
+        registrationCompleted: false,
+      };
+      setUserData(fallbackData);
+      return fallbackData;
     }
-    return null;
   };
 
   useEffect(() => {
@@ -124,8 +139,9 @@ export function AuthContextProvider({ children }) {
       setUser(userCredential.user);
       return { success: true };
     } catch (error) {
-      setLoading(false);
       return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,21 +172,25 @@ export function AuthContextProvider({ children }) {
 
       if (!emailToUse.includes('@')) {
         const cleanPhone = emailToUse.replace(/[^0-9]/g, '');
-        const usersRef = collection(db, 'users');
-        const allUsersSnap = await getDocs(usersRef);
+        try {
+          const usersRef = collection(db, 'users');
+          const allUsersSnap = await getDocs(usersRef);
 
-        const found = allUsersSnap.docs.find(d => {
-          const rawPhone = d.data().phone;
-          const p = String(rawPhone || '').replace(/[^0-9]/g, '');
-          return p && cleanPhone && (p === cleanPhone || p.endsWith(cleanPhone) || cleanPhone.endsWith(p));
-        });
+          const found = allUsersSnap.docs.find(d => {
+            const rawPhone = d.data().phone;
+            const p = String(rawPhone || '').replace(/[^0-9]/g, '');
+            return p && cleanPhone && (p === cleanPhone || p.endsWith(cleanPhone) || cleanPhone.endsWith(p));
+          });
 
-        if (found) {
-          foundUserDoc = found;
-          emailToUse = found.data().email || `${cleanPhone}@vriddhi.local`;
-        } else {
-          setLoading(false);
-          return { success: false, error: 'No account found with this mobile number. Please check or sign up.' };
+          if (found) {
+            foundUserDoc = found;
+            emailToUse = found.data().email || `${cleanPhone}@vriddhi.local`;
+          } else {
+            return { success: false, error: 'No account found with this mobile number. Please check or sign up.' };
+          }
+        } catch (phoneErr) {
+          console.warn('Phone lookup query error:', phoneErr);
+          emailToUse = `${cleanPhone}@vriddhi.local`;
         }
       }
 
@@ -232,7 +252,6 @@ export function AuthContextProvider({ children }) {
       setUser(userCredential.user);
       return { success: true, userData: data };
     } catch (error) {
-      setLoading(false);
       let errMsg = error.message;
       if (
         error.code === 'auth/invalid-credential' ||
@@ -245,6 +264,8 @@ export function AuthContextProvider({ children }) {
         errMsg = 'ખોટો પાસવર્ડ વધારે વાર નાખવાને કારણે આ એકાઉન્ટ સિક્યોરિટી માટે લોક થયું છે. કૃપા કરીને થોડીવાર (૧૫-૩૦ મિનિટ) પછી ફરી પ્રયાસ કરો અથવા પાસવર્ડ રીસેટ કરો. (Account temporarily locked due to multiple failed login attempts. Please try again later or reset password.)';
       }
       return { success: false, error: errMsg };
+    } finally {
+      setLoading(false);
     }
   };
 

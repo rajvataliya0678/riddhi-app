@@ -2,11 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import LanguageToggle from '@/components/LanguageToggle';
 
 export default function LoginPage() {
+  const router = useRouter();
   const { loading: authLoading } = useAuthGuard();
   const { login, resetPassword, t } = useAuth();
   
