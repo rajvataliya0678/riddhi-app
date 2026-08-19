@@ -386,15 +386,24 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
   // Active pipeline excludes leads converted to customers
   const activeEnquiries = enquiries.filter(e => !e.isConverted && !e.convertedCustomerUid && e.status !== 'Converted' && e.status !== 'Converted / Active Customer');
 
-  const getFilteredEnquiries = () => {
-    let filtered = [...activeEnquiries];
-
-    // Strict lead scoping: By default, show ONLY leads assigned to logged in user (coach/admin)
+  // Scoped enquiries based on selected staff filter (default: 'my_leads')
+  const getScopedEnquiries = () => {
     if (filterStaff === 'my_leads' || userRole !== 'admin') {
-      filtered = filtered.filter(e => e.coachId === coachUid || (e.staffName && e.staffName.toLowerCase() === (coachName || '').toLowerCase()));
+      return activeEnquiries.filter(e => {
+        if (e.coachId === coachUid) return true;
+        if (e.staffName && coachName && e.staffName.toLowerCase() === coachName.toLowerCase()) return true;
+        return false;
+      });
     } else if (filterStaff !== 'All') {
-      filtered = filtered.filter(e => e.coachId === filterStaff || e.staffName === filterStaff);
+      return activeEnquiries.filter(e => e.coachId === filterStaff || e.staffName === filterStaff);
     }
+    return activeEnquiries;
+  };
+
+  const scopedEnquiries = getScopedEnquiries();
+
+  const getFilteredEnquiries = () => {
+    let filtered = [...scopedEnquiries];
 
     if (filterStatus !== 'All') {
       filtered = filtered.filter(e => e.status === filterStatus);
@@ -459,14 +468,14 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
   const filteredEnquiries = getFilteredEnquiries();
 
   const stats = {
-    total: activeEnquiries.length,
-    pendingCall: activeEnquiries.filter(e => (!e.callLogs || e.callLogs.length === 0) && !e.nextMeetingDate).length,
-    newLead: activeEnquiries.filter(e => e.status === 'New Lead' || e.status === 'New').length,
-    sess1: activeEnquiries.filter(e => e.status === '1 Session').length,
-    sess2: activeEnquiries.filter(e => e.status === '2 Session').length,
-    closing: activeEnquiries.filter(e => e.status === 'Closing').length,
-    waiting: activeEnquiries.filter(e => e.status === 'Waiting List').length,
-    rejected: activeEnquiries.filter(e => e.status === 'Rejected' || e.status === 'Not Interested').length,
+    total: scopedEnquiries.length,
+    pendingCall: scopedEnquiries.filter(e => (!e.callLogs || e.callLogs.length === 0) && !e.nextMeetingDate).length,
+    newLead: scopedEnquiries.filter(e => e.status === 'New Lead' || e.status === 'New').length,
+    sess1: scopedEnquiries.filter(e => e.status === '1 Session').length,
+    sess2: scopedEnquiries.filter(e => e.status === '2 Session').length,
+    closing: scopedEnquiries.filter(e => e.status === 'Closing').length,
+    waiting: scopedEnquiries.filter(e => e.status === 'Waiting List').length,
+    rejected: scopedEnquiries.filter(e => e.status === 'Rejected' || e.status === 'Not Interested').length,
   };
 
   if (loading) {
