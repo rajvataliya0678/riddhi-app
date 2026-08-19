@@ -46,6 +46,13 @@ export function AuthContextProvider({ children }) {
       }
 
       if (data) {
+        // Auto-mark registrationCompleted = true for existing users where this property was not explicitly set to false
+        if (data.registrationCompleted === undefined) {
+          data.registrationCompleted = true;
+          const targetRef = doc(db, 'users', data.uid || uid);
+          updateDoc(targetRef, { registrationCompleted: true }).catch(err => console.warn(err));
+        }
+
         setUserData(data);
 
         const isNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
