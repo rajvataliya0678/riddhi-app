@@ -37,6 +37,10 @@ export function AuthContextProvider({ children }) {
       const currentUser = auth.currentUser;
       const userEmail = currentUser?.email?.toLowerCase().trim() || '';
 
+      // Determine default role: main admin email gets 'admin'
+      const isAdminEmail = userEmail.includes('rajvataliya0678@gmail.com') || userEmail.startsWith('admin');
+      const defaultRole = isAdminEmail ? 'admin' : 'customer';
+
       // 1. Direct getDoc by UID
       const docRef = doc(db, 'users', uid);
       let docSnap = await getDoc(docRef);
@@ -69,6 +73,9 @@ export function AuthContextProvider({ children }) {
         // Ensure UID field & registrationCompleted is set
         data.uid = uid;
         data.registrationCompleted = true;
+        if (isAdminEmail) {
+          data.role = 'admin';
+        }
 
         const targetRef = doc(db, 'users', uid);
         await setDoc(targetRef, data, { merge: true }).catch(err => console.warn(err));
@@ -115,9 +122,11 @@ export function AuthContextProvider({ children }) {
         const fallbackData = {
           uid,
           email: currentUser?.email || '',
-          role: 'customer',
+          role: defaultRole,
           registrationCompleted: true,
         };
+        const targetRef = doc(db, 'users', uid);
+        await setDoc(targetRef, fallbackData, { merge: true }).catch(err => console.warn(err));
         setUserData(fallbackData);
         return fallbackData;
       }
@@ -125,7 +134,8 @@ export function AuthContextProvider({ children }) {
       console.error("Error fetching user data from Firestore:", error);
       const fallbackData = {
         uid,
-        role: 'customer',
+        email: auth.currentUser?.email || '',
+        role: (auth.currentUser?.email?.includes('rajvataliya0678@gmail.com')) ? 'admin' : 'customer',
         registrationCompleted: true,
       };
       setUserData(fallbackData);
