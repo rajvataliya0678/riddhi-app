@@ -79,13 +79,20 @@ export default function DashboardPage() {
     if (!user) return;
     try {
       setLoadingData(true);
+      const userEmail = user.email ? user.email.toLowerCase().trim() : '';
 
-      const [diagSnap, weightSnap] = await Promise.all([
-        getDocs(query(collection(db, 'diagnosis'), where('uid', '==', user.uid))),
-        getDocs(query(collection(db, 'weight_history'), where('uid', '==', user.uid)))
-      ]);
-
+      // Query diagnosis by uid or email
+      let diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', user.uid)));
+      if (diagSnap.empty && userEmail) {
+        diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('email', '==', userEmail)));
+      }
       if (!diagSnap.empty) setDiagnosis(diagSnap.docs[0].data());
+
+      // Query weight history by uid or email
+      let weightSnap = await getDocs(query(collection(db, 'weight_history'), where('uid', '==', user.uid)));
+      if (weightSnap.empty && userEmail) {
+        weightSnap = await getDocs(query(collection(db, 'weight_history'), where('email', '==', userEmail)));
+      }
 
       const history = weightSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       history.sort((a, b) => new Date(b.date) - new Date(a.date));

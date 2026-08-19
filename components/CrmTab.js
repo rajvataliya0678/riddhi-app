@@ -237,8 +237,10 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
       setCoaches(coachesList);
     }).catch(console.error);
 
-    // Real-time live listener for CRM enquiries
-    const crmQuery = query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid));
+    // Real-time live listener for CRM enquiries (Admins / Club Owners see all enquiries across all staff)
+    const crmQuery = userRole === 'admin'
+      ? collection(db, 'crm_enquiries')
+      : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid));
     const unsubscribe = onSnapshot(crmQuery, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       list.sort((a, b) => {
