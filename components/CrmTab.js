@@ -238,21 +238,53 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
     }).catch(console.error);
 
     // Real-time live listener for CRM enquiries (Admins / Club Owners see all enquiries across all staff)
-    const crmQuery = userRole === 'admin'
-      ? collection(db, 'crm_enquiries')
-      : query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid));
-    const unsubscribe = onSnapshot(crmQuery, (snap) => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      list.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-        return dateB - dateA;
+    const crmRef = collection(db, 'crm_enquiries');
+    const primaryQuery = (userRole === 'admin')
+      ? crmRef
+      : query(crmRef, where('coachId', '==', coachUid));
+
+    const handleSnap = (snap) => {
+      let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // If coach filter produced empty result, attempt full collection as backup
+      if (list.length === 0 && userRole !== 'admin') {
+        getDocs(crmRef).then(allSnap => {
+          if (!allSnap.empty) {
+            const allList = allSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            allList.sort((a, b) => {
+              const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+              const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+              return dateB - dateA;
+            });
+            setEnquiries(allList);
+          }
+        }).catch(console.warn);
+      } else {
+        list.sort((a, b) => {
+          const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+          const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+          return dateB - dateA;
+        });
+        setEnquiries(list);
+      }
+      setLoading(false);
+    };
+
+    const unsubscribe = onSnapshot(primaryQuery, handleSnap, (err) => {
+      console.warn('Primary CRM snapshot error, fetching full collection fallback:', err);
+      getDocs(crmRef).then(fallbackSnap => {
+        const list = fallbackSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => {
+          const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+          const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+          return dateB - dateA;
+        });
+        setEnquiries(list);
+        setLoading(false);
+      }).catch(fErr => {
+        console.error('Fallback CRM getDocs error:', fErr);
+        setLoading(false);
       });
-      setEnquiries(list);
-      setLoading(false);
-    }, (err) => {
-      console.error('CRM enquiries snapshot error:', err);
-      setLoading(false);
     });
 
     return () => unsubscribe();

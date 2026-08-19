@@ -699,7 +699,7 @@ export default function DashboardPage() {
           )}
 
           {/* ── MY CUSTOMERS TAB ── */}
-          {activeTab === 'customers' && isCoach && <MyCustomersTab coachUid={user?.uid || ''} />}
+          {activeTab === 'customers' && isCoach && <MyCustomersTab coachUid={user?.uid || ''} userRole={role} />}
 
           {/* ── 10-DAY FOLLOW-UP TAB ── */}
           {activeTab === 'followup' && isCoach && <FollowUpTab coachUid={user?.uid || ''} coachName={userData?.name || ''} />}

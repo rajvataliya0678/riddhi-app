@@ -161,7 +161,7 @@ function StatusChip({ daysCompleted }) {
   );
 }
 
-export default function MyCustomersTab({ coachUid, coachName }) {
+export default function MyCustomersTab({ coachUid, coachName, userRole }) {
   const [customers, setCustomers]       = useState([]);
   const [followupsMap, setFollowupsMap] = useState({});
   const [attendanceMap, setAttendanceMap] = useState({});
@@ -185,7 +185,7 @@ export default function MyCustomersTab({ coachUid, coachName }) {
     setAutoCallLogFocus(false);
   };
 
-  useEffect(() => { fetchData(); }, [coachUid]);
+  useEffect(() => { fetchData(); }, [coachUid, userRole]);
 
   const fetchData = async () => {
     try {
@@ -195,10 +195,18 @@ export default function MyCustomersTab({ coachUid, coachName }) {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
+      const usersQuery = (userRole === 'admin')
+        ? collection(db, 'users')
+        : query(collection(db, 'users'), where('coachId', '==', coachUid));
+
+      const followupsQuery = (userRole === 'admin')
+        ? collection(db, 'customer_followups')
+        : query(collection(db, 'customer_followups'), where('coachId', '==', coachUid));
+
       // 1. Parallel fetch for users, followups, and attendance
       const [usersSnap, followupsSnap, attSnap] = await Promise.all([
-        getDocs(query(collection(db, 'users'), where('coachId', '==', coachUid))),
-        getDocs(query(collection(db, 'customer_followups'), where('coachId', '==', coachUid))),
+        getDocs(usersQuery),
+        getDocs(followupsQuery),
         getDocs(query(collection(db, 'meeting_attendance'), where('date', '>=', thirtyDaysAgoStr)))
       ]);
 
