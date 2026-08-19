@@ -16,6 +16,7 @@ export default function AdminTab({ currentAdminUid }) {
   const [users, setUsers] = useState([]);
   const [coaches, setCoaches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [permissionError, setPermissionError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('All');
   const [activeMenuUid, setActiveMenuUid] = useState(null);
@@ -25,6 +26,7 @@ export default function AdminTab({ currentAdminUid }) {
 
   useEffect(() => {
     setLoading(true);
+    setPermissionError(false);
     const unsubscribe = onSnapshot(collection(db, 'users'), (snap) => {
       const list = snap.docs.map(d => ({ ...d.data() }));
       list.sort((a, b) => {
@@ -34,9 +36,11 @@ export default function AdminTab({ currentAdminUid }) {
       });
       setUsers(list);
       setCoaches(list.filter(u => u.role === 'coach' || u.role === 'admin'));
+      setPermissionError(false);
       setLoading(false);
     }, (err) => {
       console.error('Error in users real-time listener:', err);
+      setPermissionError(true);
       setLoading(false);
     });
 
@@ -200,6 +204,24 @@ export default function AdminTab({ currentAdminUid }) {
           Manage all users, roles, and coach assignments
         </p>
       </div>
+
+      {permissionError && (
+        <div className="alert alert-danger" style={{ marginBottom: '20px', padding: '16px', borderRadius: '12px' }}>
+          <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '4px' }}>
+            ⚠️ Cloud Firestore Rules Permission Notice
+          </div>
+          <p style={{ fontSize: '0.85rem', marginBottom: '8px' }}>
+            તમારા Firebase ડેટાબેઝ (`vriddhi-76142`) ના Firestore Security Rules મા કલેક્શન રીડ પરમિશન ઓટો-એક્સપાયર થયેલ હોઈ શકે છે.
+          </p>
+          <p style={{ fontSize: '0.82rem', fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '10px', borderRadius: '6px', whiteSpace: 'pre-wrap' }}>
+            Firebase Console ➔ Build ➔ Cloud Firestore ➔ Rules મા આ 1 લાઇન પેસ્ટ કરીને Publish કરો:
+            {`\nrules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if request.auth != null;\n    }\n  }\n}`}
+          </p>
+          <button onClick={() => fetchAllUsers()} className="btn btn-primary btn-sm" style={{ marginTop: '10px', width: 'auto' }}>
+            🔄 Retry Loading All Users & Roles
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="admin-stats-grid">
