@@ -45,9 +45,24 @@ export function AuthContextProvider({ children }) {
         }
       }
 
+      // Search by email if uid query returned empty
+      const currentUser = auth.currentUser;
+      if (!data && currentUser?.email) {
+        try {
+          const emailSnap = await getDocs(query(collection(db, 'users'), where('email', '==', currentUser.email.toLowerCase())));
+          if (!emailSnap.empty) {
+            data = emailSnap.docs[0].data();
+            const targetRef = doc(db, 'users', emailSnap.docs[0].id);
+            updateDoc(targetRef, { uid: uid }).catch(err => console.warn(err));
+          }
+        } catch (e) {
+          console.warn('Email lookup query error:', e);
+        }
+      }
+
       if (data) {
-        // Auto-mark registrationCompleted = true for existing users where this property was not explicitly set to false
-        if (data.registrationCompleted === undefined) {
+        // Auto-mark registrationCompleted = true for logged-in users
+        if (data.registrationCompleted === undefined || data.registrationCompleted === null || data.registrationCompleted === false) {
           data.registrationCompleted = true;
           const targetRef = doc(db, 'users', data.uid || uid);
           updateDoc(targetRef, { registrationCompleted: true }).catch(err => console.warn(err));
@@ -78,8 +93,9 @@ export function AuthContextProvider({ children }) {
         // Fallback profile if user document does not exist in Firestore
         const fallbackData = {
           uid,
+          email: currentUser?.email || '',
           role: 'customer',
-          registrationCompleted: false,
+          registrationCompleted: true,
         };
         setUserData(fallbackData);
         return fallbackData;
@@ -89,7 +105,7 @@ export function AuthContextProvider({ children }) {
       const fallbackData = {
         uid,
         role: 'customer',
-        registrationCompleted: false,
+        registrationCompleted: true,
       };
       setUserData(fallbackData);
       return fallbackData;
