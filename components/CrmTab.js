@@ -188,6 +188,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   const [filterStatus, setFilterStatus]     = useState('All');
   const [filterFollowUp, setFilterFollowUp] = useState('');
   const [filterCallStatus, setFilterCallStatus] = useState('All');
+  const [filterStaff, setFilterStaff]         = useState('All');
   const [sortBy, setSortBy]                   = useState('priority');
   const [searchQuery, setSearchQuery]         = useState('');
 
@@ -387,6 +388,13 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
 
   const getFilteredEnquiries = () => {
     let filtered = [...activeEnquiries];
+
+    // Role-based scoping: regular coaches ONLY see their own assigned leads
+    if (userRole !== 'admin') {
+      filtered = filtered.filter(e => e.coachId === coachUid || (e.staffName && e.staffName === coachName));
+    } else if (filterStaff !== 'All') {
+      filtered = filtered.filter(e => e.coachId === filterStaff || e.staffName === filterStaff);
+    }
 
     if (filterStatus !== 'All') {
       filtered = filtered.filter(e => e.status === filterStatus);
@@ -705,6 +713,23 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
           <option value="outcome_noanswer">❌ No Answer / Busy</option>
           <option value="outcome_not_interested">🚫 Not Interested</option>
         </select>
+
+        {userRole === 'admin' && coaches.length > 0 && (
+          <select
+            className="crm-filter-select"
+            value={filterStaff}
+            onChange={(e) => setFilterStaff(e.target.value)}
+            id="crm-filter-staff"
+            style={{ fontWeight: '700', borderColor: filterStaff !== 'All' ? 'var(--primary)' : undefined }}
+          >
+            <option value="All">👥 All Staff Leads</option>
+            {coaches.map(c => (
+              <option key={c.uid || c.id} value={c.uid || c.name}>
+                👤 {c.name || c.email}'s Leads
+              </option>
+            ))}
+          </select>
+        )}
 
         <select
           className="crm-filter-select"
