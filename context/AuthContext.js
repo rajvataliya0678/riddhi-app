@@ -34,38 +34,61 @@ export function AuthContextProvider({ children }) {
   // Helper to fetch user Firestore document & log app version telemetry
   const fetchUserData = async (uid) => {
     try {
+      const currentUser = auth.currentUser;
+      const userEmail = currentUser?.email?.toLowerCase().trim() || '';
+
+      // 1. Direct getDoc by UID
       const docRef = doc(db, 'users', uid);
       let docSnap = await getDoc(docRef);
-      let data = docSnap.exists() ? docSnap.data() : null;
+      let data = docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+      let matchedDocId = docSnap.exists() ? docSnap.id : null;
 
+      // 2. Search all users for matching UID, Email (case-insensitive) or Phone
       if (!data) {
-        const snap = await getDocs(query(collection(db, 'users'), where('uid', '==', uid)));
-        if (!snap.empty) {
-          data = snap.docs[0].data();
-        }
-      }
-
-      // Search by email if uid query returned empty
-      const currentUser = auth.currentUser;
-      if (!data && currentUser?.email) {
         try {
-          const emailSnap = await getDocs(query(collection(db, 'users'), where('email', '==', currentUser.email.toLowerCase())));
-          if (!emailSnap.empty) {
-            data = emailSnap.docs[0].data();
-            const targetRef = doc(db, 'users', emailSnap.docs[0].id);
-            updateDoc(targetRef, { uid: uid }).catch(err => console.warn(err));
+          const allUsersSnap = await getDocs(collection(db, 'users'));
+          const foundDoc = allUsersSnap.docs.find(d => {
+            const dData = d.data();
+            if (d.id === uid || dData.uid === uid) return true;
+            if (userEmail && dData.email && dData.email.toLowerCase().trim() === userEmail) return true;
+            return false;
+          });
+
+          if (foundDoc) {
+            data = { id: foundDoc.id, ...foundDoc.data() };
+            matchedDocId = foundDoc.id;
           }
         } catch (e) {
-          console.warn('Email lookup query error:', e);
+          console.warn('Error fetching all users snap:', e);
         }
       }
 
       if (data) {
-        // Auto-mark registrationCompleted = true for logged-in users
-        if (data.registrationCompleted === undefined || data.registrationCompleted === null || data.registrationCompleted === false) {
-          data.registrationCompleted = true;
-          const targetRef = doc(db, 'users', data.uid || uid);
-          updateDoc(targetRef, { registrationCompleted: true }).catch(err => console.warn(err));
+        const oldDocId = matchedDocId || data.id || data.uid;
+
+        // Ensure UID field & registrationCompleted is set
+        data.uid = uid;
+        data.registrationCompleted = true;
+
+        const targetRef = doc(db, 'users', uid);
+        await setDoc(targetRef, data, { merge: true }).catch(err => console.warn(err));
+
+        // Re-link diagnosis & weight history records if oldDocId differed from current Auth UID
+        if (oldDocId && oldDocId !== uid) {
+          try {
+            const [diagSnap, weightSnap] = await Promise.all([
+              getDocs(query(collection(db, 'diagnosis'), where('uid', '==', oldDocId))),
+              getDocs(query(collection(db, 'weight_history'), where('uid', '==', oldDocId)))
+            ]);
+            for (const dd of diagSnap.docs) {
+              await updateDoc(doc(db, 'diagnosis', dd.id), { uid });
+            }
+            for (const wd of weightSnap.docs) {
+              await updateDoc(doc(db, 'weight_history', wd.id), { uid });
+            }
+          } catch (linkErr) {
+            console.warn('Error re-linking user records:', linkErr);
+          }
         }
 
         setUserData(data);
@@ -73,8 +96,6 @@ export function AuthContextProvider({ children }) {
         const isNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
         const platformStr = isNative ? 'Android App' : 'Web Browser';
 
-        const targetRef = doc(db, 'users', data.uid || uid);
-        // Log active app version and platform telemetry
         updateDoc(targetRef, {
           appVersion: CURRENT_APP_VERSION,
           platform: platformStr,
