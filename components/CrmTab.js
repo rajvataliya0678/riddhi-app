@@ -188,7 +188,7 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   const [filterStatus, setFilterStatus]     = useState('All');
   const [filterFollowUp, setFilterFollowUp] = useState('');
   const [filterCallStatus, setFilterCallStatus] = useState('All');
-  const [filterStaff, setFilterStaff]         = useState('All');
+  const [filterStaff, setFilterStaff]         = useState('my_leads');
   const [sortBy, setSortBy]                   = useState('priority');
   const [searchQuery, setSearchQuery]         = useState('');
 
@@ -389,9 +389,9 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
   const getFilteredEnquiries = () => {
     let filtered = [...activeEnquiries];
 
-    // Role-based scoping: regular coaches ONLY see their own assigned leads
-    if (userRole !== 'admin') {
-      filtered = filtered.filter(e => e.coachId === coachUid || (e.staffName && e.staffName === coachName));
+    // Strict lead scoping: By default, show ONLY leads assigned to logged in user (coach/admin)
+    if (filterStaff === 'my_leads' || userRole !== 'admin') {
+      filtered = filtered.filter(e => e.coachId === coachUid || (e.staffName && e.staffName.toLowerCase() === (coachName || '').toLowerCase()));
     } else if (filterStaff !== 'All') {
       filtered = filtered.filter(e => e.coachId === filterStaff || e.staffName === filterStaff);
     }
@@ -714,15 +714,16 @@ export default function CrmTab({ coachUid, userRole = 'coach' }) {
           <option value="outcome_not_interested">🚫 Not Interested</option>
         </select>
 
-        {userRole === 'admin' && coaches.length > 0 && (
+        {userRole === 'admin' && (
           <select
             className="crm-filter-select"
             value={filterStaff}
             onChange={(e) => setFilterStaff(e.target.value)}
             id="crm-filter-staff"
-            style={{ fontWeight: '700', borderColor: filterStaff !== 'All' ? 'var(--primary)' : undefined }}
+            style={{ fontWeight: '700', borderColor: filterStaff !== 'my_leads' ? 'var(--primary)' : undefined }}
           >
-            <option value="All">👥 All Staff Leads</option>
+            <option value="my_leads">👤 My Assigned Leads Only</option>
+            <option value="All">👥 All Club Leads ({activeEnquiries.length})</option>
             {coaches.map(c => (
               <option key={c.uid || c.id} value={c.uid || c.name}>
                 👤 {c.name || c.email}'s Leads
