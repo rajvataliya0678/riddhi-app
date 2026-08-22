@@ -23,6 +23,10 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
   const [callLogs, setCallLogs]               = useState([]);
 
   // New & Inline Editing Call Log States
+  const [customerName, setCustomerName]       = useState(customer.name || customer.fullName || '');
+  const [isEditingName, setIsEditingName]     = useState(false);
+  const [savingName, setSavingName]           = useState(false);
+
   const [editingLogId, setEditingLogId]       = useState(null);
   const [editingOutcome, setEditingOutcome]   = useState('📞 Called');
   const [editingNotes, setEditingNotes]       = useState('');
@@ -46,6 +50,9 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
       } else {
         setCallLogs(existingLogs);
       }
+
+      setCustomerName(customer.name || customer.fullName || '');
+      setIsEditingName(false);
 
       fetchCustomerAttendance();
     }
@@ -80,6 +87,28 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
       setAttendance({ morning: morningMap, evening: eveningMap });
     } catch (err) {
       console.error('Error fetching customer attendance:', err);
+    }
+  };
+
+  const handleSaveCustomerName = async () => {
+    const trimmed = customerName.trim();
+    if (!trimmed) return;
+    try {
+      setSavingName(true);
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        name: trimmed,
+        fullName: trimmed,
+        displayName: trimmed,
+        updatedAt: serverTimestamp(),
+      });
+      setIsEditingName(false);
+      if (onCustomerUpdate) onCustomerUpdate();
+    } catch (err) {
+      console.error('Error updating customer name:', err);
+      alert('Failed to update name. Please try again.');
+    } finally {
+      setSavingName(false);
     }
   };
 
@@ -212,12 +241,53 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800' }}>
-                  {customer.name}
-                </h3>
-                <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: '800', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '2px 8px', borderRadius: '99px' }}>
-                  Active Customer
-                </span>
+                {isEditingName ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      style={{ padding: '4px 10px', fontSize: '0.95rem', fontWeight: '700', width: '180px' }}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveCustomerName}
+                      disabled={savingName}
+                      style={{ padding: '4px 10px', borderRadius: '6px', background: '#10b981', color: '#fff', border: 'none', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}
+                    >
+                      {savingName ? '⏳' : '💾 Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setCustomerName(customer.name || customer.fullName || ''); setIsEditingName(false); }}
+                      style={{ padding: '4px 10px', borderRadius: '6px', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '800' }}>
+                      {customerName || customer.name}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingName(true)}
+                      style={{
+                        padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700',
+                        background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', cursor: 'pointer'
+                      }}
+                      title="Edit Customer Name"
+                    >
+                      ✏️ Edit Name
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: '800', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '2px 8px', borderRadius: '99px' }}>
+                      Active Customer
+                    </span>
+                  </>
+                )}
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
                 Customer ID: {uid.substring(0, 8).toUpperCase()} • Joined {customer.createdAt ? new Date(customer.createdAt.toDate ? customer.createdAt.toDate() : customer.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}

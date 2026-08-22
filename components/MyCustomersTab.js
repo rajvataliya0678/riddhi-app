@@ -513,6 +513,20 @@ export default function MyCustomersTab({ coachUid, coachName, userRole }) {
                         >
                           {customer.name}
                         </h3>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCustomerDetails(customer, false);
+                          }}
+                          style={{
+                            padding: '2px 6px', fontSize: '0.68rem', fontWeight: '700', borderRadius: '4px',
+                            background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', cursor: 'pointer'
+                          }}
+                          title="Edit Customer Name"
+                        >
+                          ✏️ Edit Name
+                        </button>
                         {customer.phone && (
                           <button
                             type="button"
