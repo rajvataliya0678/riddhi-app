@@ -438,7 +438,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
 
   const stats = {
     total: scopedEnquiries.length,
-    pendingCall: scopedEnquiries.filter(e => (!e.callLogs || e.callLogs.length === 0) && !e.nextMeetingDate).length,
+    pendingCall: scopedEnquiries.filter(e => getLeadCallPriority(e).key === 'first_call_pending').length,
     newLead: scopedEnquiries.filter(e => e.status === 'New Lead' || e.status === 'New').length,
     sess1: scopedEnquiries.filter(e => e.status === '1 Session').length,
     sess2: scopedEnquiries.filter(e => e.status === '2 Session').length,
