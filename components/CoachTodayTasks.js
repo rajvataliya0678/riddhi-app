@@ -531,13 +531,15 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
     }
   };
 
-  const handleCrmSave = async (updatedData, leadId) => {
+  const handleCrmSave = async (updatedData, leadId, keepOpen = false) => {
     const idToUpdate = leadId || selectedCrmLead?.id;
     if (idToUpdate) {
       const docRef = doc(db, 'crm_enquiries', idToUpdate);
       await updateDoc(docRef, { ...updatedData, updatedAt: serverTimestamp() });
     }
-    setSelectedCrmLead(null);
+    if (!keepOpen) {
+      setSelectedCrmLead(null);
+    }
     fetchTasks();
   };
 
