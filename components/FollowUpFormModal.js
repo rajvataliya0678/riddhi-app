@@ -809,7 +809,7 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
 
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ alignItems: 'flex-start', paddingTop: isMobile ? '0' : '20px', padding: isMobile ? '0' : undefined }}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()} style={{ alignItems: 'center', justifyContent: 'center' }}>
       <div style={{
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
