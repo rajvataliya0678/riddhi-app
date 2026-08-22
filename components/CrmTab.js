@@ -851,14 +851,18 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
                           </span>
 
                           {(enquiry.status === 'Waiting List' || enquiry.waitingListReason) && (
-                            <span style={{
-                              padding: '2px 8px', borderRadius: '6px',
-                              fontSize: '0.72rem', fontWeight: '800',
+                            <div style={{
+                              display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '4px',
+                              padding: '4px 9px', borderRadius: '6px',
                               background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a',
-                              maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                            }} title={enquiry.waitingListReason || 'Waiting List'}>
-                              📝 Reason: {enquiry.waitingListReason || 'No reason specified'}
-                            </span>
+                              fontSize: '0.74rem', fontWeight: '800', wordBreak: 'break-word',
+                              lineHeight: '1.35', width: 'fit-content', maxWidth: '100%'
+                            }}>
+                              <span style={{ flexShrink: 0, fontWeight: '800', color: '#b45309' }}>📝 Reason:</span>
+                              <span style={{ fontWeight: '700', color: '#92400e' }}>
+                                {enquiry.waitingListReason || 'No reason specified'}
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>
