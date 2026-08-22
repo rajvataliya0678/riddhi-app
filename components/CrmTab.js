@@ -851,18 +851,32 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
                           </span>
 
                           {(enquiry.status === 'Waiting List' || enquiry.waitingListReason) && (
-                            <div style={{
-                              display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '4px',
-                              padding: '4px 9px', borderRadius: '6px',
-                              background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a',
-                              fontSize: '0.74rem', fontWeight: '800', wordBreak: 'break-word',
-                              lineHeight: '1.35', width: 'fit-content', maxWidth: '100%'
-                            }}>
-                              <span style={{ flexShrink: 0, fontWeight: '800', color: '#b45309' }}>📝 Reason:</span>
-                              <span style={{ fontWeight: '700', color: '#92400e' }}>
-                                {enquiry.waitingListReason || 'No reason specified'}
-                              </span>
-                            </div>
+                            enquiry.waitingListReason ? (
+                              <div style={{
+                                display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '4px',
+                                padding: '4px 9px', borderRadius: '6px',
+                                background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a',
+                                fontSize: '0.74rem', fontWeight: '800', wordBreak: 'break-word',
+                                lineHeight: '1.35', width: 'fit-content', maxWidth: '100%'
+                              }}>
+                                <span style={{ flexShrink: 0, fontWeight: '800', color: '#b45309' }}>📝 Reason:</span>
+                                <span style={{ fontWeight: '700', color: '#92400e' }}>
+                                  {enquiry.waitingListReason}
+                                </span>
+                              </div>
+                            ) : (
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px',
+                                padding: '4px 9px', borderRadius: '6px',
+                                background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5',
+                                fontSize: '0.74rem', fontWeight: '800',
+                                lineHeight: '1.35', width: 'fit-content'
+                              }}>
+                                <span style={{ fontWeight: '900', color: '#dc2626' }}>
+                                  ⚠️ Reason: No reason specified
+                                </span>
+                              </div>
+                            )
                           )}
                         </div>
                       </div>
