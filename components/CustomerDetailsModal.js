@@ -133,9 +133,8 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
   const handleCallClick = async () => {
     const activePhone = phone || customer.phone;
     if (activePhone) {
-      window.open(`tel:${activePhone}`);
+      window.location.href = `tel:${activePhone}`;
     }
-    await punchAutoCallLog(customer, callLogs);
   };
 
   const handleStartEditLog = (log) => {

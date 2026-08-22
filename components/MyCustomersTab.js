@@ -519,9 +519,9 @@ export default function MyCustomersTab({ coachUid, coachName, userRole }) {
                             onClick={(e) => {
                               e.stopPropagation();
                               if (customer.phone) {
-                                window.open(`tel:${customer.phone}`);
+                                window.location.href = `tel:${customer.phone}`;
                               }
-                              openCustomerDetails(customer, true);
+                              openCustomerDetails(customer, false);
                             }}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: '4px',
@@ -717,9 +717,9 @@ export default function MyCustomersTab({ coachUid, coachName, userRole }) {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (customer.phone) {
-                                  window.open(`tel:${customer.phone}`);
+                                  window.location.href = `tel:${customer.phone}`;
                                 }
-                                openCustomerDetails(customer, true);
+                                openCustomerDetails(customer, false);
                               }}
                               style={{
                                 color: '#16a34a', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer',
