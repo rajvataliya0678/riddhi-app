@@ -311,6 +311,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
           healthCondition: data.healthCondition || '',
           source: data.source,
           status: data.status,
+          waitingListReason: data.waitingListReason || '',
           coachId: coachUid,
           staffName: assignedStaffName,
           followUpDate: data.followUpDate || '',
@@ -324,11 +325,12 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
         if (data.statusChanged) {
           const existingEnquiry = enquiries.find(e => e.id === existingId);
           const currentHistory = existingEnquiry?.statusHistory || [];
+          const reasonNote = data.status === 'Waiting List' && data.waitingListReason ? ` (Reason: ${data.waitingListReason})` : '';
           updateData.statusHistory = [
             ...currentHistory,
             {
               status: data.status,
-              note: `Changed from "${data.oldStatus}" to "${data.status}"`,
+              note: `Changed from "${data.oldStatus}" to "${data.status}"${reasonNote}`,
               changedAt: new Date().toISOString(),
             },
           ];
@@ -348,6 +350,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
           healthCondition: data.healthCondition || '',
           source: data.source || 'Direct Entry',
           status: data.status || 'New Lead',
+          waitingListReason: data.waitingListReason || '',
           followUpDate: data.followUpDate || '',
           nextMeetingDate: data.nextMeetingDate || '',
           nextMeetingSession: data.nextMeetingSession || 'morning',
@@ -838,7 +841,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
                         </div>
 
                         {/* Last Call / Priority Status Badge */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
                           <span style={{
                             padding: '2px 8px', borderRadius: '6px',
                             fontSize: '0.72rem', fontWeight: '800', whiteSpace: 'nowrap',
@@ -846,6 +849,17 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
                           }}>
                             {callPrio.label}
                           </span>
+
+                          {(enquiry.status === 'Waiting List' || enquiry.waitingListReason) && (
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '6px',
+                              fontSize: '0.72rem', fontWeight: '800',
+                              background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a',
+                              maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                            }} title={enquiry.waitingListReason || 'Waiting List'}>
+                              📝 Reason: {enquiry.waitingListReason || 'No reason specified'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>

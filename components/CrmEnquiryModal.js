@@ -62,6 +62,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
   const [healthCondition, setHealthCondition] = useState('Weight Loss / Overweight');
   const [source, setSource]                   = useState('Referral');
   const [status, setStatus]                   = useState('New Lead');
+  const [waitingListReason, setWaitingListReason] = useState('');
   const [assignedCoachId, setAssignedCoachId] = useState('');
   const [staffName, setStaffName]             = useState('');
   const [followUpDate, setFollowUpDate]       = useState('');
@@ -129,6 +130,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
       setHealthCondition(enquiry.healthCondition || 'Weight Loss / Overweight');
       setSource(enquiry.source || 'Referral');
       setStatus(enquiry.status || 'New Lead');
+      setWaitingListReason(enquiry.waitingListReason || '');
       setAssignedCoachId(enquiry.coachId || enquiry.coachUid || '');
       setStaffName(enquiry.staffName || enquiry.coachName || '');
       setFollowUpDate(enquiry.followUpDate || '');
@@ -191,6 +193,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           healthCondition: targetEnquiry.healthCondition || healthCondition || 'Weight Loss / Overweight',
           source: targetEnquiry.source || source || 'Referral',
           status: targetEnquiry.status || status || 'New Lead',
+          waitingListReason: targetEnquiry.waitingListReason || waitingListReason || '',
           followUpDate: targetEnquiry.followUpDate || followUpDate || '',
           nextMeetingDate: targetEnquiry.nextMeetingDate || nextMeetingDate || '',
           nextMeetingSession: targetEnquiry.nextMeetingSession || nextMeetingSession || 'morning',
@@ -257,6 +260,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           healthCondition,
           source,
           status,
+          waitingListReason,
           followUpDate,
           nextMeetingDate,
           nextMeetingSession,
@@ -291,6 +295,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           healthCondition,
           source,
           status,
+          waitingListReason,
           followUpDate,
           nextMeetingDate,
           nextMeetingSession,
@@ -339,6 +344,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
           healthCondition,
           source,
           status,
+          waitingListReason,
           followUpDate,
           nextMeetingDate,
           nextMeetingSession,
@@ -360,6 +366,11 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
       return;
     }
 
+    if (status === 'Waiting List' && !waitingListReason.trim()) {
+      setError('કૃપા કરીને વેઇટિંગ લિસ્ટમાં મૂકવાનું કારણ દાખલ કરો (Please enter reason for Waiting List).');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -373,6 +384,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
         healthCondition,
         source,
         status,
+        waitingListReason: status === 'Waiting List' ? waitingListReason.trim() : (waitingListReason.trim() || ''),
         coachId: assignedCoachId,
         staffName: staffName.trim(),
         followUpDate,
@@ -730,6 +742,24 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                 ))}
               </select>
             </div>
+            {status === 'Waiting List' && (
+              <div className="form-group" style={{ gridColumn: '1 / -1', marginTop: '4px' }}>
+                <label className="form-label" htmlFor="crm-waiting-reason" style={{ color: '#b45309', fontWeight: '800' }}>
+                  📝 Reason for Waiting List * (વેઇટિંગ લિસ્ટનું કારણ)
+                </label>
+                <input
+                  type="text"
+                  id="crm-waiting-reason"
+                  className="form-input"
+                  placeholder="જેમ કે: અત્યારે બજેટ પ્રોબ્લેમ છે, ૧ મહિના પછી નિર્ણય લેશે, Out of station..."
+                  value={waitingListReason}
+                  onChange={(e) => setWaitingListReason(e.target.value)}
+                  disabled={submitting}
+                  style={{ borderColor: '#fcd34d', background: '#fffbeb', fontWeight: '800', color: '#92400e' }}
+                  required
+                />
+              </div>
+            )}
             <div className="form-group">
               <label className="form-label" htmlFor="crm-followup">Next Follow-up Date (Optional)</label>
               <input
