@@ -192,6 +192,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
 
   const [allCustomersMap, setAllCustomersMap] = useState({});
   const [allFollowupsMap, setAllFollowupsMap] = useState({});
+  const [allCoachesList, setAllCoachesList]   = useState([]);
 
   const isAdmin = userRole === 'admin';
   const today = new Date();
@@ -255,6 +256,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
       );
 
       const coachUsers = allUsersList.filter(u => u.role === 'coach');
+      setAllCoachesList(allUsersList.filter(u => u.role === 'coach' || u.role === 'admin'));
 
       const customersMap = {};
       assignedCustomers.forEach(u => { customersMap[u.uid] = u; });
@@ -889,7 +891,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
           onSave={handleCrmSave}
           onClose={closeModal}
           onDelete={handleCrmDelete}
-          coaches={allUsersList.filter(u => u.role === 'coach' || u.role === 'admin')}
+          coaches={allCoachesList}
           autoCallLogFocus={true}
         />
       )}
