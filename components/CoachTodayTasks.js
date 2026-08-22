@@ -894,7 +894,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
           onClose={closeModal}
           onDelete={handleCrmDelete}
           coaches={allCoachesList}
-          autoCallLogFocus={true}
+          autoCallLogFocus={false}
         />
       )}
 
