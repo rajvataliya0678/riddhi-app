@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
 import FollowUpFormModal from './FollowUpFormModal';
@@ -564,16 +564,34 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
     }
   };
 
-  // Task click handler
-  const handleTaskAction = (task) => {
+  // Task click handler — opens Lead Details modal when clicking card or CRM Lead button
+  const handleTaskAction = async (task) => {
+    if (task.leadObj || task.type === 'crm_followup' || task.actionType === 'open_crm_modal') {
+      let leadToOpen = task.leadObj;
+      if (!leadToOpen && (task.leadId || task.uid)) {
+        try {
+          const targetId = task.leadId || task.uid;
+          const docRef = doc(db, 'crm_enquiries', targetId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            leadToOpen = { id: docSnap.id, ...docSnap.data() };
+          }
+        } catch (e) {
+          console.warn('Error fetching lead for task modal:', e);
+        }
+      }
+      if (leadToOpen) {
+        setSelectedCrmLead(leadToOpen);
+        return;
+      }
+    }
+
     if (task.actionType === 'open_followup_modal') {
       const customer = task.customerObj || allCustomersMap[task.uid];
       const fus = allFollowupsMap[task.uid] || [];
       if (!customer) return;
       setSelectedCustomer(buildFollowUpCustomer(customer, fus));
       setSelectedFollowups(fus);
-    } else if (task.actionType === 'open_crm_modal') {
-      setSelectedCrmLead(task.leadObj);
     } else if (task.actionType === 'open_customer_details') {
       const customer = task.customerObj || allCustomersMap[task.uid];
       if (customer) {
