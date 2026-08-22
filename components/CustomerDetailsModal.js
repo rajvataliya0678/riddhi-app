@@ -102,6 +102,9 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
         displayName: trimmed,
         updatedAt: serverTimestamp(),
       });
+      customer.name = trimmed;
+      customer.fullName = trimmed;
+      setCustomerName(trimmed);
       setIsEditingName(false);
       if (onCustomerUpdate) onCustomerUpdate();
     } catch (err) {

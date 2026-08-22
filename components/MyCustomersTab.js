@@ -254,6 +254,12 @@ export default function MyCustomersTab({ coachUid, coachName, userRole }) {
       setCustomers(customerList);
       setFollowupsMap(grouped);
       setAttendanceMap(attMap);
+
+      setSelectedCustomer(prev => {
+        if (!prev) return null;
+        const fresh = customerList.find(c => (c.uid || c.id) === (prev.uid || prev.id));
+        return fresh || prev;
+      });
     } catch (err) {
       console.error('Error fetching customers:', err);
     } finally {
