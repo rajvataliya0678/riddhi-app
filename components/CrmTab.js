@@ -188,7 +188,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
   const [filterStatus, setFilterStatus]     = useState('All');
   const [filterFollowUp, setFilterFollowUp] = useState('');
   const [filterCallStatus, setFilterCallStatus] = useState('All');
-  const [filterStaff, setFilterStaff]         = useState('my_leads');
+  const [filterStaff, setFilterStaff]         = useState('All');
   const [sortBy, setSortBy]                   = useState('priority');
   const [searchQuery, setSearchQuery]         = useState('');
 
@@ -238,7 +238,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
       setCoaches(coachesList);
     }).catch(console.error);
 
-    // Real-time live listener for CRM enquiries (Admins / Club Owners see all enquiries across all staff)
+    // Real-time live listener for CRM enquiries
     const crmRef = collection(db, 'crm_enquiries');
     const primaryQuery = (userRole === 'admin')
       ? crmRef
@@ -246,46 +246,18 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
 
     const handleSnap = (snap) => {
       let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      
-      // If coach filter produced empty result, attempt full collection as backup
-      if (list.length === 0 && userRole !== 'admin') {
-        getDocs(crmRef).then(allSnap => {
-          if (!allSnap.empty) {
-            const allList = allSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            allList.sort((a, b) => {
-              const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-              const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-              return dateB - dateA;
-            });
-            setEnquiries(allList);
-          }
-        }).catch(console.warn);
-      } else {
-        list.sort((a, b) => {
-          const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-          const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-          return dateB - dateA;
-        });
-        setEnquiries(list);
-      }
+      list.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB - dateA;
+      });
+      setEnquiries(list);
       setLoading(false);
     };
 
     const unsubscribe = onSnapshot(primaryQuery, handleSnap, (err) => {
-      console.warn('Primary CRM snapshot error, fetching full collection fallback:', err);
-      getDocs(crmRef).then(fallbackSnap => {
-        const list = fallbackSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        list.sort((a, b) => {
-          const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-          const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-          return dateB - dateA;
-        });
-        setEnquiries(list);
-        setLoading(false);
-      }).catch(fErr => {
-        console.error('Fallback CRM getDocs error:', fErr);
-        setLoading(false);
-      });
+      console.warn('CRM snapshot error:', err);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -389,16 +361,27 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
   // Active pipeline excludes leads converted to customers
   const activeEnquiries = enquiries.filter(e => !e.isConverted && !e.convertedCustomerUid && e.status !== 'Converted' && e.status !== 'Converted / Active Customer');
 
-  // Scoped enquiries based on selected staff filter (default: 'my_leads')
+  // Scoped enquiries based on selected staff filter
   const getScopedEnquiries = () => {
-    if (filterStaff === 'my_leads' || userRole !== 'admin') {
+    // Non-admin coaches/staff strictly see ONLY their own assigned leads
+    if (userRole !== 'admin') {
       return activeEnquiries.filter(e => {
         if (e.coachId === coachUid) return true;
-        if (e.staffName && coachName && e.staffName.toLowerCase() === coachName.toLowerCase()) return true;
+        if (e.staffUid === coachUid || e.assignedCoachId === coachUid) return true;
+        if (e.staffName && coachName && e.staffName.trim().toLowerCase() === coachName.trim().toLowerCase()) return true;
+        return false;
+      });
+    }
+
+    // Admin / Club Owner scope options
+    if (filterStaff === 'my_leads') {
+      return activeEnquiries.filter(e => {
+        if (e.coachId === coachUid) return true;
+        if (e.staffName && coachName && e.staffName.trim().toLowerCase() === coachName.trim().toLowerCase()) return true;
         return false;
       });
     } else if (filterStaff !== 'All') {
-      return activeEnquiries.filter(e => e.coachId === filterStaff || e.staffName === filterStaff);
+      return activeEnquiries.filter(e => e.coachId === filterStaff || e.staffUid === filterStaff || e.staffName === filterStaff);
     }
     return activeEnquiries;
   };
@@ -726,16 +709,17 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
           <option value="outcome_not_interested">🚫 Not Interested</option>
         </select>
 
+        {/* Staff Filter Dropdown (Club Owner ONLY) */}
         {userRole === 'admin' && (
           <select
             className="crm-filter-select"
             value={filterStaff}
             onChange={(e) => setFilterStaff(e.target.value)}
             id="crm-filter-staff"
-            style={{ fontWeight: '700', borderColor: filterStaff !== 'my_leads' ? 'var(--primary)' : undefined }}
+            style={{ fontWeight: '700', borderColor: filterStaff !== 'All' ? 'var(--primary)' : undefined }}
           >
-            <option value="my_leads">👤 My Assigned Leads Only</option>
             <option value="All">👥 All Club Leads ({activeEnquiries.length})</option>
+            <option value="my_leads">👤 My Assigned Leads Only</option>
             {coaches.map(c => (
               <option key={c.uid || c.id} value={c.uid || c.name}>
                 👤 {c.name || c.email}'s Leads
