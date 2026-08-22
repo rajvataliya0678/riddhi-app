@@ -363,25 +363,16 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
 
   // Scoped enquiries based on selected staff filter
   const getScopedEnquiries = () => {
-    // Non-admin coaches/staff strictly see ONLY their own assigned leads
+    // Non-admin staff members strictly see ONLY leads created under their own account ID
     if (userRole !== 'admin') {
-      return activeEnquiries.filter(e => {
-        if (e.coachId === coachUid) return true;
-        if (e.staffUid === coachUid || e.assignedCoachId === coachUid) return true;
-        if (e.staffName && coachName && e.staffName.trim().toLowerCase() === coachName.trim().toLowerCase()) return true;
-        return false;
-      });
+      return activeEnquiries.filter(e => e.coachId === coachUid);
     }
 
     // Admin / Club Owner scope options
     if (filterStaff === 'my_leads') {
-      return activeEnquiries.filter(e => {
-        if (e.coachId === coachUid) return true;
-        if (e.staffName && coachName && e.staffName.trim().toLowerCase() === coachName.trim().toLowerCase()) return true;
-        return false;
-      });
+      return activeEnquiries.filter(e => e.coachId === coachUid);
     } else if (filterStaff !== 'All') {
-      return activeEnquiries.filter(e => e.coachId === filterStaff || e.staffUid === filterStaff || e.staffName === filterStaff);
+      return activeEnquiries.filter(e => e.coachId === filterStaff || e.staffName === filterStaff);
     }
     return activeEnquiries;
   };

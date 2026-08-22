@@ -385,7 +385,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
         source,
         status,
         waitingListReason: status === 'Waiting List' ? waitingListReason.trim() : (waitingListReason.trim() || ''),
-        coachId: assignedCoachId,
+        coachId: isEditing ? (enquiry?.coachId || coachUid) : coachUid,
         staffName: staffName.trim(),
         followUpDate,
         nextMeetingDate,
@@ -575,14 +575,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
               <select
                 id="crm-staff-name"
                 className="form-input"
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setStaffName(val);
-                  const matched = coaches.find(c => (c.name || c.fullName) === val);
-                  if (matched) {
-                    setAssignedCoachId(matched.uid || matched.id);
-                  }
-                }}
+                value={staffName}
+                onChange={(e) => setStaffName(e.target.value)}
                 disabled={submitting}
                 style={{ fontWeight: '700' }}
               >
