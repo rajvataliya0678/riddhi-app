@@ -199,6 +199,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
   const [editingEnquiry, setEditingEnquiry] = useState(null);
   const [autoCallLogFocus, setAutoCallLogFocus] = useState(false);
   const [activeMenuId, setActiveMenuId]     = useState(null);
+  const [historyModalLead, setHistoryModalLead] = useState(null);
   const [menuPos, setMenuPos]               = useState({ top: 0, right: 0, left: 'auto' });
 
   useEffect(() => {
@@ -900,6 +901,24 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
                             >
                               💬 Chat
                             </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setHistoryModalLead(enquiry);
+                              }}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                padding: '2px 8px', borderRadius: '6px',
+                                background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1',
+                                fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                              }}
+                              title={`View Call History for ${enquiry.name}`}
+                              id={`crm-history-btn-${enquiry.id}`}
+                            >
+                              📜 History {(enquiry.callLogs && enquiry.callLogs.length > 0) ? `(${enquiry.callLogs.length})` : ''}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1008,6 +1027,22 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
                             type="button"
                             onClick={() => {
                               setActiveMenuId(null);
+                              setHistoryModalLead(enquiry);
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              padding: '9px 14px', background: 'none', border: 'none',
+                              width: '100%', textAlign: 'left', cursor: 'pointer',
+                              fontSize: '0.84rem', fontWeight: '700', color: '#0369a1',
+                            }}
+                          >
+                            <ClipboardList size={15} color="#0369a1" /> Call History ({enquiry.callLogs?.length || 0})
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMenuId(null);
                               openEditModal(enquiry);
                             }}
                             style={{
@@ -1098,6 +1133,116 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
           onClose={() => setConvertLead(null)}
           onConverted={fetchEnquiries}
         />
+      )}
+
+      {/* Call History Viewer Modal */}
+      {historyModalLead && createPortal(
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 99999 }}
+          onClick={() => setHistoryModalLead(null)}
+        >
+          <div
+            className="modal-card"
+            style={{ maxWidth: '580px', width: '92vw', maxHeight: '85vh', overflowY: 'auto', padding: '22px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>
+                  📜 Call History: {historyModalLead.name}
+                </h4>
+                <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  📱 Phone: {historyModalLead.phone || 'N/A'} · Stage: {historyModalLead.status || 'New Lead'}
+                </p>
+              </div>
+              <button onClick={() => setHistoryModalLead(null)} className="modal-close">&times;</button>
+            </div>
+
+            {(!historyModalLead.callLogs || historyModalLead.callLogs.length === 0) ? (
+              <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '2.4rem', marginBottom: '8px' }}>📞</div>
+                <h5 style={{ fontSize: '0.9rem', fontWeight: '800', margin: 0 }}>No Call Logs Recorded Yet</h5>
+                <p style={{ fontSize: '0.78rem', marginTop: '4px' }}>
+                  Click "📞 Call" button next to lead to dial & auto-record call entries.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '4px' }}>
+                  <span>Total Calls Logged: ({historyModalLead.callLogs.length})</span>
+                </div>
+
+                {historyModalLead.callLogs.map((log, idx) => {
+                  const dateStr = log.calledAt
+                    ? new Date(log.calledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                    : '—';
+                  const callerNameStr = log.callerName || historyModalLead.staffName || historyModalLead.coachName || 'Staff';
+
+                  return (
+                    <div
+                      key={log.id || idx}
+                      style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                      }}
+                    >
+                      {/* Header: Status / Outcome Badge + Call Type Badge */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '900', color: '#0284c7' }}>
+                          {log.outcome || '📞 Called'}
+                        </span>
+                        <span style={{
+                          fontSize: '0.7rem', fontWeight: '800', padding: '2px 8px', borderRadius: '4px',
+                          background: log.callType === 'Invitation' ? '#f0fdf4' : '#faf5ff',
+                          color: log.callType === 'Invitation' ? '#16a34a' : '#7e22ce',
+                          border: log.callType === 'Invitation' ? '1px solid #bbf7d0' : '1px solid #e9d5ff'
+                        }}>
+                          {log.callType === 'Invitation' ? '📩 Invitation Call' : '📞 Follow-up Call'}
+                        </span>
+                      </div>
+
+                      {/* Details Row: Date & Time + Caller Staff Name */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '6px 10px', borderRadius: '6px' }}>
+                        <span>🗓️ <strong>Date & Time:</strong> <span style={{ color: 'var(--text-main)', fontWeight: '700' }}>{dateStr}</span></span>
+                        <span>👤 <strong>Called By:</strong> <span style={{ color: '#2563eb', fontWeight: '800' }}>{callerNameStr}</span></span>
+                      </div>
+
+                      {/* Notes Row */}
+                      {log.notes ? (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: '600', background: '#fffbeb', padding: '8px 10px', borderRadius: '6px', border: '1px solid #fde68a', wordBreak: 'break-word' }}>
+                          📝 <strong>Notes:</strong> {log.notes}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontStyle: 'italic' }}>
+                          (No notes entered for this call)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: '16px', textAlign: 'right' }}>
+              <button
+                type="button"
+                onClick={() => setHistoryModalLead(null)}
+                className="btn btn-secondary btn-sm"
+                style={{ width: 'auto' }}
+              >
+                ✕ Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
