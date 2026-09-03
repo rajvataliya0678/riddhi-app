@@ -17,6 +17,14 @@ import CoachTodayTasks from '@/components/CoachTodayTasks';
 import TodaysMeetings from '@/components/TodaysMeetings';
 import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
 import AllCallHistoryTab from '@/components/AllCallHistoryTab';
+import MyCoachesTab from '@/components/MyCoachesTab';
+import AttendanceTab from '@/components/AttendanceTab';
+import SessionLeadAttendees from '@/components/SessionLeadAttendees';
+import UpdatePrompt from '@/components/UpdatePrompt';
+import SendNotificationTab from '@/components/SendNotificationTab';
+import NotificationInit from '@/components/NotificationInit';
+import NotificationModal from '@/components/NotificationModal';
+import LanguageToggle from '@/components/LanguageToggle';
 import {
   LayoutDashboard, CalendarCheck, Users, ClipboardList, BarChart3,
   GraduationCap, Settings2, Scale, Flame, Target, TrendingUp,
