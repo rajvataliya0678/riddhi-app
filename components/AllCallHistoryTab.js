@@ -169,12 +169,16 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
     return true;
   });
 
-  const handleLeadSaved = async (updatedData, leadId) => {
+  const handleLeadSaved = async (updatedData, leadId, keepOpen = false) => {
     if (leadId) {
       try {
         await updateDoc(doc(db, 'crm_enquiries', leadId), { ...updatedData, updatedAt: serverTimestamp() });
+        if (!keepOpen) {
+          setSelectedLeadModal(null);
+        }
       } catch (err) {
         console.error('Error updating lead:', err);
+        throw err;
       }
     }
   };

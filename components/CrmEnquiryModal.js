@@ -403,6 +403,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
     } catch (err) {
       console.error('Save error:', err);
       setError('Failed to save. Please try again.');
+    } finally {
       setSubmitting(false);
     }
   };
