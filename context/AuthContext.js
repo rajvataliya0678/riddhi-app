@@ -24,10 +24,32 @@ export function AuthContextProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [localLang, setLocalLang] = useState('en'); // Default to English for first-time users
 
+  const updateUserData = (newData) => {
+    setUserData(newData);
+    if (typeof window !== 'undefined') {
+      if (newData) {
+        try { localStorage.setItem('vriddhi_user_cache', JSON.stringify(newData)); } catch (_) {}
+      } else {
+        localStorage.removeItem('vriddhi_user_cache');
+      }
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vriddhi_lang');
       if (saved) setLocalLang(saved);
+
+      try {
+        const cached = localStorage.getItem('vriddhi_user_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.uid) {
+            setUserData(parsed);
+            setLoading(false);
+          }
+        }
+      } catch (_) {}
     }
   }, []);
 
@@ -77,28 +99,21 @@ export function AuthContextProvider({ children }) {
           data.role = 'admin';
         }
 
+        updateUserData(data);
+
+        // Run persistence & telemetry in background without blocking UI
         const targetRef = doc(db, 'users', uid);
-        await setDoc(targetRef, data, { merge: true }).catch(err => console.warn(err));
+        setDoc(targetRef, data, { merge: true }).catch(err => console.warn(err));
 
-        // Re-link diagnosis & weight history records if oldDocId differed from current Auth UID
         if (oldDocId && oldDocId !== uid) {
-          try {
-            const [diagSnap, weightSnap] = await Promise.all([
-              getDocs(query(collection(db, 'diagnosis'), where('uid', '==', oldDocId))),
-              getDocs(query(collection(db, 'weight_history'), where('uid', '==', oldDocId)))
-            ]);
-            for (const dd of diagSnap.docs) {
-              await updateDoc(doc(db, 'diagnosis', dd.id), { uid });
-            }
-            for (const wd of weightSnap.docs) {
-              await updateDoc(doc(db, 'weight_history', wd.id), { uid });
-            }
-          } catch (linkErr) {
-            console.warn('Error re-linking user records:', linkErr);
-          }
+          Promise.all([
+            getDocs(query(collection(db, 'diagnosis'), where('uid', '==', oldDocId))),
+            getDocs(query(collection(db, 'weight_history'), where('uid', '==', oldDocId)))
+          ]).then(([diagSnap, weightSnap]) => {
+            diagSnap.docs.forEach(dd => updateDoc(doc(db, 'diagnosis', dd.id), { uid }));
+            weightSnap.docs.forEach(wd => updateDoc(doc(db, 'weight_history', wd.id), { uid }));
+          }).catch(console.warn);
         }
-
-        setUserData(data);
 
         const isNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
         const platformStr = isNative ? 'Android App' : 'Web Browser';
@@ -126,8 +141,8 @@ export function AuthContextProvider({ children }) {
           registrationCompleted: true,
         };
         const targetRef = doc(db, 'users', uid);
-        await setDoc(targetRef, fallbackData, { merge: true }).catch(err => console.warn(err));
-        setUserData(fallbackData);
+        setDoc(targetRef, fallbackData, { merge: true }).catch(err => console.warn(err));
+        updateUserData(fallbackData);
         return fallbackData;
       }
     } catch (error) {
@@ -138,7 +153,7 @@ export function AuthContextProvider({ children }) {
         role: (auth.currentUser?.email?.includes('rajvataliya0678@gmail.com')) ? 'admin' : 'customer',
         registrationCompleted: true,
       };
-      setUserData(fallbackData);
+      updateUserData(fallbackData);
       return fallbackData;
     }
   };
@@ -155,7 +170,7 @@ export function AuthContextProvider({ children }) {
         await fetchUserData(currentUser.uid);
       } else {
         setUser(null);
-        setUserData(null);
+        updateUserData(null);
       }
       setLoading(false);
     });
@@ -328,7 +343,7 @@ export function AuthContextProvider({ children }) {
     try {
       await signOut(auth);
       setUser(null);
-      setUserData(null);
+      updateUserData(null);
     } catch (error) {
       console.error("Logout error:", error);
     } finally {

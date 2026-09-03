@@ -2,29 +2,50 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import dynamic from 'next/dynamic';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import MyCustomersTab from '@/components/MyCustomersTab';
-import CrmTab from '@/components/CrmTab';
-import AdminTab from '@/components/AdminTab';
 import WeightChart from '@/components/WeightChart';
 import StreakBadges from '@/components/StreakBadges';
 import WeeklyInsight from '@/components/WeeklyInsight';
 import ProfileModal from '@/components/ProfileModal';
-import FollowUpTab from '@/components/FollowUpTab';
 import CoachTodayTasks from '@/components/CoachTodayTasks';
 import TodaysMeetings from '@/components/TodaysMeetings';
-import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
-import AllCallHistoryTab from '@/components/AllCallHistoryTab';
-import MyCoachesTab from '@/components/MyCoachesTab';
-import AttendanceTab from '@/components/AttendanceTab';
 import SessionLeadAttendees from '@/components/SessionLeadAttendees';
 import UpdatePrompt from '@/components/UpdatePrompt';
-import SendNotificationTab from '@/components/SendNotificationTab';
 import NotificationInit from '@/components/NotificationInit';
 import NotificationModal from '@/components/NotificationModal';
 import LanguageToggle from '@/components/LanguageToggle';
+
+// ── Lazy-load secondary tabs to cut initial bundle size in half ──
+const MyCustomersTab = dynamic(() => import('@/components/MyCustomersTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading Customers...</div>
+});
+const CrmTab = dynamic(() => import('@/components/CrmTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading CRM...</div>
+});
+const AdminTab = dynamic(() => import('@/components/AdminTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading Admin Panel...</div>
+});
+const FollowUpTab = dynamic(() => import('@/components/FollowUpTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading Follow-ups...</div>
+});
+const CrmAnalyticsTab = dynamic(() => import('@/components/CrmAnalyticsTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading Analytics...</div>
+});
+const AllCallHistoryTab = dynamic(() => import('@/components/AllCallHistoryTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading Call History...</div>
+});
+const MyCoachesTab = dynamic(() => import('@/components/MyCoachesTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading Coaches...</div>
+});
+const AttendanceTab = dynamic(() => import('@/components/AttendanceTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading Attendance...</div>
+});
+const SendNotificationTab = dynamic(() => import('@/components/SendNotificationTab'), {
+  loading: () => <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>⏳ Loading Notifications...</div>
+});
 import {
   LayoutDashboard, CalendarCheck, Users, ClipboardList, BarChart3,
   GraduationCap, Settings2, Scale, Flame, Target, TrendingUp,
@@ -83,22 +104,27 @@ export default function DashboardPage() {
       setLoadingData(true);
       const userEmail = user.email ? user.email.toLowerCase().trim() : '';
 
-      // Query diagnosis by uid or email
-      let diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('uid', '==', user.uid)));
-      if (diagSnap.empty && userEmail) {
-        diagSnap = await getDocs(query(collection(db, 'diagnosis'), where('email', '==', userEmail)));
-      }
-      if (!diagSnap.empty) setDiagnosis(diagSnap.docs[0].data());
+      // Parallelize diagnosis and weight history fetching
+      const [diagSnap, weightSnap] = await Promise.all([
+        getDocs(query(collection(db, 'diagnosis'), where('uid', '==', user.uid))),
+        getDocs(query(collection(db, 'weight_history'), where('uid', '==', user.uid))),
+      ]);
 
-      // Query weight history by uid or email
-      let weightSnap = await getDocs(query(collection(db, 'weight_history'), where('uid', '==', user.uid)));
-      if (weightSnap.empty && userEmail) {
-        weightSnap = await getDocs(query(collection(db, 'weight_history'), where('email', '==', userEmail)));
+      let finalDiag = !diagSnap.empty ? diagSnap.docs[0].data() : null;
+      if (!finalDiag && userEmail) {
+        const diagEmailSnap = await getDocs(query(collection(db, 'diagnosis'), where('email', '==', userEmail)));
+        if (!diagEmailSnap.empty) finalDiag = diagEmailSnap.docs[0].data();
       }
+      if (finalDiag) setDiagnosis(finalDiag);
 
-      const history = weightSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      let history = weightSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (history.length === 0 && userEmail) {
+        const weightEmailSnap = await getDocs(query(collection(db, 'weight_history'), where('email', '==', userEmail)));
+        history = weightEmailSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
       history.sort((a, b) => new Date(b.date) - new Date(a.date));
       setWeightHistory(history);
+
       fetchUnreadNotifCount();
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
