@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
 import { openWhatsAppChat } from '@/lib/whatsapp';
 import CrmEnquiryModal from './CrmEnquiryModal';
-import { Phone, PhoneCall, PhoneIncoming, MessageCircle, Search, Calendar, User, Clock, Filter, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Clock, User, Phone, MessageCircle, FileText } from 'lucide-react';
 
 const OUTCOME_OPTIONS = [
   'All',
@@ -88,7 +88,8 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
     // Outcome filter
     if (outcomeFilter !== 'All') {
       const out = log.outcome || '📞 Called';
-      if (!out.toLowerCase().includes(outcomeFilter.replace('📞 ', '').replace('📅 ', '').replace('⏰ ', '').replace('❌ ', '').replace('🚫 ', '').toLowerCase())) {
+      const cleanOpt = outcomeFilter.replace('📞 ', '').replace('📅 ', '').replace('⏰ ', '').replace('❌ ', '').replace('🚫 ', '').toLowerCase();
+      if (!out.toLowerCase().includes(cleanOpt)) {
         return false;
       }
     }
@@ -121,7 +122,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px', marginTop: '4px' }}>
       
       {/* ── HEADER BANNER ────────────────────────────────────────── */}
       <div style={{
@@ -134,7 +135,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '16px',
-        boxShadow: '0 10px 25px rgba(15, 23, 42, 0.25)',
+        boxShadow: '0 10px 25px rgba(15, 23, 42, 0.2)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
@@ -147,21 +148,21 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#fff' }}>
-              Combined Call History Log (કોલ હિસ્ટ્રી ટાઈમલાઈન)
+              Call History Timeline (કોલ હિસ્ટ્રી લૉગ)
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-              Mobile-style combined call logs timeline across all prospects & leads (Newest calls first)
+              Combined time-wise call log timeline across all prospects & leads (Newest calls first)
             </p>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '10px', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block', fontWeight: '600' }}>TOTAL LOGS</span>
+          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', fontWeight: '700' }}>TOTAL LOGS</span>
             <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#38bdf8' }}>{allCallLogs.length}</span>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '10px', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block', fontWeight: '600' }}>TODAY'S CALLS</span>
+          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', fontWeight: '700' }}>TODAY'S CALLS</span>
             <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#4ade80' }}>{todayCount}</span>
           </div>
         </div>
@@ -186,7 +187,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
           <input
             type="text"
             className="form-input"
-            placeholder="Search by prospect name, phone, notes, or staff..."
+            placeholder="Search prospect name, phone, notes, or staff..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{ paddingLeft: '36px', height: '40px', fontSize: '0.84rem' }}
@@ -233,8 +234,8 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
         </div>
       </div>
 
-      {/* ── CALL LOGS TIMELINE LIST (MOBILE DIALER STYLE) ────────── */}
-      <div className="dashboard-card" style={{ padding: '18px' }}>
+      {/* ── CALL LOGS TIMELINE LIST ──────────────────────────────── */}
+      <div className="dashboard-card" style={{ padding: '16px' }}>
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
             ⏳ Loading call history timeline...
@@ -250,7 +251,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {filteredLogs.map((log, idx) => {
               const formattedDate = log.calledAt
                 ? new Date(log.calledAt).toLocaleString('en-IN', {
@@ -281,18 +282,17 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                   style={{
                     background: 'var(--card-bg)',
                     border: '1px solid var(--border-color)',
-                    borderRadius: '12px',
+                    borderRadius: '14px',
                     padding: '14px 16px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '10px',
-                    transition: 'all 0.2s ease',
                     boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
                   }}
                 >
-                  {/* Top Line: Avatar + Lead Name & Phone + Action Buttons */}
+                  {/* Row 1: Prospect Profile & Action Buttons */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '200px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '220px' }}>
                       <div style={{
                         width: '42px', height: '42px', borderRadius: '50%',
                         background: 'linear-gradient(135deg, #0284c7, #2563eb)',
@@ -305,23 +305,23 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <h4
                             onClick={() => setSelectedLeadModal(log.leadObj)}
-                            style={{ margin: 0, fontSize: '0.96rem', fontWeight: '800', color: 'var(--text-main)', cursor: 'pointer' }}
+                            style={{ margin: 0, fontSize: '0.98rem', fontWeight: '800', color: 'var(--text-main)', cursor: 'pointer' }}
                             title="Click to view full lead details"
                           >
                             {log.leadName}
                           </h4>
-                          <span style={{ fontSize: '0.68rem', fontWeight: '700', padding: '1px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#475569' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', background: '#f1f5f9', color: '#475569' }}>
                             Stage: {log.leadStatus}
                           </span>
                         </div>
-                        <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                        <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600' }}>
                           📱 {log.phone || 'No phone'}
                         </p>
                       </div>
                     </div>
 
-                    {/* Quick Call & WhatsApp Buttons */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       {log.phone && (
                         <>
                           <button
@@ -355,7 +355,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                         type="button"
                         onClick={() => setSelectedLeadModal(log.leadObj)}
                         style={{
-                          padding: '5px 10px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800',
+                          padding: '5px 12px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800',
                           background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', cursor: 'pointer'
                         }}
                       >
@@ -364,38 +364,40 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                     </div>
                   </div>
 
-                  {/* Middle Line: Outcome Badge + Call Type + Date & Time + Caller Staff */}
+                  {/* Row 2: Badges Bar */}
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap',
                     background: 'var(--bg-secondary)', padding: '8px 12px', borderRadius: '8px',
                     fontSize: '0.76rem'
                   }}>
-                    <span style={{
-                      padding: '3px 9px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '900',
-                      background: badgeStyle.bg, color: badgeStyle.color, border: `1px solid ${badgeStyle.border}`
-                    }}>
-                      {outcomeText}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{
+                        padding: '3px 9px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '900',
+                        background: badgeStyle.bg, color: badgeStyle.color, border: `1px solid ${badgeStyle.border}`
+                      }}>
+                        {outcomeText}
+                      </span>
 
-                    <span style={{
-                      padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '800',
-                      background: log.callType === 'Invitation' ? '#f0fdf4' : '#faf5ff',
-                      color: log.callType === 'Invitation' ? '#16a34a' : '#7e22ce',
-                      border: log.callType === 'Invitation' ? '1px solid #bbf7d0' : '1px solid #e9d5ff'
-                    }}>
-                      {log.callType === 'Invitation' ? '📩 Invitation Call' : '📞 Follow-up Call'}
-                    </span>
+                      <span style={{
+                        padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '800',
+                        background: log.callType === 'Invitation' ? '#f0fdf4' : '#faf5ff',
+                        color: log.callType === 'Invitation' ? '#16a34a' : '#7e22ce',
+                        border: log.callType === 'Invitation' ? '1px solid #bbf7d0' : '1px solid #e9d5ff'
+                      }}>
+                        {log.callType === 'Invitation' ? '📩 Invitation Call' : '📞 Follow-up Call'}
+                      </span>
 
-                    <span style={{ color: 'var(--text-muted)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={13} /> {formattedDate}
-                    </span>
+                      <span style={{ color: 'var(--text-muted)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={13} /> {formattedDate}
+                      </span>
+                    </div>
 
-                    <span style={{ color: '#2563eb', fontWeight: '800', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ color: '#2563eb', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <User size={13} /> Called By: {callerNameStr}
-                    </span>
+                    </div>
                   </div>
 
-                  {/* Bottom Line: Discussion Notes */}
+                  {/* Row 3: Discussion Notes */}
                   {log.notes ? (
                     <div style={{
                       fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: '600',
@@ -405,7 +407,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                       📝 <strong>Discussion Notes:</strong> {log.notes}
                     </div>
                   ) : (
-                    <div style={{ fontSize: '0.73rem', color: '#9ca3af', fontStyle: 'italic' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontStyle: 'italic' }}>
                       (No discussion notes recorded for this call)
                     </div>
                   )}
@@ -416,7 +418,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
         )}
       </div>
 
-      {/* Full Lead Modal */}
+      {/* Full Lead Details Modal */}
       {selectedLeadModal && (
         <CrmEnquiryModal
           enquiry={selectedLeadModal}
