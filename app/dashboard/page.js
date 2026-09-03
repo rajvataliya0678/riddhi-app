@@ -16,19 +16,12 @@ import FollowUpTab from '@/components/FollowUpTab';
 import CoachTodayTasks from '@/components/CoachTodayTasks';
 import TodaysMeetings from '@/components/TodaysMeetings';
 import CrmAnalyticsTab from '@/components/CrmAnalyticsTab';
-import MyCoachesTab from '@/components/MyCoachesTab';
-import AttendanceTab from '@/components/AttendanceTab';
-import SessionLeadAttendees from '@/components/SessionLeadAttendees';
-import UpdatePrompt from '@/components/UpdatePrompt';
-import SendNotificationTab from '@/components/SendNotificationTab';
-import NotificationInit from '@/components/NotificationInit';
-import NotificationModal from '@/components/NotificationModal';
-import LanguageToggle from '@/components/LanguageToggle';
+import AllCallHistoryTab from '@/components/AllCallHistoryTab';
 import {
   LayoutDashboard, CalendarCheck, Users, ClipboardList, BarChart3,
   GraduationCap, Settings2, Scale, Flame, Target, TrendingUp,
   Heart, Calendar, LogOut, Bell, Menu, X, Pencil, Stethoscope,
-  Crown, Award, Plus, ChevronRight, Activity
+  Crown, Award, Plus, ChevronRight, Activity, PhoneCall
 } from 'lucide-react';
 
 // ── Sidebar nav items ────────────────────────────────────
@@ -37,6 +30,7 @@ const NAV_ITEMS = [
   { id: 'attendance',      Icon: CalendarCheck,   label: 'Attendance',         roles: ['customer', 'coach', 'admin'] },
   { id: 'customers',       Icon: Users,           label: 'My Customers',       roles: ['coach', 'admin'] },
   { id: 'crm',             Icon: ClipboardList,   label: 'CRM',                roles: ['coach', 'admin'] },
+  { id: 'call_history',    Icon: PhoneCall,       label: 'Call History',       roles: ['coach', 'admin'] },
   { id: 'crm_analytics',   Icon: BarChart3,       label: 'CRM Analytics',      roles: ['coach', 'admin'] },
   { id: 'my_coaches',      Icon: GraduationCap,   label: 'My Coaches',         roles: ['admin'] },
   { id: 'send_notif',      Icon: Bell,            label: 'Send Notification',  roles: ['admin'] },
@@ -705,7 +699,10 @@ export default function DashboardPage() {
           {activeTab === 'followup' && isCoach && <FollowUpTab coachUid={user?.uid || ''} coachName={userData?.name || ''} />}
 
           {/* ── CRM TAB ── */}
-          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} />}
+          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} onOpenCallHistory={() => setActiveTab('call_history')} />}
+
+          {/* ── ALL CALL HISTORY TAB ── */}
+          {activeTab === 'call_history' && isCoach && <AllCallHistoryTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} />}
 
           {/* ── CRM ANALYTICS TAB ── */}
           {activeTab === 'crm_analytics' && isCoach && <CrmAnalyticsTab coachUid={user?.uid || ''} />}

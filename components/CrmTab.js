@@ -179,7 +179,7 @@ class ModalErrorBoundary extends Component {
   }
 }
 
-export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' }) {
+export default function CrmTab({ coachUid, coachName = '', userRole = 'coach', onOpenCallHistory }) {
   const [enquiries, setEnquiries]   = useState([]);
   const [coaches, setCoaches]       = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -466,7 +466,17 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {onOpenCallHistory && (
+            <button
+              type="button"
+              onClick={onOpenCallHistory}
+              className="btn btn-secondary"
+              style={{ width: 'auto', fontSize: '0.85rem', fontWeight: '800', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}
+            >
+              📞 Call History Log
+            </button>
+          )}
           <button
             onClick={() => setShowBulkModal(true)}
             className="btn btn-secondary"
@@ -900,24 +910,6 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach' })
                               id={`crm-chat-btn-${enquiry.id}`}
                             >
                               💬 Chat
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setHistoryModalLead(enquiry);
-                              }}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                padding: '2px 8px', borderRadius: '6px',
-                                background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1',
-                                fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                              }}
-                              title={`View Call History for ${enquiry.name}`}
-                              id={`crm-history-btn-${enquiry.id}`}
-                            >
-                              📜 History {(enquiry.callLogs && enquiry.callLogs.length > 0) ? `(${enquiry.callLogs.length})` : ''}
                             </button>
                           </div>
                         )}
