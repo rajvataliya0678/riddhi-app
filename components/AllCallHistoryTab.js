@@ -175,18 +175,14 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', margin: '-28px -32px -32px -32px', flex: 1, minHeight: 0 }}>
       
       {/* ── STICKY FROZEN CONTROLS (stat cards + search + filter) ── */}
       <div style={{
-        position: 'sticky',
-        top: '60px',
-        zIndex: 150,
+        flexShrink: 0,
         background: 'var(--bg-main)',
-        paddingTop: '12px',
+        paddingTop: '16px',
         paddingBottom: '12px',
-        marginLeft: '-32px',
-        marginRight: '-32px',
         paddingLeft: '32px',
         paddingRight: '32px',
         borderBottom: '1px solid var(--border-color)',
@@ -274,8 +270,8 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
         </div>
       </div>
 
-      {/* ── CALL LOGS TIMELINE LIST ──────────────────────────────── */}
-      <div className="dashboard-card" style={{ padding: '16px' }}>
+      {/* ── CALL LOGS TIMELINE LIST (scrollable) ─────────────────── */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', padding: '16px 32px 32px 32px' }}>
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
             ⏳ Loading call history timeline...
