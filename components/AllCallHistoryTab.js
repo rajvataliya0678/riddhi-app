@@ -175,7 +175,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', margin: '-28px -32px -32px -32px', flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       
       {/* ── STICKY FROZEN CONTROLS (stat cards + search + filter) ── */}
       <div style={{
