@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
@@ -23,8 +23,9 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   const [loading, setLoading]             = useState(true);
   const [searchQuery, setSearchQuery]     = useState('');
   const [outcomeFilter, setOutcomeFilter] = useState('All');
-  const [dateFilter, setDateFilter]       = useState('all'); // 'all', 'today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month'
+  const [dateFilter, setDateFilter]       = useState('all');
   const [selectedLeadModal, setSelectedLeadModal] = useState(null);
+  const listContainerRef = useRef(null);
 
   const isAdmin = userRole === 'admin';
 
@@ -45,6 +46,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
 
     return () => unsubscribe();
   }, [coachUid, isAdmin]);
+
 
   // Combine ALL call logs across all leads into a single time-wise array
   const allCallLogs = [];
@@ -402,7 +404,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div ref={listContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '14px', overflowAnchor: 'auto' }}>
             {filteredLogs.map((log, idx) => {
               const formattedDate = log.calledAt
                 ? new Date(log.calledAt).toLocaleString('en-IN', {
