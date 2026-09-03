@@ -233,14 +233,21 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
               placeholder="Search name, phone, notes or staff..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              style={{ paddingLeft: '32px', height: '36px', fontSize: '0.8rem' }}
+              style={{ padding: '6px 12px 6px 32px', height: '38px', fontSize: '0.82rem' }}
             />
           </div>
           <select
             className="form-input"
             value={outcomeFilter}
             onChange={e => setOutcomeFilter(e.target.value)}
-            style={{ height: '36px', width: 'auto', fontSize: '0.78rem', fontWeight: '700' }}
+            style={{
+              height: '38px',
+              width: 'auto',
+              fontSize: '0.82rem',
+              fontWeight: '700',
+              padding: '6px 14px',
+              cursor: 'pointer',
+            }}
           >
             {OUTCOME_OPTIONS.map(opt => (
               <option key={opt} value={opt}>{opt === 'All' ? '👥 All Outcomes' : opt}</option>
