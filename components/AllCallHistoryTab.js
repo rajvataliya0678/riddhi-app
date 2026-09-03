@@ -26,6 +26,11 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   const [dateFilter, setDateFilter]       = useState('all');
   const [selectedLeadModal, setSelectedLeadModal] = useState(null);
   const listContainerRef = useRef(null);
+  const [editingLogKey, setEditingLogKey] = useState(null);
+  const [editOutcome, setEditOutcome]     = useState('📞 Called');
+  const [editCallType, setEditCallType]   = useState('Follow-up');
+  const [editNotes, setEditNotes]         = useState('');
+  const [savingLog, setSavingLog]         = useState(false);
 
   const isAdmin = userRole === 'admin';
 
@@ -174,6 +179,52 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
     }
   };
 
+  const startEditingLog = (log) => {
+    const key = log.id || `${log.leadId}-${log.logIndex}-${log.calledAt}`;
+    setEditingLogKey(key);
+    setEditOutcome(log.outcome || '📞 Called');
+    setEditCallType(log.callType === 'Invitation' ? 'Invitation' : 'Follow-up');
+    setEditNotes(log.notes || '');
+  };
+
+  const handleSaveEditedLog = async (logItem) => {
+    if (!logItem?.leadId) return;
+    setSavingLog(true);
+    try {
+      const enquiry = enquiries.find(e => e.id === logItem.leadId);
+      if (!enquiry) {
+        setSavingLog(false);
+        return;
+      }
+      const currentLogs = enquiry.callLogs || [];
+      const updatedLogs = currentLogs.map((l, idx) => {
+        const isMatch = (logItem.id && l.id === logItem.id) ||
+                        (logItem.calledAt && l.calledAt === logItem.calledAt) ||
+                        (idx === logItem.logIndex);
+        if (isMatch) {
+          return {
+            ...l,
+            outcome: editOutcome,
+            callType: editCallType,
+            notes: (editNotes || '').trim(),
+          };
+        }
+        return l;
+      });
+
+      await updateDoc(doc(db, 'crm_enquiries', logItem.leadId), {
+        callLogs: updatedLogs,
+        updatedAt: serverTimestamp(),
+      });
+      setEditingLogKey(null);
+    } catch (err) {
+      console.error('Error saving call log:', err);
+      alert('Failed to save call log: ' + err.message);
+    } finally {
+      setSavingLog(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       
@@ -319,6 +370,9 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                 badgeStyle = { bg: '#f3f4f6', color: '#4b5563', border: '#e5e7eb' };
               }
 
+              const uniqueLogKey = log.id || `${log.leadId}-${log.logIndex}-${log.calledAt}`;
+              const isEditingThis = editingLogKey === uniqueLogKey;
+
               return (
                 <div
                   key={log.id || `${log.leadId}-${idx}`}
@@ -396,6 +450,18 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                       )}
                       <button
                         type="button"
+                        onClick={() => startEditingLog(log)}
+                        style={{
+                          padding: '5px 12px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800',
+                          background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', gap: '4px'
+                        }}
+                        title="Edit this call log entry"
+                      >
+                        ✏️ Edit Log
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setSelectedLeadModal(log.leadObj)}
                         style={{
                           padding: '5px 12px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800',
@@ -407,52 +473,173 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                     </div>
                   </div>
 
-                  {/* Row 2: Badges Bar */}
-                  <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap',
-                    background: 'var(--bg-secondary)', padding: '8px 12px', borderRadius: '8px',
-                    fontSize: '0.76rem'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{
-                        padding: '3px 9px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '900',
-                        background: badgeStyle.bg, color: badgeStyle.color, border: `1px solid ${badgeStyle.border}`
-                      }}>
-                        {outcomeText}
-                      </span>
-
-                      <span style={{
-                        padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '800',
-                        background: log.callType === 'Invitation' ? '#f0fdf4' : '#faf5ff',
-                        color: log.callType === 'Invitation' ? '#16a34a' : '#7e22ce',
-                        border: log.callType === 'Invitation' ? '1px solid #bbf7d0' : '1px solid #e9d5ff'
-                      }}>
-                        {log.callType === 'Invitation' ? '📩 Invitation Call' : '📞 Follow-up Call'}
-                      </span>
-
-                      <span style={{ color: 'var(--text-muted)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={13} /> {formattedDate}
-                      </span>
-                    </div>
-
-                    <div style={{ color: '#2563eb', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <User size={13} /> Called By: {callerNameStr}
-                    </div>
-                  </div>
-
-                  {/* Row 3: Discussion Notes */}
-                  {log.notes ? (
+                  {/* Inline Edit Form OR Badges + Notes */}
+                  {isEditingThis ? (
                     <div style={{
-                      fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: '600',
-                      background: '#fffbeb', padding: '8px 12px', borderRadius: '8px',
-                      border: '1px solid #fde68a', wordBreak: 'break-word', lineHeight: '1.4'
+                      background: '#f8fafc',
+                      border: '2px solid #3b82f6',
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      boxShadow: '0 4px 12px rgba(59,130,246,0.08)'
                     }}>
-                      📝 <strong>Discussion Notes:</strong> {log.notes}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                        <span style={{ fontSize: '0.86rem', fontWeight: '800', color: '#1e40af', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          ✏️ Edit Call Log Entry
+                        </span>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                          🕒 {formattedDate}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                            Call Outcome (પરિણામ):
+                          </label>
+                          <select
+                            className="form-input"
+                            value={editOutcome}
+                            onChange={e => setEditOutcome(e.target.value)}
+                            style={{ height: '38px', padding: '6px 12px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
+                          >
+                            {OUTCOME_OPTIONS.filter(o => o !== 'All').map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                            Call Type (પ્રકાર):
+                          </label>
+                          <select
+                            className="form-input"
+                            value={editCallType}
+                            onChange={e => setEditCallType(e.target.value)}
+                            style={{ height: '38px', padding: '6px 12px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
+                          >
+                            <option value="Invitation">📩 Invitation Call</option>
+                            <option value="Follow-up">📞 Follow-up Call</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                          Discussion Notes (નોંધ):
+                        </label>
+                        <textarea
+                          className="form-input"
+                          rows={2}
+                          value={editNotes}
+                          onChange={e => setEditNotes(e.target.value)}
+                          placeholder="Enter discussion notes or remarks..."
+                          style={{ fontSize: '0.84rem', padding: '8px 12px', resize: 'vertical' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', paddingTop: '4px' }}>
+                        <button
+                          type="button"
+                          disabled={savingLog}
+                          onClick={() => setEditingLogKey(null)}
+                          style={{
+                            padding: '6px 14px', borderRadius: '7px', fontSize: '0.78rem', fontWeight: '700',
+                            background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', cursor: 'pointer'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingLog}
+                          onClick={() => handleSaveEditedLog(log)}
+                          style={{
+                            padding: '6px 18px', borderRadius: '7px', fontSize: '0.78rem', fontWeight: '800',
+                            background: 'linear-gradient(135deg, #059669, #10b981)', color: '#fff',
+                            border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px',
+                            boxShadow: '0 2px 6px rgba(5,150,105,0.25)'
+                          }}
+                        >
+                          {savingLog ? '⏳ Saving...' : '💾 Save Log'}
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontStyle: 'italic' }}>
-                      (No discussion notes recorded for this call)
-                    </div>
+                    <>
+                      {/* Row 2: Badges Bar */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap',
+                        background: 'var(--bg-secondary)', padding: '8px 12px', borderRadius: '8px',
+                        fontSize: '0.76rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{
+                            padding: '3px 9px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '900',
+                            background: badgeStyle.bg, color: badgeStyle.color, border: `1px solid ${badgeStyle.border}`
+                          }}>
+                            {outcomeText}
+                          </span>
+
+                          <span style={{
+                            padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '800',
+                            background: log.callType === 'Invitation' ? '#f0fdf4' : '#faf5ff',
+                            color: log.callType === 'Invitation' ? '#16a34a' : '#7e22ce',
+                            border: log.callType === 'Invitation' ? '1px solid #bbf7d0' : '1px solid #e9d5ff'
+                          }}>
+                            {log.callType === 'Invitation' ? '📩 Invitation Call' : '📞 Follow-up Call'}
+                          </span>
+
+                          <span style={{ color: 'var(--text-muted)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Clock size={13} /> {formattedDate}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ color: '#2563eb', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <User size={13} /> Called By: {callerNameStr}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => startEditingLog(log)}
+                            style={{
+                              padding: '3px 9px',
+                              borderRadius: '6px',
+                              fontSize: '0.74rem',
+                              fontWeight: '800',
+                              background: '#eff6ff',
+                              color: '#2563eb',
+                              border: '1px solid #bfdbfe',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}
+                            title="Edit this call log"
+                          >
+                            ✏️ Edit
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Row 3: Discussion Notes */}
+                      {log.notes ? (
+                        <div style={{
+                          fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: '600',
+                          background: '#fffbeb', padding: '8px 12px', borderRadius: '8px',
+                          border: '1px solid #fde68a', wordBreak: 'break-word', lineHeight: '1.4'
+                        }}>
+                          📝 <strong>Discussion Notes:</strong> {log.notes}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontStyle: 'italic' }}>
+                          (No discussion notes recorded for this call)
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               );
