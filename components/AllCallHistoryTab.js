@@ -23,7 +23,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   const [loading, setLoading]             = useState(true);
   const [searchQuery, setSearchQuery]     = useState('');
   const [outcomeFilter, setOutcomeFilter] = useState('All');
-  const [dateFilter, setDateFilter]       = useState('all'); // 'all', 'today', 'yesterday', 'week'
+  const [dateFilter, setDateFilter]       = useState('all'); // 'all', 'today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month'
   const [selectedLeadModal, setSelectedLeadModal] = useState(null);
 
   const isAdmin = userRole === 'admin';
@@ -68,12 +68,64 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   // Sort newest first (like mobile phone call history!)
   allCallLogs.sort((a, b) => b.sortTime - a.sortTime);
 
-  // Filter call logs
-  const todayStr = new Date().toISOString().split('T')[0];
-  const yesterdayObj = new Date();
-  yesterdayObj.setDate(yesterdayObj.getDate() - 1);
-  const yesterdayStr = yesterdayObj.toISOString().split('T')[0];
+  // Exact Date Calculations for 6 Categories
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const date = now.getDate();
 
+  // 1. Today
+  const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+
+  // 2. Yesterday
+  const yest = new Date(now);
+  yest.setDate(date - 1);
+  const yesterdayStr = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+
+  // 3. This Week (Monday 00:00 to now)
+  const currentDayOfWeek = now.getDay();
+  const distanceToMonday = (currentDayOfWeek + 6) % 7;
+  const startOfThisWeek = new Date(now);
+  startOfThisWeek.setDate(date - distanceToMonday);
+  startOfThisWeek.setHours(0, 0, 0, 0);
+
+  // 4. Last Week (Monday 00:00 of prev week to Sunday 23:59 of prev week)
+  const startOfLastWeek = new Date(startOfThisWeek);
+  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+  const endOfLastWeek = new Date(startOfThisWeek);
+  endOfLastWeek.setMilliseconds(-1);
+
+  // 5. This Month (1st 00:00 of current month to now)
+  const startOfThisMonth = new Date(year, month, 1, 0, 0, 0, 0);
+
+  // 6. Last Month (1st 00:00 of prev month to last day 23:59 of prev month)
+  const startOfLastMonth = new Date(year, month - 1, 1, 0, 0, 0, 0);
+  const endOfLastMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+  // Count variables for 6 cards
+  let todayCount = 0;
+  let yesterdayCount = 0;
+  let thisWeekCount = 0;
+  let lastWeekCount = 0;
+  let thisMonthCount = 0;
+  let lastMonthCount = 0;
+
+  allCallLogs.forEach(log => {
+    if (!log.calledAt) return;
+    const logDate = new Date(log.calledAt);
+    const logDateStr = logDate.toISOString().split('T')[0];
+
+    if (logDateStr === todayStr) todayCount++;
+    if (logDateStr === yesterdayStr) yesterdayCount++;
+
+    if (logDate >= startOfThisWeek && logDate <= now) thisWeekCount++;
+    if (logDate >= startOfLastWeek && logDate <= endOfLastWeek) lastWeekCount++;
+
+    if (logDate >= startOfThisMonth && logDate <= now) thisMonthCount++;
+    if (logDate >= startOfLastMonth && logDate <= endOfLastMonth) lastMonthCount++;
+  });
+
+  // Filter call logs list
   const filteredLogs = allCallLogs.filter(log => {
     // Search query filter
     if (searchQuery.trim()) {
@@ -96,20 +148,19 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
 
     // Date filter
     if (dateFilter !== 'all' && log.calledAt) {
-      const logDateStr = new Date(log.calledAt).toISOString().split('T')[0];
+      const logDate = new Date(log.calledAt);
+      const logDateStr = logDate.toISOString().split('T')[0];
+
       if (dateFilter === 'today' && logDateStr !== todayStr) return false;
       if (dateFilter === 'yesterday' && logDateStr !== yesterdayStr) return false;
-      if (dateFilter === 'week') {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        if (new Date(log.calledAt) < weekAgo) return false;
-      }
+      if (dateFilter === 'this_week' && !(logDate >= startOfThisWeek && logDate <= now)) return false;
+      if (dateFilter === 'last_week' && !(logDate >= startOfLastWeek && logDate <= endOfLastWeek)) return false;
+      if (dateFilter === 'this_month' && !(logDate >= startOfThisMonth && logDate <= now)) return false;
+      if (dateFilter === 'last_month' && !(logDate >= startOfLastMonth && logDate <= endOfLastMonth)) return false;
     }
 
     return true;
   });
-
-  const todayCount = allCallLogs.filter(l => l.calledAt && new Date(l.calledAt).toISOString().split('T')[0] === todayStr).length;
 
   const handleLeadSaved = async (updatedData, leadId) => {
     if (leadId) {
@@ -124,44 +175,144 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px' }}>
       
-      {/* ── QUICK STAT CARDS ROW ───────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-        <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
-          <div style={{
-            width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
-            background: 'linear-gradient(135deg, #e0f2fe, #bae6fd)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.2rem'
-          }}>
-            📞
+      {/* ── 6 CALL STAT COUNTER CARDS ───────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+        {/* Today */}
+        <div
+          className="dashboard-card"
+          onClick={() => setDateFilter(dateFilter === 'today' ? 'all' : 'today')}
+          style={{
+            padding: '14px 16px', gap: '6px', cursor: 'pointer',
+            border: dateFilter === 'today' ? '2px solid #16a34a' : '1px solid var(--border-color)',
+            background: dateFilter === 'today' ? '#f0fdf4' : 'var(--card-bg)',
+            transition: 'all 0.15s ease'
+          }}
+          title="Click to filter Today's calls"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#16a34a', letterSpacing: '0.04em' }}>
+              🟢 Today's Calls
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>આજના</span>
           </div>
-          <div>
-            <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>
-              Total Call Logs
-            </p>
-            <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-main)', lineHeight: 1, margin: 0 }}>
-              {allCallLogs.length}
-            </p>
-          </div>
+          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#16a34a', margin: 0, lineHeight: 1 }}>
+            {todayCount}
+          </p>
         </div>
 
-        <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
-          <div style={{
-            width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
-            background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.2rem'
-          }}>
-            🟢
+        {/* Yesterday */}
+        <div
+          className="dashboard-card"
+          onClick={() => setDateFilter(dateFilter === 'yesterday' ? 'all' : 'yesterday')}
+          style={{
+            padding: '14px 16px', gap: '6px', cursor: 'pointer',
+            border: dateFilter === 'yesterday' ? '2px solid #0284c7' : '1px solid var(--border-color)',
+            background: dateFilter === 'yesterday' ? '#f0f9ff' : 'var(--card-bg)',
+            transition: 'all 0.15s ease'
+          }}
+          title="Click to filter Yesterday's calls"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#0284c7', letterSpacing: '0.04em' }}>
+              🔵 Yesterday
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ગઈકાલના</span>
           </div>
-          <div>
-            <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>
-              Today's Calls
-            </p>
-            <p style={{ fontSize: '1.5rem', fontWeight: '900', color: '#16a34a', lineHeight: 1, margin: 0 }}>
-              {todayCount}
-            </p>
+          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#0284c7', margin: 0, lineHeight: 1 }}>
+            {yesterdayCount}
+          </p>
+        </div>
+
+        {/* This Week */}
+        <div
+          className="dashboard-card"
+          onClick={() => setDateFilter(dateFilter === 'this_week' ? 'all' : 'this_week')}
+          style={{
+            padding: '14px 16px', gap: '6px', cursor: 'pointer',
+            border: dateFilter === 'this_week' ? '2px solid #7e22ce' : '1px solid var(--border-color)',
+            background: dateFilter === 'this_week' ? '#faf5ff' : 'var(--card-bg)',
+            transition: 'all 0.15s ease'
+          }}
+          title="Click to filter This Week's calls"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#7e22ce', letterSpacing: '0.04em' }}>
+              🟣 This Week
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>આ અઠવાડિયું</span>
           </div>
+          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#7e22ce', margin: 0, lineHeight: 1 }}>
+            {thisWeekCount}
+          </p>
+        </div>
+
+        {/* Last Week */}
+        <div
+          className="dashboard-card"
+          onClick={() => setDateFilter(dateFilter === 'last_week' ? 'all' : 'last_week')}
+          style={{
+            padding: '14px 16px', gap: '6px', cursor: 'pointer',
+            border: dateFilter === 'last_week' ? '2px solid #ea580c' : '1px solid var(--border-color)',
+            background: dateFilter === 'last_week' ? '#fff7ed' : 'var(--card-bg)',
+            transition: 'all 0.15s ease'
+          }}
+          title="Click to filter Last Week's calls"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#ea580c', letterSpacing: '0.04em' }}>
+              🟠 Last Week
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ગયું અઠવાડિયું</span>
+          </div>
+          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#ea580c', margin: 0, lineHeight: 1 }}>
+            {lastWeekCount}
+          </p>
+        </div>
+
+        {/* This Month */}
+        <div
+          className="dashboard-card"
+          onClick={() => setDateFilter(dateFilter === 'this_month' ? 'all' : 'this_month')}
+          style={{
+            padding: '14px 16px', gap: '6px', cursor: 'pointer',
+            border: dateFilter === 'this_month' ? '2px solid #2563eb' : '1px solid var(--border-color)',
+            background: dateFilter === 'this_month' ? '#eff6ff' : 'var(--card-bg)',
+            transition: 'all 0.15s ease'
+          }}
+          title="Click to filter This Month's calls"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.04em' }}>
+              📅 This Month
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>આ મહિનો</span>
+          </div>
+          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#2563eb', margin: 0, lineHeight: 1 }}>
+            {thisMonthCount}
+          </p>
+        </div>
+
+        {/* Last Month */}
+        <div
+          className="dashboard-card"
+          onClick={() => setDateFilter(dateFilter === 'last_month' ? 'all' : 'last_month')}
+          style={{
+            padding: '14px 16px', gap: '6px', cursor: 'pointer',
+            border: dateFilter === 'last_month' ? '2px solid #475569' : '1px solid var(--border-color)',
+            background: dateFilter === 'last_month' ? '#f8fafc' : 'var(--card-bg)',
+            transition: 'all 0.15s ease'
+          }}
+          title="Click to filter Last Month's calls"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#475569', letterSpacing: '0.04em' }}>
+              🗓️ Last Month
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ગયો મહિનો</span>
+          </div>
+          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#475569', margin: 0, lineHeight: 1 }}>
+            {lastMonthCount}
+          </p>
         </div>
       </div>
 
@@ -205,12 +356,15 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
           </select>
 
           {/* Date Filter Pills */}
-          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-secondary)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-secondary)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
             {[
               { id: 'all', label: 'All Time' },
-              { id: 'today', label: 'Today' },
+              { id: 'today', label: "Today's" },
               { id: 'yesterday', label: 'Yesterday' },
-              { id: 'week', label: '7 Days' },
+              { id: 'this_week', label: 'This Week' },
+              { id: 'last_week', label: 'Last Week' },
+              { id: 'this_month', label: 'This Month' },
+              { id: 'last_month', label: 'Last Month' },
             ].map(d => (
               <button
                 key={d.id}
