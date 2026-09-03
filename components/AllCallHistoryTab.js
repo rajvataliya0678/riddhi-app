@@ -450,18 +450,6 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                       )}
                       <button
                         type="button"
-                        onClick={() => startEditingLog(log)}
-                        style={{
-                          padding: '5px 12px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800',
-                          background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', cursor: 'pointer',
-                          display: 'inline-flex', alignItems: 'center', gap: '4px'
-                        }}
-                        title="Edit this call log entry"
-                      >
-                        ✏️ Edit Log
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setSelectedLeadModal(log.leadObj)}
                         style={{
                           padding: '5px 12px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800',
