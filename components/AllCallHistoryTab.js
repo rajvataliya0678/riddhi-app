@@ -177,209 +177,96 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px' }}>
       
-      {/* ── 6 CALL STAT COUNTER CARDS ───────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
-        {/* Today */}
-        <div
-          className="dashboard-card"
-          onClick={() => setDateFilter(dateFilter === 'today' ? 'all' : 'today')}
-          style={{
-            padding: '14px 16px', gap: '6px', cursor: 'pointer',
-            border: dateFilter === 'today' ? '2px solid #16a34a' : '1px solid var(--border-color)',
-            background: dateFilter === 'today' ? '#f0fdf4' : 'var(--card-bg)',
-            transition: 'all 0.15s ease'
-          }}
-          title="Click to filter Today's calls"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#16a34a', letterSpacing: '0.04em' }}>
-              🟢 Today's Calls
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>આજના</span>
-          </div>
-          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#16a34a', margin: 0, lineHeight: 1 }}>
-            {todayCount}
-          </p>
-        </div>
-
-        {/* Yesterday */}
-        <div
-          className="dashboard-card"
-          onClick={() => setDateFilter(dateFilter === 'yesterday' ? 'all' : 'yesterday')}
-          style={{
-            padding: '14px 16px', gap: '6px', cursor: 'pointer',
-            border: dateFilter === 'yesterday' ? '2px solid #0284c7' : '1px solid var(--border-color)',
-            background: dateFilter === 'yesterday' ? '#f0f9ff' : 'var(--card-bg)',
-            transition: 'all 0.15s ease'
-          }}
-          title="Click to filter Yesterday's calls"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#0284c7', letterSpacing: '0.04em' }}>
-              🔵 Yesterday
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ગઈકાલના</span>
-          </div>
-          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#0284c7', margin: 0, lineHeight: 1 }}>
-            {yesterdayCount}
-          </p>
-        </div>
-
-        {/* This Week */}
-        <div
-          className="dashboard-card"
-          onClick={() => setDateFilter(dateFilter === 'this_week' ? 'all' : 'this_week')}
-          style={{
-            padding: '14px 16px', gap: '6px', cursor: 'pointer',
-            border: dateFilter === 'this_week' ? '2px solid #7e22ce' : '1px solid var(--border-color)',
-            background: dateFilter === 'this_week' ? '#faf5ff' : 'var(--card-bg)',
-            transition: 'all 0.15s ease'
-          }}
-          title="Click to filter This Week's calls"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#7e22ce', letterSpacing: '0.04em' }}>
-              🟣 This Week
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>આ અઠવાડિયું</span>
-          </div>
-          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#7e22ce', margin: 0, lineHeight: 1 }}>
-            {thisWeekCount}
-          </p>
-        </div>
-
-        {/* Last Week */}
-        <div
-          className="dashboard-card"
-          onClick={() => setDateFilter(dateFilter === 'last_week' ? 'all' : 'last_week')}
-          style={{
-            padding: '14px 16px', gap: '6px', cursor: 'pointer',
-            border: dateFilter === 'last_week' ? '2px solid #ea580c' : '1px solid var(--border-color)',
-            background: dateFilter === 'last_week' ? '#fff7ed' : 'var(--card-bg)',
-            transition: 'all 0.15s ease'
-          }}
-          title="Click to filter Last Week's calls"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#ea580c', letterSpacing: '0.04em' }}>
-              🟠 Last Week
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ગયું અઠવાડિયું</span>
-          </div>
-          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#ea580c', margin: 0, lineHeight: 1 }}>
-            {lastWeekCount}
-          </p>
-        </div>
-
-        {/* This Month */}
-        <div
-          className="dashboard-card"
-          onClick={() => setDateFilter(dateFilter === 'this_month' ? 'all' : 'this_month')}
-          style={{
-            padding: '14px 16px', gap: '6px', cursor: 'pointer',
-            border: dateFilter === 'this_month' ? '2px solid #2563eb' : '1px solid var(--border-color)',
-            background: dateFilter === 'this_month' ? '#eff6ff' : 'var(--card-bg)',
-            transition: 'all 0.15s ease'
-          }}
-          title="Click to filter This Month's calls"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.04em' }}>
-              📅 This Month
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>આ મહિનો</span>
-          </div>
-          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#2563eb', margin: 0, lineHeight: 1 }}>
-            {thisMonthCount}
-          </p>
-        </div>
-
-        {/* Last Month */}
-        <div
-          className="dashboard-card"
-          onClick={() => setDateFilter(dateFilter === 'last_month' ? 'all' : 'last_month')}
-          style={{
-            padding: '14px 16px', gap: '6px', cursor: 'pointer',
-            border: dateFilter === 'last_month' ? '2px solid #475569' : '1px solid var(--border-color)',
-            background: dateFilter === 'last_month' ? '#f8fafc' : 'var(--card-bg)',
-            transition: 'all 0.15s ease'
-          }}
-          title="Click to filter Last Month's calls"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', color: '#475569', letterSpacing: '0.04em' }}>
-              🗓️ Last Month
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>ગયો મહિનો</span>
-          </div>
-          <p style={{ fontSize: '1.6rem', fontWeight: '900', color: '#475569', margin: 0, lineHeight: 1 }}>
-            {lastMonthCount}
-          </p>
-        </div>
-      </div>
-
-      {/* ── SEARCH & FILTER CONTROLS ─────────────────────────────── */}
+      {/* ── STICKY FROZEN CONTROLS (stat cards + search + filter) ── */}
       <div style={{
-        background: 'var(--card-bg)',
-        borderRadius: '14px',
-        padding: '14px 18px',
-        border: '1px solid var(--border-color)',
+        position: 'sticky',
+        top: '60px',
+        zIndex: 150,
+        background: 'var(--bg-main)',
+        paddingTop: '12px',
+        paddingBottom: '12px',
+        marginLeft: '-32px',
+        marginRight: '-32px',
+        paddingLeft: '32px',
+        paddingRight: '32px',
+        borderBottom: '1px solid var(--border-color)',
         display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        flexDirection: 'column',
+        gap: '10px',
+        boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
       }}>
-        {/* Search Input */}
-        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search prospect name, phone, notes, or staff..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ paddingLeft: '36px', height: '40px', fontSize: '0.84rem' }}
-          />
+
+        {/* ── 6 CALL STAT COUNTER CARDS (compact) ─────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+          {[
+            { id: 'today',      label: "Today's",   count: todayCount,     color: '#16a34a', selBg: '#f0fdf4', selBorder: '#16a34a' },
+            { id: 'yesterday',  label: 'Yesterday', count: yesterdayCount, color: '#0284c7', selBg: '#f0f9ff', selBorder: '#0284c7' },
+            { id: 'this_week',  label: 'This Week', count: thisWeekCount,  color: '#7e22ce', selBg: '#faf5ff', selBorder: '#7e22ce' },
+            { id: 'last_week',  label: 'Last Week', count: lastWeekCount,  color: '#ea580c', selBg: '#fff7ed', selBorder: '#ea580c' },
+            { id: 'this_month', label: 'This Month',count: thisMonthCount, color: '#2563eb', selBg: '#eff6ff', selBorder: '#2563eb' },
+            { id: 'last_month', label: 'Last Month',count: lastMonthCount, color: '#475569', selBg: '#f8fafc', selBorder: '#475569' },
+          ].map(card => (
+            <div
+              key={card.id}
+              className="dashboard-card"
+              onClick={() => setDateFilter(dateFilter === card.id ? 'all' : card.id)}
+              style={{
+                padding: '8px 10px', gap: '2px', cursor: 'pointer', flexDirection: 'column',
+                border: dateFilter === card.id ? `2px solid ${card.selBorder}` : '1px solid var(--border-color)',
+                background: dateFilter === card.id ? card.selBg : 'var(--card-bg)',
+                transition: 'all 0.15s ease', textAlign: 'center',
+              }}
+            >
+              <p style={{ fontSize: '0.58rem', fontWeight: '800', textTransform: 'uppercase', color: card.color, margin: 0, letterSpacing: '0.03em', lineHeight: 1 }}>
+                {card.label}
+              </p>
+              <p style={{ fontSize: '1.4rem', fontWeight: '900', color: card.color, margin: 0, lineHeight: 1 }}>
+                {card.count}
+              </p>
+            </div>
+          ))}
         </div>
 
-        {/* Outcome Filter Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {/* ── SEARCH & FILTER ─────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search name, phone, notes or staff..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ paddingLeft: '32px', height: '36px', fontSize: '0.8rem' }}
+            />
+          </div>
           <select
             className="form-input"
             value={outcomeFilter}
             onChange={e => setOutcomeFilter(e.target.value)}
-            style={{ height: '40px', width: 'auto', fontSize: '0.82rem', fontWeight: '700' }}
+            style={{ height: '36px', width: 'auto', fontSize: '0.78rem', fontWeight: '700' }}
           >
             {OUTCOME_OPTIONS.map(opt => (
               <option key={opt} value={opt}>{opt === 'All' ? '👥 All Outcomes' : opt}</option>
             ))}
           </select>
-
-          {/* Date Filter Pills */}
-          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-secondary)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '3px', background: 'var(--bg-secondary)', padding: '2px', borderRadius: '7px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
             {[
-              { id: 'all', label: 'All Time' },
-              { id: 'today', label: "Today's" },
-              { id: 'yesterday', label: 'Yesterday' },
-              { id: 'this_week', label: 'This Week' },
-              { id: 'last_week', label: 'Last Week' },
-              { id: 'this_month', label: 'This Month' },
-              { id: 'last_month', label: 'Last Month' },
+              { id: 'all', label: 'All' },
+              { id: 'today', label: 'Today' },
+              { id: 'yesterday', label: 'Yest.' },
+              { id: 'this_week', label: 'This Wk' },
+              { id: 'last_week', label: 'Last Wk' },
+              { id: 'this_month', label: 'This Mo' },
+              { id: 'last_month', label: 'Last Mo' },
             ].map(d => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => setDateFilter(d.id)}
-                style={{
-                  padding: '5px 10px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '800',
-                  border: 'none', cursor: 'pointer',
-                  background: dateFilter === d.id ? 'var(--primary)' : 'transparent',
-                  color: dateFilter === d.id ? '#ffffff' : 'var(--text-muted)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
+              <button key={d.id} type="button" onClick={() => setDateFilter(d.id)} style={{
+                padding: '4px 8px', borderRadius: '5px', fontSize: '0.7rem', fontWeight: '800',
+                border: 'none', cursor: 'pointer',
+                background: dateFilter === d.id ? 'var(--primary)' : 'transparent',
+                color: dateFilter === d.id ? '#fff' : 'var(--text-muted)',
+                transition: 'all 0.15s ease'
+              }}>
                 {d.label}
               </button>
             ))}

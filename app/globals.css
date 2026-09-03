@@ -331,7 +331,7 @@ input, select, textarea { font-family: var(--font-body); }
 .main-panel-header {
   background: var(--bg-main, #f0f4ff);
   border-bottom: 1px solid var(--border-color, #e2e8f0);
-  padding: 18px 32px;
+  padding: 10px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -342,16 +342,16 @@ input, select, textarea { font-family: var(--font-body); }
 }
 
 .page-title-block h1 {
-  font-size: 1.55rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.02em;
 }
 
 .page-title-block p {
-  font-size: 0.83rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .main-panel-body {
