@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
 import { openWhatsAppChat } from '@/lib/whatsapp';
 import CrmEnquiryModal from './CrmEnquiryModal';
-import { Search, Clock, User, Phone, MessageCircle, FileText } from 'lucide-react';
+import { Search, Clock, User, Phone, MessageCircle, FileText, CheckCircle2, PhoneCall, Calendar } from 'lucide-react';
 
 const OUTCOME_OPTIONS = [
   'All',
@@ -122,48 +122,45 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px', marginTop: '4px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px' }}>
       
-      {/* ── HEADER BANNER ────────────────────────────────────────── */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1e293b, #0f172a)',
-        borderRadius: '16px',
-        padding: '20px 24px',
-        color: '#ffffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px',
-        boxShadow: '0 10px 25px rgba(15, 23, 42, 0.2)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      {/* ── QUICK STAT CARDS ROW ───────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+        <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
           <div style={{
-            width: '48px', height: '48px', borderRadius: '12px',
-            background: 'linear-gradient(135deg, #0284c7, #2563eb)',
+            width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+            background: 'linear-gradient(135deg, #e0f2fe, #bae6fd)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.4rem', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)'
+            fontSize: '1.2rem'
           }}>
             📞
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em', color: '#fff' }}>
-              Call History Timeline (કોલ હિસ્ટ્રી લૉગ)
-            </h2>
-            <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-              Combined time-wise call log timeline across all prospects & leads (Newest calls first)
+            <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>
+              Total Call Logs
+            </p>
+            <p style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--text-main)', lineHeight: 1, margin: 0 }}>
+              {allCallLogs.length}
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)' }}>
-            <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', fontWeight: '700' }}>TOTAL LOGS</span>
-            <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#38bdf8' }}>{allCallLogs.length}</span>
+        <div className="dashboard-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
+          <div style={{
+            width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+            background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.2rem'
+          }}>
+            🟢
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.12)' }}>
-            <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', fontWeight: '700' }}>TODAY'S CALLS</span>
-            <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#4ade80' }}>{todayCount}</span>
+          <div>
+            <p style={{ fontSize: '0.68rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>
+              Today's Calls
+            </p>
+            <p style={{ fontSize: '1.5rem', fontWeight: '900', color: '#16a34a', lineHeight: 1, margin: 0 }}>
+              {todayCount}
+            </p>
           </div>
         </div>
       </div>
@@ -181,7 +178,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
         justifyContent: 'space-between',
         boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
       }}>
-        {/* Search */}
+        {/* Search Input */}
         <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
@@ -194,7 +191,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
           />
         </div>
 
-        {/* Outcome Filter */}
+        {/* Outcome Filter Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <select
             className="form-input"
