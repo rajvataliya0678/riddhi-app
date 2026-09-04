@@ -38,7 +38,8 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
     if (!coachUid) return;
 
     const crmRef = collection(db, 'crm_enquiries');
-    const q = isAdmin ? crmRef : query(crmRef, where('coachId', '==', coachUid));
+    // Always filter by coachId so every user sees only their own call history
+    const q = query(crmRef, where('coachId', '==', coachUid));
 
     const unsubscribe = onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
