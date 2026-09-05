@@ -81,7 +81,19 @@ export default function DashboardPage() {
   const [diagnosis, setDiagnosis] = useState(null);
   const [weightHistory, setWeightHistory] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('vriddhi_active_tab') || 'dashboard';
+    }
+    return 'dashboard';
+  });
+
+  const handleSetActiveTab = (tab) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vriddhi_active_tab', tab);
+    }
+  };
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [newWeight, setNewWeight] = useState('');
@@ -328,7 +340,7 @@ export default function DashboardPage() {
               <button
                 key={item.id}
                 className={`sidebar-link ${activeTab === item.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleSetActiveTab(item.id)}
                 id={`nav-${item.id}`}
               >
                 <span className="sidebar-link-icon"><IconComp size={16} /></span>
@@ -425,7 +437,7 @@ export default function DashboardPage() {
                   <button
                     key={item.id}
                     className={`sidebar-link ${activeTab === item.id ? 'active' : ''}`}
-                    onClick={() => { setActiveTab(item.id); setDrawerOpen(false); }}
+                    onClick={() => { handleSetActiveTab(item.id); setDrawerOpen(false); }}
                   >
                     <span className="sidebar-link-icon"><IconComp size={16} /></span>
                     {itemLabel}
@@ -474,7 +486,7 @@ export default function DashboardPage() {
               key={item.id}
               type="button"
               className={`mobile-tab-btn ${activeTab === item.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => handleSetActiveTab(item.id)}
               id={`mobile-tab-${item.id}`}
             >
               <IconComp size={20} />
@@ -735,7 +747,7 @@ export default function DashboardPage() {
           {activeTab === 'followup' && isCoach && <FollowUpTab coachUid={user?.uid || ''} coachName={userData?.name || ''} />}
 
           {/* ── CRM TAB ── */}
-          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} onOpenCallHistory={() => setActiveTab('call_history')} />}
+          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} onOpenCallHistory={() => handleSetActiveTab('call_history')} />}
 
           {/* ── ALL CALL HISTORY TAB ── */}
           {activeTab === 'call_history' && isCoach && <AllCallHistoryTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} />}
