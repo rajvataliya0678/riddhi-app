@@ -49,6 +49,8 @@ export default function NotificationModal({ uid, userRole, userCreatedAt, onClos
           if (n.audience === 'all') return true;
           if (n.audience === 'coaches' && (userRole === 'coach' || userRole === 'admin')) return true;
           if (n.audience === 'customers' && userRole === 'customer') return true;
+          // Targeted notification (absence alert for a specific coach)
+          if (n.audience === 'targeted' && n.targetUid === uid) return true;
           return false;
         });
 

@@ -172,7 +172,7 @@ export default function DashboardPage() {
           return false;
         }
 
-        if (n.audience === 'all' || (n.audience === 'coaches' && isCoach) || (n.audience === 'customers' && role === 'customer')) {
+        if (n.audience === 'all' || (n.audience === 'coaches' && isCoach) || (n.audience === 'customers' && role === 'customer') || (n.audience === 'targeted' && n.targetUid === user.uid)) {
           return !(n.readBy || []).includes(user.uid);
         }
         return false;
@@ -275,7 +275,7 @@ export default function DashboardPage() {
     <div className="app-shell">
 
       {/* ── NOTIFICATION INIT (permission + broadcast checker) ── */}
-      <NotificationInit uid={user?.uid || ''} userRole={role} userCreatedAt={userData?.createdAt || user?.metadata?.creationTime} />
+      <NotificationInit uid={user?.uid || ''} userRole={role} userCreatedAt={userData?.createdAt || user?.metadata?.creationTime} userData={userData} />
 
       {/* ── IN-APP UPDATE PROMPT ── */}
       <UpdatePrompt />

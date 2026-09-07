@@ -14,7 +14,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { collection, onSnapshot, query, updateDoc, doc, arrayUnion, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, updateDoc, doc, arrayUnion, orderBy, limit, getDocs, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
@@ -68,6 +68,8 @@ function subscribeBroadcastNotifications(uid, userRole, userCreatedAt) {
           if (n.audience === 'all') return true;
           if (n.audience === 'coaches' && (userRole === 'coach' || userRole === 'admin')) return true;
           if (n.audience === 'customers' && userRole === 'customer') return true;
+          // Targeted notification (e.g. absence alert for a specific coach)
+          if (n.audience === 'targeted' && n.targetUid === uid) return true;
           return false;
         });
 
@@ -182,12 +184,87 @@ function subscribeMeetingAutoBroadcast(uid, userRole) {
   };
 }
 
+// ── Absence Notification: Customer missed session → notify their Coach ──────────
+// Session windows: Morning 11:00–12:00 AM, Evening 19:45–20:45
+// We check ONCE after the window closes (12:05 and 20:50) if customer was absent
+// Coach absence does NOT trigger owner/admin notification (removed by design)
+const _absenceCheckedToday = new Set(); // prevent duplicate checks per session per day
+
+async function checkAndNotifyAbsence(uid, userData) {
+  if (!uid || !userData) return;
+  const role = userData.role || 'customer';
+
+  // Only notify for customers (not coaches/admin)
+  if (role !== 'customer') return;
+
+  const coachId = userData.coachId || userData.coachUid || '';
+  if (!coachId) return; // no assigned coach — nothing to notify
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
+  // Morning session: 11:00–12:00 → check window 12:05–12:30 (725–750 min)
+  // Evening session: 19:45–20:45 → check window 20:50–21:15 (1250–1275 min)
+  const checkWindows = [
+    { session: 'morning', start: 725, end: 750 },
+    { session: 'evening', start: 1250, end: 1275 },
+  ];
+
+  for (const window of checkWindows) {
+    if (nowMin < window.start || nowMin > window.end) continue;
+
+    const checkKey = `${uid}_${todayStr}_${window.session}`;
+    if (_absenceCheckedToday.has(checkKey)) continue;
+    _absenceCheckedToday.add(checkKey);
+
+    try {
+      // Check if this customer attended this session today
+      const attSnap = await getDocs(
+        query(
+          collection(db, 'meeting_attendance'),
+          where('uid', '==', uid),
+          where('date', '==', todayStr),
+          where('sessionType', '==', window.session)
+        )
+      );
+
+      if (attSnap.empty) {
+        // Customer was ABSENT — notify their coach
+        const sessionLabel = window.session === 'morning' ? 'Morning (11:00 AM)' : 'Evening (7:45 PM)';
+        const customerName = userData.name || 'A customer';
+
+        // Write a targeted notification for the coach
+        await addDoc(collection(db, 'broadcast_notifications'), {
+          title: '⚠️ Session Absentee Alert',
+          body: `${customerName} missed today's ${sessionLabel} session.`,
+          audience: 'targeted',
+          targetUid: coachId, // only this coach will see it
+          sentBy: 'system',
+          sentAt: serverTimestamp(),
+          readBy: [],
+          type: 'absence_alert',
+          absentUid: uid,
+          absentName: customerName,
+          session: window.session,
+          date: todayStr,
+        });
+
+        console.log(`[AbsenceNotif] Coach ${coachId} notified: ${customerName} absent from ${window.session} session.`);
+      }
+    } catch (err) {
+      console.warn('[AbsenceNotif] Error checking attendance:', err);
+    }
+  }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function NotificationInit({ uid, userRole, userCreatedAt }) {
+export default function NotificationInit({ uid, userRole, userCreatedAt, userData }) {
   useEffect(() => {
     let cleanupAction = null;
     let unsubscribeNotif = null;
     let unsubscribeMeeting = null;
+    let absenceTimer = null;
     let mounted = true;
 
     async function init() {
@@ -201,6 +278,17 @@ export default function NotificationInit({ uid, userRole, userCreatedAt }) {
       if (uid && mounted) {
         unsubscribeNotif = subscribeBroadcastNotifications(uid, userRole, userCreatedAt);
         unsubscribeMeeting = subscribeMeetingAutoBroadcast(uid, userRole);
+
+        // Check for customer absence every 60 seconds after session windows
+        // (only relevant for 'customer' role; coaches/admins skip silently)
+        if (userRole === 'customer' && userData) {
+          absenceTimer = setInterval(() => {
+            checkAndNotifyAbsence(uid, userData);
+          }, 60000); // every 60 seconds
+
+          // Also run immediately on mount in case user opens app during check window
+          checkAndNotifyAbsence(uid, userData);
+        }
       }
     }
 
@@ -211,8 +299,9 @@ export default function NotificationInit({ uid, userRole, userCreatedAt }) {
       if (cleanupAction) cleanupAction();
       if (unsubscribeNotif) unsubscribeNotif();
       if (unsubscribeMeeting) unsubscribeMeeting();
+      if (absenceTimer) clearInterval(absenceTimer);
     };
-  }, [uid, userRole, userCreatedAt]);
+  }, [uid, userRole, userCreatedAt, userData]);
 
   return null;
 }
