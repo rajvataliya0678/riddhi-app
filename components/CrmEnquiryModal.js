@@ -726,6 +726,20 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
             </div>
           </div>
 
+          {/* Notes */}
+          <div className="form-group">
+            <label className="form-label" htmlFor="crm-notes">General Notes</label>
+            <textarea
+              id="crm-notes"
+              className="form-input"
+              style={{ minHeight: '60px', resize: 'vertical' }}
+              placeholder="Key notes about this prospect..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
           {/* Row 3: Pipeline Stage & Follow-up Date */}
           <div className="form-row-2">
             <div className="form-group">
@@ -833,19 +847,6 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
             </div>
           </div>
 
-          {/* Notes */}
-          <div className="form-group">
-            <label className="form-label" htmlFor="crm-notes">General Notes</label>
-            <textarea
-              id="crm-notes"
-              className="form-input"
-              style={{ minHeight: '60px', resize: 'vertical' }}
-              placeholder="Key notes about this prospect..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
 
           {/* ──────────────── 📞 CALL LOG SECTION ──────────────── */}
           <div style={{ marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
