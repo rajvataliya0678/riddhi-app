@@ -395,12 +395,17 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                   {/* Row 1: Prospect Profile & Action Buttons */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '220px' }}>
-                      <div style={{
-                        width: '42px', height: '42px', borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #0284c7, #2563eb)',
-                        color: '#fff', fontWeight: '800', fontSize: '1rem',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                      }}>
+                      <div
+                        onClick={() => setSelectedLeadModal(log.leadObj)}
+                        title="Click to view lead details"
+                        style={{
+                          width: '42px', height: '42px', borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #0284c7, #2563eb)',
+                          color: '#fff', fontWeight: '800', fontSize: '1rem',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          cursor: 'pointer',
+                        }}
+                      >
                         {log.leadName ? log.leadName.charAt(0).toUpperCase() : 'P'}
                       </div>
                       <div>
