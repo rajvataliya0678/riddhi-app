@@ -297,6 +297,23 @@ export default function DashboardPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 
+          {/* Weight log button — visible on mobile dashboard tab for customers */}
+          {activeTab === 'dashboard' && role === 'customer' && (
+            <button
+              type="button"
+              onClick={() => { setNewWeight(latestWeight.toString()); setShowWeightModal(true); }}
+              style={{
+                background: 'linear-gradient(135deg, #6366f1, #818cf8)',
+                border: 'none', borderRadius: '8px',
+                padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '4px',
+                cursor: 'pointer', color: '#fff', fontSize: '0.75rem', fontWeight: '800',
+              }}
+              id="mobile-update-weight-btn"
+            >
+              <Plus size={14} /> {t.logWeightBtn || 'Log Weight'}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowProfile(true)}
