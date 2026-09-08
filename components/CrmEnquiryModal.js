@@ -854,66 +854,6 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
               📞 Call Log & Interaction Notes
             </h4>
 
-            {/* Add Call Log Box */}
-            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '14px' }}>
-              <div style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                Record New Call Entry:
-              </div>
-              <div className="form-row-2">
-                <div className="form-group" style={{ marginBottom: '8px' }}>
-                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Call Outcome</label>
-                  <select
-                    className="form-input"
-                    value={newCallOutcome}
-                    onChange={e => setNewCallOutcome(e.target.value)}
-                    style={{ fontSize: '0.82rem', fontWeight: '700' }}
-                  >
-                    {CALL_OUTCOME_OPTIONS.map(opt => (
-                      <option key={opt.label} value={opt.label}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group" style={{ marginBottom: '8px' }}>
-                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Call Date/Time</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
-                    readOnly
-                    style={{ fontSize: '0.82rem', background: '#f3f4f6' }}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '10px' }}>
-                <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: '800', color: callLogHighlight ? '#16a34a' : 'var(--text-main)' }}>
-                  {callLogHighlight ? '👉 Record Call Answer / Discussion Notes *' : 'Answer / Discussion Notes *'}
-                </label>
-                <textarea
-                  id="crm-call-log-notes"
-                  className="form-input"
-                  rows={2}
-                  placeholder="Record prospect's answer, questions asked, or agreed next steps..."
-                  value={newCallNotes}
-                  onChange={e => setNewCallNotes(e.target.value)}
-                  style={{
-                    fontSize: '0.82rem', resize: 'vertical',
-                    border: callLogHighlight ? '2px solid #16a34a' : '1px solid var(--border-color)',
-                    boxShadow: callLogHighlight ? '0 0 0 3px rgba(22, 163, 74, 0.15)' : 'none',
-                  }}
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAddCallLog}
-                className="btn btn-secondary"
-                style={{ width: '100%', fontSize: '0.8rem', fontWeight: '800', padding: '6px 12px' }}
-                id="crm-add-call-log-btn"
-              >
-                + Add Call Log Entry
-              </button>
-            </div>
 
             {/* Call Log History Cards */}
             {callLogs && callLogs.length > 0 && (
