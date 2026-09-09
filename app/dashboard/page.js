@@ -52,6 +52,7 @@ import {
   Heart, Calendar, LogOut, Bell, Menu, X, Pencil, Stethoscope,
   Crown, Award, Plus, ChevronRight, Activity, PhoneCall
 } from 'lucide-react';
+import { formatDate } from '@/lib/dateUtils';
 
 // ── Sidebar nav items ────────────────────────────────────
 const NAV_ITEMS = [
@@ -742,7 +743,7 @@ export default function DashboardPage() {
                             }
                             return (
                               <tr key={item.id}>
-                                <td>{new Date(item.date).toLocaleDateString(language === 'gu' ? 'gu-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
+                                <td>{formatDate(item.date)}</td>
                                 <td style={{ fontWeight: '600' }}>{item.weight.toFixed(1)} kg</td>
                                 <td style={{ color, fontWeight: '600' }}>{txt}</td>
                               </tr>

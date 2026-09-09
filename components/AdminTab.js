@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { formatDate } from '@/lib/dateUtils';
 
 const ROLES = ['customer', 'coach', 'admin'];
 
@@ -434,8 +435,8 @@ export default function AdminTab({ currentAdminUid }) {
                     {/* Joined Date */}
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                       {userRow.createdAt?.toDate
-                        ? userRow.createdAt.toDate().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                        : '—'}
+                        ? formatDate(userRow.createdAt.toDate())
+                        : formatDate(userRow.createdAt)}
                     </td>
 
                     {/* Actions Menu */}

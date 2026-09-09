@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
 import { openWhatsAppChat } from '@/lib/whatsapp';
 import CrmEnquiryModal from './CrmEnquiryModal';
+import { formatDateTime } from '@/lib/dateUtils';
 import { Search, Clock, User, Phone, MessageCircle, FileText, CheckCircle2, PhoneCall, Calendar } from 'lucide-react';
 
 const OUTCOME_OPTIONS = [
@@ -352,12 +353,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
         ) : (
           <div ref={listContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '14px', overflowAnchor: 'auto' }}>
             {filteredLogs.map((log, idx) => {
-              const formattedDate = log.calledAt
-                ? new Date(log.calledAt).toLocaleString('en-IN', {
-                    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit', hour12: true
-                  })
-                : '—';
+              const formattedDate = formatDateTime(log.calledAt);
 
               const outcomeText = log.outcome || '📞 Called';
               const callerNameStr = log.callerName || log.leadStaffName || 'Staff';

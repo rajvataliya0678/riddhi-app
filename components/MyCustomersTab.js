@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { formatDate } from '@/lib/dateUtils';
 import FollowUpFormModal from './FollowUpFormModal';
 import CustomerDetailsModal from './CustomerDetailsModal';
 
@@ -663,7 +664,7 @@ export default function MyCustomersTab({ coachUid, coachName, userRole }) {
                       📋 Next Action: Fill Day {nextDay}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#b45309', marginTop: '2px' }}>
-                      {lastDate ? `Last done: ${new Date(lastDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : 'No follow-ups done yet'}
+                      {lastDate ? `Last done: ${formatDate(lastDate)}` : 'No follow-ups done yet'}
                     </div>
                   </div>
                   {daysPendingAge > 0 && (

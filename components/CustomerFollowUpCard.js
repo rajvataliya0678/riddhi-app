@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { formatDate } from '@/lib/dateUtils';
 
 const DAY_STATUS_CONFIG = {
   completed: { icon: '✅', color: '#16a34a', bg: '#f0fdf4', label: 'Completed' },
@@ -165,7 +166,7 @@ export default function CustomerFollowUpCard({ customer, followups, onClick }) {
           <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>No days filled yet</span>
         )}
         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-          Joined {joiningDate ? new Date(joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—'}
+          Joined {formatDate(joiningDate, '—')}
         </span>
       </div>
     </div>

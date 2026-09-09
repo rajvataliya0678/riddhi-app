@@ -10,6 +10,7 @@ import ConvertLeadModal from './ConvertLeadModal';
 import { ClipboardList, MoreVertical, Trash2, Edit3, UserCheck, MessageCircle, Search } from 'lucide-react';
 import { logCrmCall } from '@/lib/logCrmCall';
 import { openWhatsAppChat } from '@/lib/whatsapp';
+import { formatDate } from '@/lib/dateUtils';
 
 const STATUS_OPTIONS = [
   'All',
@@ -928,7 +929,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach', o
                           {enquiry.nextMeetingSession === 'evening' ? '🌇 Evening' : '🌅 Morning'} ({enquiry.nextMeetingDate})
                         </span>
                       ) : enquiry.followUpDate ? (
-                        new Date(enquiry.followUpDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+                        formatDate(enquiry.followUpDate)
                       ) : (
                         '—'
                       )}

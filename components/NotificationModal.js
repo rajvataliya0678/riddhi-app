@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, getDocs, orderBy, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Bell, X, ExternalLink, Clock, CheckCheck } from 'lucide-react';
+import { formatDateTime } from '@/lib/dateUtils';
 
 function parseTimestamp(ts) {
   if (!ts) return null;
@@ -77,17 +78,11 @@ export default function NotificationModal({ uid, userRole, userCreatedAt, onClos
     if (!sentAt) return 'Just now';
     const dateObj = sentAt.toDate ? sentAt.toDate() : new Date(sentAt);
     if (isNaN(dateObj.getTime())) return 'Recently';
-
     const now = new Date();
     const isToday = now.toDateString() === dateObj.toDateString();
-
     const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-    if (isToday) {
-      return `Today, ${timeStr}`;
-    }
-
-    const dateStr = dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-    return `${dateStr}, ${timeStr}`;
+    if (isToday) return `Today, ${timeStr}`;
+    return formatDateTime(dateObj);
   };
 
   return (

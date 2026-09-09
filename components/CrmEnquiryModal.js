@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { openWhatsAppChat } from '@/lib/whatsapp';
+import { formatDate, formatDateTime } from '@/lib/dateUtils';
 
 const STATUS_OPTIONS = ['New Lead', '1 Session', '2 Session', 'Closing', 'Waiting List', 'Rejected'];
 const SOURCE_OPTIONS = ['Referral', 'Social Media', 'Walk-in', 'Bulk Import', 'Other'];
@@ -882,7 +883,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#16a34a' }}>
-                            📝 Editing Call Entry ({log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { timeStyle: 'short', dateStyle: 'short' }) : 'Just now'})
+                            📝 Editing Call Entry ({formatDateTime(log.calledAt, 'Just now')})
                           </span>
                           <button
                             type="button"
@@ -973,7 +974,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            {log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                            {formatDateTime(log.calledAt, '')}
                           </span>
                           <button
                             type="button"
@@ -1031,7 +1032,7 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
                       )}
                     </div>
                     <span className="status-history-date">
-                      {entry.changedAt ? new Date(entry.changedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                      {formatDate(entry.changedAt, '')}
                     </span>
                   </div>
                 ))}
@@ -1093,8 +1094,8 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {completedTasksHistory.map((task, idx) => {
                   const completedDateStr = task.completedAt?.toDate
-                    ? new Date(task.completedAt.toDate()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
-                    : (task.date || '—');
+                    ? formatDateTime(task.completedAt.toDate())
+                    : formatDate(task.date || '—');
                   const scheduledDateStr = task.taskDate || task.date || '—';
 
                   return (

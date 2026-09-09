@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { collection, query, where, getDocs, getDoc, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
+import { formatDate, formatDateTime } from '@/lib/dateUtils';
 import FollowUpFormModal from './FollowUpFormModal';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import CustomerDetailsModal from './CustomerDetailsModal';
@@ -658,7 +659,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
             <div>
               <h3 style={{ fontSize: '0.92rem', fontWeight: '800', margin: 0 }}>Today's Action & Follow-Up Tasks</h3>
               <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0 }}>
-                {today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}
+                {formatDate(today)}
               </p>
             </div>
           </div>
@@ -935,8 +936,8 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {oldTasksHistory.map((task, idx) => {
                   const completedDateStr = task.completedAt?.toDate
-                    ? new Date(task.completedAt.toDate()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
-                    : (task.date || '—');
+                    ? formatDateTime(task.completedAt.toDate())
+                    : formatDate(task.date || '—');
                   const scheduledDateStr = task.taskDate || task.date || '—';
 
                   return (

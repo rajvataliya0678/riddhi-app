@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } fr
 import { db } from '@/lib/firebase';
 import { MonthAttendanceCalendar } from './AttendanceTab';
 import { openWhatsAppChat } from '@/lib/whatsapp';
+import { formatDate, formatDateTime } from '@/lib/dateUtils';
 
 const CALL_OUTCOME_OPTIONS = [
   { label: '📞 Called',                 color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd' },
@@ -293,7 +294,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                 )}
               </div>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-                Customer ID: {uid.substring(0, 8).toUpperCase()} • Joined {customer.createdAt ? new Date(customer.createdAt.toDate ? customer.createdAt.toDate() : customer.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
+                Customer ID: {uid.substring(0, 8).toUpperCase()} • Joined {customer.createdAt ? formatDate(customer.createdAt.toDate ? customer.createdAt.toDate() : customer.createdAt) : 'Recently'}
               </p>
             </div>
           </div>
@@ -421,7 +422,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                 <input
                   type="text"
                   className="form-input"
-                  value={new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                  value={formatDateTime(new Date())}
                   readOnly
                   style={{ fontSize: '0.82rem', background: '#f3f4f6' }}
                 />
@@ -478,7 +479,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#16a34a' }}>
-                          📝 Editing Call Entry ({log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { timeStyle: 'short', dateStyle: 'short' }) : 'Just now'})
+                          📝 Editing Call Entry ({formatDateTime(log.calledAt, 'Just now')})
                         </span>
                         <button
                           type="button"
@@ -559,7 +560,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          {log.calledAt ? new Date(log.calledAt).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                          {formatDateTime(log.calledAt, '')}
                         </span>
                         <button
                           type="button"

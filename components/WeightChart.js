@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
+import { formatDate } from '@/lib/dateUtils';
 
 export default function WeightChart({ weightHistory }) {
   const svgRef = useRef(null);
@@ -56,10 +57,6 @@ export default function WeightChart({ weightHistory }) {
   // X-axis: show first, middle, last date labels — deduplicated
   const xLabelIndices = [...new Set([0, Math.floor(chartData.length / 2), chartData.length - 1])];
 
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-  };
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
@@ -165,7 +162,7 @@ export default function WeightChart({ weightHistory }) {
             boxShadow: 'var(--shadow-md)',
           }}
         >
-          {tooltip.weight.toFixed(1)} kg · {new Date(tooltip.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+          {tooltip.weight.toFixed(1)} kg · {formatDate(tooltip.date)}
         </div>
       )}
     </div>
