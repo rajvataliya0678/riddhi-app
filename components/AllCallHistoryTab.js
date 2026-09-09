@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
 import { openWhatsAppChat } from '@/lib/whatsapp';
 import CrmEnquiryModal from './CrmEnquiryModal';
-import { formatDateTime } from '@/lib/dateUtils';
+import { formatDate, formatDateTime } from '@/lib/dateUtils';
 import { Search, Clock, User, Phone, MessageCircle, FileText, CheckCircle2, PhoneCall, Calendar, X } from 'lucide-react';
 
 const OUTCOME_OPTIONS = [
@@ -28,6 +28,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   const [customDate, setCustomDate]       = useState('');
   const [selectedLeadModal, setSelectedLeadModal] = useState(null);
   const listContainerRef = useRef(null);
+  const datePickerRef    = useRef(null);
   const [editingLogKey, setEditingLogKey] = useState(null);
   const [editOutcome, setEditOutcome]     = useState('📞 Called');
   const [editCallType, setEditCallType]   = useState('Follow-up');
@@ -340,8 +341,15 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
             ))}
           </div>
 
-          {/* Calendar / Custom Date Picker */}
+          {/* Calendar / Custom Date Picker formatted in DD-MM-YYYY */}
           <div
+            onClick={() => {
+              try {
+                datePickerRef.current?.showPicker?.();
+              } catch (e) {
+                datePickerRef.current?.focus?.();
+              }
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -349,13 +357,30 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
               background: dateFilter === 'custom' && customDate ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-secondary)',
               border: dateFilter === 'custom' && customDate ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
               borderRadius: '7px',
-              padding: '2px 8px',
+              padding: '4px 10px',
               height: '38px',
+              cursor: 'pointer',
+              position: 'relative',
               transition: 'all 0.2s ease',
+              userSelect: 'none',
             }}
+            title="Pick a specific date (DD-MM-YYYY)"
           >
-            <Calendar size={14} style={{ color: dateFilter === 'custom' && customDate ? 'var(--primary)' : 'var(--text-muted)', flexShrink: 0 }} />
+            <Calendar size={15} style={{ color: dateFilter === 'custom' && customDate ? 'var(--primary)' : 'var(--text-muted)', flexShrink: 0 }} />
+            <span
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                color: dateFilter === 'custom' && customDate ? 'var(--primary)' : 'var(--text-muted)',
+                letterSpacing: '0.3px',
+              }}
+            >
+              {customDate ? formatDate(customDate) : 'DD-MM-YYYY'}
+            </span>
+
+            {/* Hidden native date input that triggers OS date picker */}
             <input
+              ref={datePickerRef}
               type="date"
               value={customDate}
               onChange={(e) => {
@@ -368,22 +393,23 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                 }
               }}
               style={{
-                border: 'none',
-                background: 'transparent',
-                fontSize: '0.75rem',
-                fontWeight: '700',
-                color: 'var(--text-primary)',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0,
                 cursor: 'pointer',
-                outline: 'none',
-                padding: 0,
-                fontFamily: 'inherit',
+                pointerEvents: 'auto',
               }}
-              title="Pick a specific date"
+              tabIndex={-1}
             />
+
             {customDate && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setCustomDate('');
                   setDateFilter('all');
                 }}
@@ -397,6 +423,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                   display: 'flex',
                   alignItems: 'center',
                   borderRadius: '50%',
+                  zIndex: 2,
                 }}
               >
                 <X size={13} />
