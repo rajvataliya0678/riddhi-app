@@ -297,8 +297,8 @@ export default function DashboardPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 
-          {/* Weight log button — visible on mobile dashboard tab for customers */}
-          {activeTab === 'dashboard' && role === 'customer' && (
+          {/* Weight log button — visible on mobile dashboard tab for all users */}
+          {activeTab === 'dashboard' && (
             <button
               type="button"
               onClick={() => { setNewWeight(latestWeight.toString()); setShowWeightModal(true); }}
