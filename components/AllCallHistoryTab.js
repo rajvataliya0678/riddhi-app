@@ -7,7 +7,7 @@ import { logCrmCall } from '@/lib/logCrmCall';
 import { openWhatsAppChat } from '@/lib/whatsapp';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import { formatDateTime } from '@/lib/dateUtils';
-import { Search, Clock, User, Phone, MessageCircle, FileText, CheckCircle2, PhoneCall, Calendar } from 'lucide-react';
+import { Search, Clock, User, Phone, MessageCircle, FileText, CheckCircle2, PhoneCall, Calendar, X } from 'lucide-react';
 
 const OUTCOME_OPTIONS = [
   'All',
@@ -25,6 +25,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   const [searchQuery, setSearchQuery]     = useState('');
   const [outcomeFilter, setOutcomeFilter] = useState('All');
   const [dateFilter, setDateFilter]       = useState('all');
+  const [customDate, setCustomDate]       = useState('');
   const [selectedLeadModal, setSelectedLeadModal] = useState(null);
   const listContainerRef = useRef(null);
   const [editingLogKey, setEditingLogKey] = useState(null);
@@ -158,14 +159,21 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
     // Date filter
     if (dateFilter !== 'all' && log.calledAt) {
       const logDate = new Date(log.calledAt);
-      const logDateStr = logDate.toISOString().split('T')[0];
+      const logYear = logDate.getFullYear();
+      const logMonth = String(logDate.getMonth() + 1).padStart(2, '0');
+      const logDay = String(logDate.getDate()).padStart(2, '0');
+      const logDateStr = `${logYear}-${logMonth}-${logDay}`;
 
-      if (dateFilter === 'today' && logDateStr !== todayStr) return false;
-      if (dateFilter === 'yesterday' && logDateStr !== yesterdayStr) return false;
-      if (dateFilter === 'this_week' && !(logDate >= startOfThisWeek && logDate <= now)) return false;
-      if (dateFilter === 'last_week' && !(logDate >= startOfLastWeek && logDate <= endOfLastWeek)) return false;
-      if (dateFilter === 'this_month' && !(logDate >= startOfThisMonth && logDate <= now)) return false;
-      if (dateFilter === 'last_month' && !(logDate >= startOfLastMonth && logDate <= endOfLastMonth)) return false;
+      if (dateFilter === 'custom') {
+        if (logDateStr !== customDate) return false;
+      } else {
+        if (dateFilter === 'today' && logDateStr !== todayStr) return false;
+        if (dateFilter === 'yesterday' && logDateStr !== yesterdayStr) return false;
+        if (dateFilter === 'this_week' && !(logDate >= startOfThisWeek && logDate <= now)) return false;
+        if (dateFilter === 'last_week' && !(logDate >= startOfLastWeek && logDate <= endOfLastWeek)) return false;
+        if (dateFilter === 'this_month' && !(logDate >= startOfThisMonth && logDate <= now)) return false;
+        if (dateFilter === 'last_month' && !(logDate >= startOfLastMonth && logDate <= endOfLastMonth)) return false;
+      }
     }
 
     return true;
@@ -320,7 +328,7 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
               { id: 'this_month', label: 'This Mo' },
               { id: 'last_month', label: 'Last Mo' },
             ].map(d => (
-              <button key={d.id} type="button" onClick={() => setDateFilter(d.id)} style={{
+              <button key={d.id} type="button" onClick={() => { setDateFilter(d.id); setCustomDate(''); }} style={{
                 padding: '4px 8px', borderRadius: '5px', fontSize: '0.7rem', fontWeight: '800',
                 border: 'none', cursor: 'pointer',
                 background: dateFilter === d.id ? 'var(--primary)' : 'transparent',
@@ -330,6 +338,70 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                 {d.label}
               </button>
             ))}
+          </div>
+
+          {/* Calendar / Custom Date Picker */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: dateFilter === 'custom' && customDate ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-secondary)',
+              border: dateFilter === 'custom' && customDate ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+              borderRadius: '7px',
+              padding: '2px 8px',
+              height: '38px',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Calendar size={14} style={{ color: dateFilter === 'custom' && customDate ? 'var(--primary)' : 'var(--text-muted)', flexShrink: 0 }} />
+            <input
+              type="date"
+              value={customDate}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCustomDate(val);
+                if (val) {
+                  setDateFilter('custom');
+                } else {
+                  setDateFilter('all');
+                }
+              }}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                outline: 'none',
+                padding: 0,
+                fontFamily: 'inherit',
+              }}
+              title="Pick a specific date"
+            />
+            {customDate && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomDate('');
+                  setDateFilter('all');
+                }}
+                title="Clear date filter"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: '50%',
+                }}
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
         </div>
       </div>
