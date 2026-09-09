@@ -395,54 +395,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         }
       }
 
-      // ─────────────────────────────────────────────────────────────
-      // RULE 4: Coach Missed Scheduled Meeting (For Club Owner / Admin)
-      // ─────────────────────────────────────────────────────────────
-      if (isAdmin) {
-        for (const coach of coachUsers) {
-          if (yesterdayMeetings.length > 0) {
-            for (const m of yesterdayMeetings) {
-              const coachAttended = attendanceList.some(
-                a => a.uid === coach.uid && (a.date === yesterdayStr || a.date === todayStr) &&
-                (a.meetingId === m.id || a.meetingTitle === m.title || a.sessionType === m.title)
-              );
-              if (!coachAttended) {
-                const meetingTitle = m.title || m.name || 'Live Session';
-                generatedTasks.push({
-                  id: `coach-missed-${coach.uid}-${m.id || 'session'}-${yesterdayStr}`,
-                  type: 'coach_missed_meeting',
-                  uid: coach.uid,
-                  name: coach.name,
-                  phone: coach.phone || '',
-                  goal: '👨‍🏫 Coach',
-                  title: `🎓 Coach Missed Training: Coach ${coach.name} (${meetingTitle})`,
-                  description: `Coach did not attend "${meetingTitle}" scheduled yesterday (${yesterdayStr})`,
-                  urgency: 'overdue',
-                  actionType: 'call_phone',
-                });
-              }
-            }
-          } else {
-            const coachAttended = attendanceList.some(
-              a => a.uid === coach.uid && (a.date === yesterdayStr || a.date === todayStr)
-            );
-            if (!coachAttended) {
-              generatedTasks.push({
-                id: `coach-missed-meeting-${coach.uid}-${yesterdayStr}`,
-                type: 'coach_missed_meeting',
-                uid: coach.uid,
-                name: coach.name,
-                phone: coach.phone || '',
-                goal: '👨‍🏫 Coach',
-                title: `🎓 Coach Missed Training: Coach ${coach.name}`,
-                description: `Coach did not attend live session / scheduled training yesterday (${yesterdayStr})`,
-                urgency: 'overdue',
-                actionType: 'call_phone',
-              });
-            }
-          }
-        }
-      }
+      // RULE 4: Coach Missed Scheduled Meeting - REMOVED: Club owner should not receive tasks/notifications when coaches miss meetings.
 
       // ─────────────────────────────────────────────────────────────
       // RULE 6: 10-Day Program Follow-up Tasks
