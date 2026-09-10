@@ -8,7 +8,7 @@ import {
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 import { translations } from '@/lib/translations';
@@ -73,10 +73,18 @@ export function AuthContextProvider({ children }) {
       if (!data) {
         try {
           const allUsersSnap = await getDocs(collection(db, 'users'));
+          const cleanPhone = userEmail.includes('@vriddhi.local') ? userEmail.replace('@vriddhi.local', '').replace(/[^0-9]/g, '') : '';
+
           const foundDoc = allUsersSnap.docs.find(d => {
             const dData = d.data();
             if (d.id === uid || dData.uid === uid) return true;
             if (userEmail && dData.email && dData.email.toLowerCase().trim() === userEmail) return true;
+            if (cleanPhone) {
+              const rawPhone = String(dData.phone || '').replace(/[^0-9]/g, '');
+              if (rawPhone && (rawPhone === cleanPhone || rawPhone.endsWith(cleanPhone) || cleanPhone.endsWith(rawPhone))) {
+                return true;
+              }
+            }
             return false;
           });
 
@@ -103,7 +111,7 @@ export function AuthContextProvider({ children }) {
 
         // Run persistence & telemetry in background without blocking UI
         const targetRef = doc(db, 'users', uid);
-        setDoc(targetRef, data, { merge: true }).catch(err => console.warn(err));
+        await setDoc(targetRef, data, { merge: true });
 
         if (oldDocId && oldDocId !== uid) {
           Promise.all([
@@ -113,6 +121,8 @@ export function AuthContextProvider({ children }) {
             diagSnap.docs.forEach(dd => updateDoc(doc(db, 'diagnosis', dd.id), { uid }));
             weightSnap.docs.forEach(wd => updateDoc(doc(db, 'weight_history', wd.id), { uid }));
           }).catch(console.warn);
+
+          deleteDoc(doc(db, 'users', oldDocId)).catch(console.warn);
         }
 
         const isNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
@@ -133,28 +143,18 @@ export function AuthContextProvider({ children }) {
         }
         return data;
       } else {
-        // Fallback profile if user document does not exist in Firestore
-        const fallbackData = {
-          uid,
-          email: currentUser?.email || '',
-          role: defaultRole,
-          registrationCompleted: true,
-        };
-        const targetRef = doc(db, 'users', uid);
-        setDoc(targetRef, fallbackData, { merge: true }).catch(err => console.warn(err));
-        updateUserData(fallbackData);
-        return fallbackData;
+        // User document does NOT exist in Firestore! Do NOT create a blank fallback account!
+        console.warn(`No Firestore document found for user ${uid}. Signing out.`);
+        await signOut(auth);
+        updateUserData(null);
+        setUser(null);
+        return null;
       }
     } catch (error) {
       console.error("Error fetching user data from Firestore:", error);
-      const fallbackData = {
-        uid,
-        email: auth.currentUser?.email || '',
-        role: (auth.currentUser?.email?.includes('rajvataliya0678@gmail.com')) ? 'admin' : 'customer',
-        registrationCompleted: true,
-      };
-      updateUserData(fallbackData);
-      return fallbackData;
+      updateUserData(null);
+      setUser(null);
+      return null;
     }
   };
 
@@ -318,6 +318,10 @@ export function AuthContextProvider({ children }) {
 
       const uid = userCredential.user.uid;
       const data = await fetchUserData(uid);
+      if (!data) {
+        await signOut(auth);
+        return { success: false, error: 'આ એકાઉન્ટ સિસ્ટમમાં મળ્યું નથી. કૃપા કરીને એડમિનનો સંપર્ક કરો અથવા સાઇન અપ કરો.' };
+      }
       setUser(userCredential.user);
       return { success: true, userData: data };
     } catch (error) {
