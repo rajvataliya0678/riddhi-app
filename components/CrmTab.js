@@ -312,7 +312,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach', o
         await updateDoc(docRef, updateData);
       } else {
         await addDoc(collection(db, 'crm_enquiries'), {
-          coachId: coachUid,
+          coachId: coachUid || data.coachId || '',
           staffName: assignedStaffName,
           name: data.name,
           phone: data.phone,
@@ -327,7 +327,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach', o
           followUpDate: data.followUpDate || '',
           nextMeetingDate: data.nextMeetingDate || '',
           nextMeetingSession: data.nextMeetingSession || 'morning',
-          notes: data.notes,
+          notes: data.notes || '',
           callLogs: data.callLogs || [],
           statusHistory: [
             {
@@ -1087,6 +1087,7 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach', o
             onDelete={(id, name) => handleDeleteEnquiry(id, name)}
             coaches={coaches}
             userRole={userRole}
+            coachUid={coachUid}
             autoCallLogFocus={autoCallLogFocus}
           />
         </ModalErrorBoundary>

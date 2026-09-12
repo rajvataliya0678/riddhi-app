@@ -46,7 +46,7 @@ function getStatusBadgeClass(status) {
   return map[status] || 'status-new';
 }
 
-export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, onDelete, coaches = [], userRole = 'coach', autoCallLogFocus = false }) {
+export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, onDelete, coaches = [], userRole = 'coach', autoCallLogFocus = false, coachUid = '' }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -386,13 +386,13 @@ export default function CrmEnquiryModal({ enquiry, onSave, onClose, onConvert, o
         source,
         status,
         waitingListReason: status === 'Waiting List' ? waitingListReason.trim() : (waitingListReason.trim() || ''),
-        coachId: isEditing ? (enquiry?.coachId || coachUid) : coachUid,
+        coachId: isEditing ? (enquiry?.coachId || assignedCoachId || coachUid || '') : (assignedCoachId || coachUid || ''),
         staffName: staffName.trim(),
-        followUpDate,
-        nextMeetingDate,
-        nextMeetingSession,
-        notes: notes.trim(),
-        callLogs,
+        followUpDate: followUpDate || '',
+        nextMeetingDate: nextMeetingDate || '',
+        nextMeetingSession: nextMeetingSession || 'morning',
+        notes: (notes || '').trim(),
+        callLogs: callLogs || [],
       };
 
       if (isEditing && enquiry.status !== status) {
