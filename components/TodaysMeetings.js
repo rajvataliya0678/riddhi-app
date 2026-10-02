@@ -333,7 +333,7 @@ const STATUS_CONFIG = {
 };
 
 // ── Build Customized Zoom URL ──────────────────────────────
-function buildCustomizedZoomUrl(baseUrl, user, userData) {
+function buildCustomizedZoomUrl(baseUrl, user, userData, clubCode = 'PRV') {
   if (!baseUrl) return '';
   const cleanBaseUrl = baseUrl.trim();
 
@@ -348,7 +348,9 @@ function buildCustomizedZoomUrl(baseUrl, user, userData) {
   coachFirstName = coachFirstName.charAt(0).toUpperCase() + coachFirstName.slice(1);
 
   const roleTag = role === 'customer' ? 'CM' : 'CH';
-  const unameRaw = `PRV/${roleTag}/${firstName}/${coachFirstName}`.toUpperCase();
+  const rawCode = (clubCode || userData?.clubCode || userData?.clubName || 'PRV').trim();
+  const effectiveClubCode = (rawCode.toLowerCase() === 'main' || !rawCode ? 'PRV' : rawCode).toUpperCase();
+  const unameRaw = `${effectiveClubCode}/${roleTag}/${firstName}/${coachFirstName}`.toUpperCase();
   const unameParam = `uname=${encodeURIComponent(unameRaw)}`;
 
   if (cleanBaseUrl.includes('uname=')) {
@@ -367,6 +369,28 @@ export default function TodaysMeetings({ user, userData, userRole, userId, clubI
   const [showAdd, setShowAdd]           = useState(false);
   const [editingMeeting, setEditingMeeting] = useState(null);
   const [, setTick]                     = useState(0);
+
+  const [activeClubCode, setActiveClubCode] = useState(
+    clubId === 'main' ? 'PRV' : (userData?.clubCode || userData?.clubName || 'PRV')
+  );
+
+  useEffect(() => {
+    if (!clubId || clubId === 'main') {
+      setActiveClubCode('PRV');
+      return;
+    }
+    const unsub = onSnapshot(doc(db, 'clubs', clubId), (snap) => {
+      if (snap.exists()) {
+        const cData = snap.data();
+        setActiveClubCode(cData.clubCode || cData.name || clubId);
+      } else {
+        setActiveClubCode(userData?.clubCode || userData?.clubName || clubId);
+      }
+    }, () => {
+      setActiveClubCode(userData?.clubCode || userData?.clubName || clubId);
+    });
+    return () => unsub();
+  }, [clubId, userData]);
 
   const role = userRole || userData?.role || 'customer';
   const uid = userId || user?.uid || '';
@@ -492,7 +516,7 @@ function resolveAllowedAttendanceSession(meeting, now = new Date()) {
   const handleJoin = (m) => {
     if (!m?.meetingUrl) return;
 
-    let urlToOpen = buildCustomizedZoomUrl(m.meetingUrl, user, userData);
+    let urlToOpen = buildCustomizedZoomUrl(m.meetingUrl, user, userData, activeClubCode);
     urlToOpen = (urlToOpen || '').trim();
     if (!urlToOpen.startsWith('http://') && !urlToOpen.startsWith('https://')) {
       urlToOpen = 'https://' + urlToOpen;

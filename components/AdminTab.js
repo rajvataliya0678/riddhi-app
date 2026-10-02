@@ -52,6 +52,10 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'clubs'), (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const hasMain = list.some(c => c.id === 'main');
+      if (!hasMain) {
+        list.unshift({ id: 'main', name: 'PRV', clubCode: 'PRV' });
+      }
       setClubs(list);
     }, (err) => console.warn('Clubs listener warning:', err));
     return () => unsub();
@@ -314,7 +318,8 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
       // 1. Save new Club document
       await setDoc(doc(db, 'clubs', generatedClubId), {
         id: generatedClubId,
-        name: clubName,
+        name: clubName.trim(),
+        clubCode: clubName.trim().toUpperCase(),
         ownerUid: ownerUid,
         ownerName: ownerName,
         ownerPhone: ownerPhone,
@@ -335,6 +340,8 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
         email: ownerEmail,
         role: 'admin',
         clubId: generatedClubId,
+        clubName: clubName.trim(),
+        clubCode: clubName.trim().toUpperCase(),
         registrationCompleted: true,
         isStaff: true,
         createdAt: serverTimestamp(),
@@ -363,6 +370,8 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
           coachId: member.coachId || '',
           coachName: member.coachName || '',
           clubId: generatedClubId,
+          clubName: clubName.trim(),
+          clubCode: clubName.trim().toUpperCase(),
           isStaff: !!member.isStaff,
           preferredLanguage: member.preferredLanguage || 'en',
           registrationCompleted: true,
@@ -453,7 +462,7 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
               border: '1px solid rgba(99, 102, 241, 0.3)',
               padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: '800'
             }}>
-              {clubs.find(c => c.id === activeClubId)?.name || (activeClubId === 'main' ? 'Main Club' : activeClubId)}
+              {clubs.find(c => c.id === activeClubId)?.name || (activeClubId === 'main' ? 'PRV' : activeClubId)}
             </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
@@ -471,9 +480,9 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
               title="Switch Viewing Club"
               id="admin-club-switcher"
             >
-              <option value="main">Main Club (મુખ્ય પેનલ)</option>
+              <option value="main">🏢 PRV (મુખ્ય પેનલ)</option>
               {clubs.filter(c => c.id !== 'main').map(c => (
-                <option key={c.id} value={c.id}>🏢 {c.name || c.id}</option>
+                <option key={c.id} value={c.id}>🏢 {c.name || c.clubCode || c.id}</option>
               ))}
             </select>
           )}
@@ -895,15 +904,18 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
                   </div>
                 )}
 
-                {/* 1. Club Name */}
+                {/* 1. Club Name & Zoom Club Code */}
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: '800' }}>
-                    ૧. નવી ક્લબ / પેનલનું નામ <span style={{ color: '#ef4444' }}>*</span>
+                    ૧. નવી ક્લબનું નામ / Zoom Club Code <span style={{ color: '#ef4444' }}>*</span>
                   </label>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 6px 0' }}>
+                    (મુખ્ય ક્લબનું નામ <b>PRV</b> છે. અહીં જે નામ આપશો એ જ તેમના Zoom meeting માં club code બનશે.)
+                  </p>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="દા.ત. Vriddhi Club 2 અથવા સુરત હેલ્થ ક્લબ"
+                    placeholder="દા.ત. PRV2 અથવા SURAT"
                     value={duplicateForm.clubName}
                     onChange={(e) => setDuplicateForm(prev => ({ ...prev, clubName: e.target.value }))}
                     disabled={duplicateLoading}

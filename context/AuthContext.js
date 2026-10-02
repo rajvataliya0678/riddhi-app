@@ -129,6 +129,8 @@ export function AuthContextProvider({ children }) {
         data.uid = uid;
         data.registrationCompleted = true;
         data.clubId = data.clubId || 'main';
+        data.clubName = data.clubName || (data.clubId === 'main' ? 'PRV' : data.clubId);
+        data.clubCode = data.clubCode || (data.clubId === 'main' ? 'PRV' : data.clubId);
         if (isAdminEmail) {
           data.role = 'admin';
         }
