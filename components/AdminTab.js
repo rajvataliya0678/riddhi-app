@@ -44,8 +44,6 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
     newOwnerEmail: '',
     newOwnerPassword: '',
     selectedMemberUids: [],
-    copyCrm: true,
-    copyAttendance: true,
   });
 
   // Listen to clubs collection
@@ -239,8 +237,6 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
       newOwnerEmail: '',
       newOwnerPassword: '',
       selectedMemberUids: users.map(u => u.uid),
-      copyCrm: true,
-      copyAttendance: true,
     });
     setShowDuplicateModal(true);
   };
@@ -294,7 +290,7 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
       ownerName = chosenCoach.name || '';
       ownerPhone = duplicateForm.newOwnerPhone || chosenCoach.phone || '';
       ownerEmail = duplicateForm.newOwnerEmail || chosenCoach.email || '';
-      ownerUid = doc(collection(db, 'users')).id;
+      ownerUid = chosenCoach.uid;
     } else {
       if (!duplicateForm.newOwnerName.trim() || !duplicateForm.newOwnerPhone.trim()) {
         setDuplicateError('કૃપા કરીને નવા ઓનરનું નામ અને મોબાઈલ નંબર લખો.');
@@ -313,7 +309,7 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
 
     setDuplicateLoading(true);
     try {
-      setDuplicateProgress('૧/૫ નવી ક્લબ બનાવી રહ્યા છીએ...');
+      setDuplicateProgress('૧/૪ નવી ક્લબ બનાવી રહ્યા છીએ...');
 
       // 1. Save new Club document
       await setDoc(doc(db, 'clubs', generatedClubId), {
@@ -330,89 +326,98 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
         updatedAt: serverTimestamp(),
       });
 
-      setDuplicateProgress('૨/૫ નવા ક્લબ ઓનરનું એકાઉન્ટ સેટ કરી રહ્યા છીએ...');
+      setDuplicateProgress('૨/૪ નવા ક્લબ ઓનરનું એકાઉન્ટ સેટ કરી રહ્યા છીએ...');
 
-      // 2. Create the new Club Owner in users collection with role: 'admin'
-      await setDoc(doc(db, 'users', ownerUid), {
-        uid: ownerUid,
-        name: ownerName,
-        phone: ownerPhone,
-        email: ownerEmail,
-        role: 'admin',
-        clubId: generatedClubId,
-        clubName: clubName.trim(),
-        clubCode: clubName.trim().toUpperCase(),
-        registrationCompleted: true,
-        isStaff: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      setDuplicateProgress('૩/૫ પસંદ કરેલી ટીમના સભ્યો ડુપ્લિકેટ કરી રહ્યા છીએ...');
-
-      // 3. Clone selected team members (excluding the chosen owner if already existing)
-      const membersToClone = users.filter(u =>
-        duplicateForm.selectedMemberUids.includes(u.uid) &&
-        (duplicateForm.ownerType !== 'existing' || u.uid !== duplicateForm.selectedOwnerUid)
-      );
-
-      for (const member of membersToClone) {
-        const newMemberUid = doc(collection(db, 'users')).id;
-        const cleanMemberPhone = (member.phone || '').replace(/[^0-9]/g, '');
-        const memberEmail = member.email || (cleanMemberPhone ? `${cleanMemberPhone}@vriddhi.local` : `${newMemberUid.substring(0, 8)}@vriddhi.local`);
-
-        await setDoc(doc(db, 'users', newMemberUid), {
-          uid: newMemberUid,
-          name: member.name || '',
-          phone: member.phone || '',
-          email: memberEmail,
-          role: member.role || 'customer',
-          coachId: member.coachId || '',
-          coachName: member.coachName || '',
+      // 2. Set up Club Owner in users collection with role: 'admin'
+      if (duplicateForm.ownerType === 'existing') {
+        await updateDoc(doc(db, 'users', ownerUid), {
+          role: 'admin',
           clubId: generatedClubId,
           clubName: clubName.trim(),
           clubCode: clubName.trim().toUpperCase(),
-          isStaff: !!member.isStaff,
-          preferredLanguage: member.preferredLanguage || 'en',
+          isStaff: true,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await setDoc(doc(db, 'users', ownerUid), {
+          uid: ownerUid,
+          name: ownerName,
+          phone: ownerPhone,
+          email: ownerEmail,
+          role: 'admin',
+          clubId: generatedClubId,
+          clubName: clubName.trim(),
+          clubCode: clubName.trim().toUpperCase(),
           registrationCompleted: true,
+          isStaff: true,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
       }
 
-      // 4. Duplicate CRM Leads if requested
-      if (duplicateForm.copyCrm) {
-        setDuplicateProgress('૪/૫ CRM લીડ્સ નવી ક્લબમાં ડુપ્લિકેટ કરી રહ્યા છીએ...');
-        const crmSnap = await getDocs(collection(db, 'crm_enquiries'));
-        const clubLeads = crmSnap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(l => (l.clubId || 'main') === activeClubId);
+      setDuplicateProgress('૩/૪ પસંદ કરેલા સભ્યોને નવી પેનલમાં ટ્રાન્સફર કરી રહ્યા છીએ...');
 
-        for (const lead of clubLeads) {
-          const { id, ...leadData } = lead;
-          await addDoc(collection(db, 'crm_enquiries'), {
-            ...leadData,
+      // 3. Transfer selected team members to the new club
+      const membersToTransfer = duplicateForm.selectedMemberUids.filter(uid => uid !== ownerUid);
+
+      for (const memberUid of membersToTransfer) {
+        await updateDoc(doc(db, 'users', memberUid), {
+          clubId: generatedClubId,
+          clubName: clubName.trim(),
+          clubCode: clubName.trim().toUpperCase(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      // Collect all transferred UIDs (Owner + Members)
+      const allTransferredUids = new Set([ownerUid, ...membersToTransfer]);
+
+      setDuplicateProgress('૪/૪ ટ્રાન્સફર થયેલા સભ્યોનો પોતાનો ડેટા સુરક્ષિત રીતે શિફ્ટ કરી રહ્યા છીએ...');
+
+      // 4. Transfer ONLY the personal data belonging to transferred members:
+      // a) CRM Enquiries belonging to transferred coaches
+      const crmSnap = await getDocs(collection(db, 'crm_enquiries'));
+      for (const lDoc of crmSnap.docs) {
+        const lData = lDoc.data();
+        if (allTransferredUids.has(lData.coachId) || allTransferredUids.has(lData.staffUid)) {
+          await updateDoc(doc(db, 'crm_enquiries', lDoc.id), {
             clubId: generatedClubId,
-            createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
         }
       }
 
-      // 5. Duplicate Meeting Attendance if requested
-      if (duplicateForm.copyAttendance) {
-        setDuplicateProgress('૫/૫ હાજરી (Attendance) ડેટા ડુપ્લિકેટ કરી રહ્યા છીએ...');
-        const attSnap = await getDocs(collection(db, 'meeting_attendance'));
-        const clubAtt = attSnap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(a => (a.clubId || 'main') === activeClubId);
-
-        for (const att of clubAtt) {
-          const { id, ...attData } = att;
-          await addDoc(collection(db, 'meeting_attendance'), {
-            ...attData,
+      // b) Customer Profiles belonging to transferred coaches or members
+      const profSnap = await getDocs(collection(db, 'customer_profiles'));
+      for (const pDoc of profSnap.docs) {
+        const pData = pDoc.data();
+        if (allTransferredUids.has(pData.coachId) || allTransferredUids.has(pData.uid) || allTransferredUids.has(pDoc.id)) {
+          await updateDoc(doc(db, 'customer_profiles', pDoc.id), {
             clubId: generatedClubId,
-            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // c) Customer Follow-ups belonging to transferred coaches
+      const fuSnap = await getDocs(collection(db, 'customer_followups'));
+      for (const fDoc of fuSnap.docs) {
+        const fData = fDoc.data();
+        if (allTransferredUids.has(fData.coachId) || allTransferredUids.has(fData.customerUid)) {
+          await updateDoc(doc(db, 'customer_followups', fDoc.id), {
+            clubId: generatedClubId,
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // d) Meeting Attendance belonging to transferred members
+      const attSnap = await getDocs(collection(db, 'meeting_attendance'));
+      for (const aDoc of attSnap.docs) {
+        const aData = aDoc.data();
+        if (allTransferredUids.has(aData.uid)) {
+          await updateDoc(doc(db, 'meeting_attendance', aDoc.id), {
+            clubId: generatedClubId,
           });
         }
       }
@@ -423,7 +428,7 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
         ownerName,
         ownerPhone,
         ownerEmail,
-        totalMembersCloned: membersToClone.length + 1,
+        totalMembersCloned: allTransferredUids.size,
       });
     } catch (err) {
       console.error('Error duplicating club:', err);
@@ -1034,11 +1039,11 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
                   </div>
 
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    બધા સભ્યોના રોલ (Coach, Customer) નવી પેનલમાં <strong>એ જ રહેશે</strong>.
+                    પસંદ કરેલા સભ્યો અને <strong>તેમનો પોતાનો તમામ ડેટા (CRM લીડ્સ, ફોલો-અપ, હાજરી)</strong> સુરક્ષિત રીતે નવી પેનલમાં ટ્રાન્સફર થશે. કોઈ ડેટા મર્જ કે ડુપ્લિકેટ નહીં થાય.
                   </p>
 
                   <div style={{
-                    maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)',
+                    maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-color)',
                     borderRadius: '10px', padding: '8px', background: 'var(--card-bg)'
                   }}>
                     {users.map(u => {
@@ -1081,47 +1086,13 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
                   </div>
                 </div>
 
-                {/* 4. CRM & Attendance Options */}
-                <div style={{
-                  background: 'var(--bg-secondary)', padding: '14px', borderRadius: '12px',
-                  display: 'flex', flexDirection: 'column', gap: '10px'
-                }}>
-                  <label style={{ fontWeight: '800', fontSize: '0.88rem' }}>૪. ડેટા ઓપ્શન્સ (Data Options)</label>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.85rem' }}>
-                    <input
-                      type="checkbox"
-                      checked={duplicateForm.copyCrm}
-                      onChange={(e) => setDuplicateForm(prev => ({ ...prev, copyCrm: e.target.checked }))}
-                      disabled={duplicateLoading}
-                      style={{ width: '16px', height: '16px' }}
-                    />
-                    <span>
-                      📋 <strong>CRM Leads ડુપ્લિકેટ કરવા</strong> (બધા લીડ્સ, કોલ હિસ્ટ્રી અને ફોલોઅપ નવી પેનલમાં as it is જશે)
-                    </span>
-                  </label>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.85rem' }}>
-                    <input
-                      type="checkbox"
-                      checked={duplicateForm.copyAttendance}
-                      onChange={(e) => setDuplicateForm(prev => ({ ...prev, copyAttendance: e.target.checked }))}
-                      disabled={duplicateLoading}
-                      style={{ width: '16px', height: '16px' }}
-                    />
-                    <span>
-                      📅 <strong>Attendance Records ડુપ્લિકેટ કરવા</strong> (લાઇવ સેશન હાજરીનો રેકોર્ડ નવી પેનલમાં જશે)
-                    </span>
-                  </label>
-                </div>
-
                 {duplicateLoading && (
                   <div style={{
                     padding: '14px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.1)',
                     border: '1px solid rgba(99, 102, 241, 0.3)', color: '#4f46e5',
                     fontWeight: '700', fontSize: '0.88rem', textAlign: 'center'
                   }}>
-                    ⏳ {duplicateProgress || 'ડુપ્લિકેશન ચાલુ છે, કૃપા કરીને રાહ જુઓ...'}
+                    ⏳ {duplicateProgress || 'ટ્રાન્સફર ચાલુ છે, કૃપા કરીને રાહ જુઓ...'}
                   </div>
                 )}
 
@@ -1145,7 +1116,7 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
                     }}
                     id="submit-duplicate-club-btn"
                   >
-                    {duplicateLoading ? 'ડુપ્લિકેટ થઈ રહ્યું છે...' : '🚀 આખી ટીમ અને પેનલ ડુપ્લિકેટ કરો'}
+                    {duplicateLoading ? 'ટ્રાન્સફર થઈ રહ્યું છે...' : '🚀 ટીમ અને નવી પેનલ ટ્રાન્સફર કરો'}
                   </button>
                 </div>
               </form>
