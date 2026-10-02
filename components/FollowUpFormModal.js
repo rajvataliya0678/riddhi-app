@@ -696,7 +696,7 @@ function buildDaysList(followups) {
 }
 
 // ── Main Modal ────────────────────────────────────────────
-export default function FollowUpFormModal({ customer, followups = [], coachUid, coachName, onClose, onSaved }) {
+export default function FollowUpFormModal({ customer, followups = [], coachUid, coachName, clubId = 'main', onClose, onSaved }) {
   const existingDays = followups.map(f => f.day);
   const maxCompletedDay = followups.length > 0 ? Math.max(...followups.map(f => f.day)) : 0;
 
@@ -757,6 +757,7 @@ export default function FollowUpFormModal({ customer, followups = [], coachUid, 
         customerProfileId: customer.isUserBased ? null : customer.id,
         customerUid: customer.uid || customer.id, // always store uid for lookup
         coachId: coachUid,
+        clubId: customer.clubId || clubId || 'main',
         day: selectedDay,
         followUpDate: today,
         commonCheckin,

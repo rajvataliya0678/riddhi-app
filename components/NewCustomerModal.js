@@ -20,7 +20,7 @@ async function generateCustomerId() {
   return `CUST-${year}-${String(count).padStart(3, '0')}`;
 }
 
-export default function NewCustomerModal({ coachUid, coachName, onClose, onSaved }) {
+export default function NewCustomerModal({ coachUid, coachName, clubId = 'main', onClose, onSaved }) {
   const today = new Date().toISOString().split('T')[0];
 
   const [form, setForm] = useState({
@@ -55,6 +55,7 @@ export default function NewCustomerModal({ coachUid, coachName, onClose, onSaved
       const customerId = await generateCustomerId();
       await addDoc(collection(db, 'customer_profiles'), {
         customerId,
+        clubId: clubId || 'main',
         coachId: coachUid,
         assignedCoach: coachName || '',
         fullName: form.fullName.trim(),

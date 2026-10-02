@@ -154,7 +154,7 @@ function AddCustomTaskModal({ coachUid, onClose, onSaved }) {
   );
 }
 
-export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach' }) {
+export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach', clubId = 'main' }) {
   const [tasks, setTasks]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [filter, setFilter]       = useState('all'); // 'all' | 'overdue' | 'today'
@@ -205,7 +205,7 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
 
   useEffect(() => {
     fetchTasks();
-  }, [coachUid, userRole]);
+  }, [coachUid, userRole, clubId]);
 
   const fetchTasks = async () => {
     if (!coachUid) return;
@@ -246,11 +246,13 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         if (data.uid) diagMap[data.uid] = data;
       });
 
-      const allUsersList = usersSnap.docs.map(d => {
-        const uData = d.data();
-        const uUid = uData.uid || d.id;
-        return { id: d.id, uid: uUid, ...uData, diagnosis: diagMap[uUid] || null };
-      });
+      const allUsersList = usersSnap.docs
+        .map(d => {
+          const uData = d.data();
+          const uUid = uData.uid || d.id;
+          return { id: d.id, uid: uUid, ...uData, diagnosis: diagMap[uUid] || null };
+        })
+        .filter(u => (u.clubId || 'main') === clubId);
 
       const assignedCustomers = allUsersList.filter(
         u => (u.coachId === coachUid || u.coachUid === coachUid) && (u.role === 'customer' || !u.role)
@@ -270,10 +272,14 @@ export default function CoachTodayTasks({ coachUid, coachName, userRole = 'coach
         followupsMap[key].push(d);
       });
 
-      const crmLeads = crmSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const crmLeads = crmSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => (c.clubId || 'main') === clubId);
       const attendanceList = attSnap.docs.map(d => d.data());
       const weightHistoryList = weightSnap.docs.map(d => d.data());
-      const meetingsList = meetingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const meetingsList = meetingsSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(m => (m.clubId || 'main') === clubId);
       
       const yesterdayMeetings = meetingsList.filter(m => m.recurrence === 'daily' || m.date === yesterdayStr);
       const completedIds = new Set();

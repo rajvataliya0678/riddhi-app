@@ -162,7 +162,7 @@ function StatusChip({ daysCompleted }) {
   );
 }
 
-export default function MyCustomersTab({ coachUid, coachName, userRole }) {
+export default function MyCustomersTab({ coachUid, coachName, userRole, clubId = 'main' }) {
   const [customers, setCustomers]       = useState([]);
   const [followupsMap, setFollowupsMap] = useState({});
   const [attendanceMap, setAttendanceMap] = useState({});
@@ -186,7 +186,7 @@ export default function MyCustomersTab({ coachUid, coachName, userRole }) {
     setAutoCallLogFocus(false);
   };
 
-  useEffect(() => { fetchData(); }, [coachUid, userRole]);
+  useEffect(() => { fetchData(); }, [coachUid, userRole, clubId]);
 
   const fetchData = async () => {
     try {
@@ -213,7 +213,8 @@ export default function MyCustomersTab({ coachUid, coachName, userRole }) {
 
       const validUsers = usersSnap.docs
         .map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }))
-        .filter(u => u.role !== 'coach' && u.role !== 'admin');
+        .filter(u => u.role !== 'coach' && u.role !== 'admin')
+        .filter(u => (u.clubId || 'main') === clubId);
 
       // 2. Parallel fetch diagnosis & weight history for all valid customers
       const customerList = await Promise.all(

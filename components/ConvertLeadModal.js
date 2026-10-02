@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { collection, addDoc, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted }) {
+export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted, clubId = 'main' }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [form, setForm] = useState({
@@ -48,6 +48,7 @@ export default function ConvertLeadModal({ lead, coachUid, onClose, onConverted 
         phone: form.phone.trim(),
         role: 'customer',
         coachId: coachUid,
+        clubId: lead?.clubId || clubId || 'main',
         registrationCompleted: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

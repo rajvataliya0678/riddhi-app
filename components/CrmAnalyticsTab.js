@@ -5,13 +5,13 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { BarChart3, Lightbulb, AlertTriangle, Flame, Target, Pin, Loader2 } from 'lucide-react';
 
-export default function CrmAnalyticsTab({ coachUid }) {
+export default function CrmAnalyticsTab({ coachUid, clubId = 'main' }) {
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
     fetchData();
-  }, [coachUid]);
+  }, [coachUid, clubId]);
 
   const fetchData = async () => {
     try {
@@ -19,7 +19,9 @@ export default function CrmAnalyticsTab({ coachUid }) {
       const snap = await getDocs(
         query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
       );
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const list = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(e => (e.clubId || 'main') === clubId);
       setEnquiries(list);
     } catch (err) {
       console.error('Error fetching analytics:', err);

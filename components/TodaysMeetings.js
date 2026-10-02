@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  collection, query, getDocs, addDoc, deleteDoc, doc, updateDoc, serverTimestamp
+  collection, query, getDocs, onSnapshot, addDoc, deleteDoc, doc, updateDoc, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -11,7 +11,7 @@ import {
 } from '@/lib/meetingNotifications';
 
 // ── Add / Schedule Meeting Modal ─────────────────────────
-function AddMeetingModal({ onClose, onSaved, createdBy }) {
+function AddMeetingModal({ onClose, onSaved, createdBy, clubId = 'main' }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({
     title: '',
@@ -44,6 +44,7 @@ function AddMeetingModal({ onClose, onSaved, createdBy }) {
         visibleTo: form.visibleTo,
         description: form.description.trim(),
         createdBy,
+        clubId: clubId || 'main',
         createdAt: serverTimestamp(),
       });
       onSaved();
@@ -334,6 +335,7 @@ const STATUS_CONFIG = {
 // ── Build Customized Zoom URL ──────────────────────────────
 function buildCustomizedZoomUrl(baseUrl, user, userData) {
   if (!baseUrl) return '';
+  const cleanBaseUrl = baseUrl.trim();
 
   const role = userData?.role || 'customer';
   const fullName = userData?.name || user?.displayName || 'Member';
@@ -349,16 +351,16 @@ function buildCustomizedZoomUrl(baseUrl, user, userData) {
   const unameRaw = `PRV/${roleTag}/${firstName}/${coachFirstName}`.toUpperCase();
   const unameParam = `uname=${encodeURIComponent(unameRaw)}`;
 
-  if (baseUrl.includes('uname=')) {
-    return baseUrl;
+  if (cleanBaseUrl.includes('uname=')) {
+    return cleanBaseUrl;
   }
 
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  return `${baseUrl}${separator}${unameParam}`;
+  const separator = cleanBaseUrl.includes('?') ? '&' : '?';
+  return `${cleanBaseUrl}${separator}${unameParam}`;
 }
 
 // ── Main Component ────────────────────────────────────────
-export default function TodaysMeetings({ user, userData, userRole, userId }) {
+export default function TodaysMeetings({ user, userData, userRole, userId, clubId = 'main' }) {
   const { t, language } = useAuth();
   const [meetings, setMeetings]         = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -377,74 +379,81 @@ export default function TodaysMeetings({ user, userData, userRole, userId }) {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => { fetchMeetings(); }, [uid, role]);
+  // Real-time onSnapshot listener: instantly updates morning/evening links for ALL users without refresh
+  useEffect(() => {
+    setLoading(true);
+    const q = query(collection(db, 'meetings'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      try {
+        const allMeetings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-  const fetchMeetings = async () => {
-    try {
-      setLoading(true);
-      const snap = await getDocs(query(collection(db, 'meetings')));
-      const allMeetings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const filtered = allMeetings.filter(m => {
+          if ((m.clubId || 'main') !== clubId) return false;
+          const isToday = m.recurrence === 'daily' || m.date === todayStr;
+          if (!isToday) return false;
 
-      const filtered = allMeetings.filter(m => {
-        const isToday = m.recurrence === 'daily' || m.date === todayStr;
-        if (!isToday) return false;
+          if (m.visibleTo === 'customers' || m.visibleTo === 'all' || !m.visibleTo) {
+            return true;
+          }
 
-        if (m.visibleTo === 'customers' || m.visibleTo === 'all' || !m.visibleTo) {
-          return true;
-        }
+          if (m.visibleTo === 'coaches' && (role === 'coach' || role === 'admin')) {
+            return true;
+          }
 
-        if (m.visibleTo === 'coaches' && (role === 'coach' || role === 'admin')) {
-          return true;
-        }
+          return false;
+        });
 
-        return false;
-      });
+        // ── Smart sort: Active/Ongoing/Upcoming first → Ended (after 60 mins) last ────
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-      // ── Smart sort: Active/Ongoing/Upcoming first → Ended (after 60 mins) last ────
-      const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const toMinutes = (timeStr = '') => {
+          if (!timeStr) return 0;
+          const ampm = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+          if (ampm) {
+            let h = parseInt(ampm[1]);
+            const m = parseInt(ampm[2]);
+            const period = ampm[3].toUpperCase();
+            if (period === 'PM' && h !== 12) h += 12;
+            if (period === 'AM' && h === 12) h = 0;
+            return h * 60 + m;
+          }
+          const parts = timeStr.split(':');
+          return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
+        };
 
-      const toMinutes = (timeStr = '') => {
-        if (!timeStr) return 0;
-        const ampm = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-        if (ampm) {
-          let h = parseInt(ampm[1]);
-          const m = parseInt(ampm[2]);
-          const period = ampm[3].toUpperCase();
-          if (period === 'PM' && h !== 12) h += 12;
-          if (period === 'AM' && h === 12) h = 0;
-          return h * 60 + m;
-        }
-        const parts = timeStr.split(':');
-        return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
-      };
+        // Meetings stay active during their 60-minute duration
+        const active = filtered.filter(m => toMinutes(m.time) + 60 >= nowMinutes);
+        const ended  = filtered.filter(m => toMinutes(m.time) + 60 <  nowMinutes);
 
-      // Meetings stay active during their 60-minute duration
-      const active = filtered.filter(m => toMinutes(m.time) + 60 >= nowMinutes);
-      const ended  = filtered.filter(m => toMinutes(m.time) + 60 <  nowMinutes);
+        active.sort((a, b) => toMinutes(a.time) - toMinutes(b.time)); // soonest first
+        ended.sort((a, b)  => toMinutes(a.time) - toMinutes(b.time));
 
-      active.sort((a, b) => toMinutes(a.time) - toMinutes(b.time)); // soonest first
-      ended.sort((a, b)  => toMinutes(a.time) - toMinutes(b.time));
+        const sorted = [...active, ...ended];
+        // ── End smart sort ───────────────────────────────────────────────────────
+        setMeetings(sorted);
 
-      const sorted = [...active, ...ended];
-      // ── End smart sort ───────────────────────────────────────────────────────
-      setMeetings(sorted);
-
-      // ── Schedule a notification for each upcoming meeting ──────────────────
-      // We pass the first meeting's URL as a fallback for the action listener.
-      scheduleMeetingReminders(filtered, user, userData);
-    } catch (err) {
-      console.error('Meetings fetch error:', err);
-    } finally {
+        // Schedule reminders
+        scheduleMeetingReminders(filtered, user, userData);
+      } catch (err) {
+        console.error('Meetings process error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }, (err) => {
+      console.error('Meetings listener error:', err);
       setLoading(false);
-    }
-  };
+    });
+
+    return () => unsubscribe();
+  }, [uid, role, todayStr]);
+
+  const fetchMeetings = () => {};
 
   const handleDelete = async (meetingId) => {
     if (!confirm(language === 'gu' ? 'શું તમે આ મીટિંગ રદ કરવા માંગો છો?' : 'Delete this meeting schedule?')) return;
     try {
       await deleteDoc(doc(db, 'meetings', meetingId));
-      fetchMeetings();
     } catch (err) {
       console.error('Delete error:', err);
     }
@@ -480,10 +489,11 @@ function resolveAllowedAttendanceSession(meeting, now = new Date()) {
   return null;
 }
 
-  const handleJoin = async (m) => {
+  const handleJoin = (m) => {
     if (!m?.meetingUrl) return;
 
     let urlToOpen = buildCustomizedZoomUrl(m.meetingUrl, user, userData);
+    urlToOpen = (urlToOpen || '').trim();
     if (!urlToOpen.startsWith('http://') && !urlToOpen.startsWith('https://')) {
       urlToOpen = 'https://' + urlToOpen;
     }
@@ -491,29 +501,39 @@ function resolveAllowedAttendanceSession(meeting, now = new Date()) {
     const sessionTypeToMark = resolveAllowedAttendanceSession(m, new Date());
     const targetUid = uid || user?.uid || '';
 
+    // 1. Record attendance in background (do NOT await, preserving direct user click gesture to avoid browser popup blockers)
     if (sessionTypeToMark && targetUid) {
-      try {
-        await addDoc(collection(db, 'meeting_attendance'), {
-          uid: targetUid,
-          customerName: userData?.name || user?.displayName || 'Member',
-          coachId: userData?.coachId || userData?.coachUid || '',
-          userRole: role,
-          date: todayStr,
-          sessionType: sessionTypeToMark,
-          meetingId: m.id || '',
-          meetingTitle: m.title || 'Live Session',
-          attendedAt: serverTimestamp(),
-        });
+      addDoc(collection(db, 'meeting_attendance'), {
+        uid: targetUid,
+        customerName: userData?.name || user?.displayName || 'Member',
+        coachId: userData?.coachId || userData?.coachUid || '',
+        userRole: role,
+        date: todayStr,
+        sessionType: sessionTypeToMark,
+        meetingId: m.id || '',
+        meetingTitle: m.title || 'Live Session',
+        clubId: clubId || 'main',
+        attendedAt: serverTimestamp(),
+      }).then(() => {
         console.log('[Attendance] Successfully recorded present for:', sessionTypeToMark, targetUid);
-      } catch (err) {
+      }).catch((err) => {
         console.error('[Attendance] Attendance mark error:', err);
-      }
+      });
     } else {
       console.log('[Attendance] Joined outside allowed time window — attendance not recorded.');
     }
 
+    // 2. Open meeting URL synchronously within direct user interaction to guarantee opening across all browsers/mobile
     if (typeof window !== 'undefined') {
-      window.open(urlToOpen, '_blank', 'noopener,noreferrer');
+      try {
+        const newWin = window.open(urlToOpen, '_blank', 'noopener,noreferrer');
+        // If window.open was blocked by popup blocker or returned null on mobile
+        if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+          window.location.href = urlToOpen;
+        }
+      } catch (_) {
+        window.location.href = urlToOpen;
+      }
     }
   };
 
@@ -705,6 +725,7 @@ function resolveAllowedAttendanceSession(meeting, now = new Date()) {
           onClose={() => setShowAdd(false)}
           onSaved={fetchMeetings}
           createdBy={uid}
+          clubId={clubId}
         />
       )}
 

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-export default function BulkAddLeadsModal({ coachUid, onClose, onSaved }) {
+export default function BulkAddLeadsModal({ coachUid, onClose, onSaved, clubId = 'main' }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [inputText, setInputText] = useState('');
@@ -56,13 +56,14 @@ export default function BulkAddLeadsModal({ coachUid, onClose, onSaved }) {
       for (const entry of validEntries) {
         await addDoc(collection(db, 'crm_enquiries'), {
           coachId: coachUid,
+          clubId: clubId || 'main',
           name: entry.name,
           phone: entry.phone,
           status: 'New Lead',
           followUpDate: '',
           nextMeetingDate: '',
           nextMeetingSession: 'morning',
-          notes: 'Added via Bulk Import',
+          notes: '',
           statusHistory: [
             {
               status: 'New Lead',

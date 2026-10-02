@@ -39,7 +39,7 @@ function parseTimestamp(ts) {
 }
 
 // ── Real-Time Broadcast Notification Listener (0-Second Instant Delivery) ──────
-function subscribeBroadcastNotifications(uid, userRole, userCreatedAt) {
+function subscribeBroadcastNotifications(uid, userRole, userCreatedAt, clubId = 'main') {
   if (!uid) return () => {};
 
   const regDate = parseTimestamp(userCreatedAt);
@@ -56,6 +56,7 @@ function subscribeBroadcastNotifications(uid, userRole, userCreatedAt) {
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(n => {
           if (n.deleted) return false;
+          if ((n.clubId || 'main') !== (clubId || 'main')) return false;
           if ((n.readBy || []).includes(uid)) return false; // already seen
 
           // Registration time filter: ONLY push notifications sent AFTER user registered
@@ -259,7 +260,7 @@ async function checkAndNotifyAbsence(uid, userData) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function NotificationInit({ uid, userRole, userCreatedAt, userData }) {
+export default function NotificationInit({ uid, userRole, userCreatedAt, userData, clubId = 'main' }) {
   useEffect(() => {
     let cleanupAction = null;
     let unsubscribeNotif = null;
@@ -276,7 +277,7 @@ export default function NotificationInit({ uid, userRole, userCreatedAt, userDat
 
       // Subscribe to real-time instant broadcast notifications & auto meeting notifications
       if (uid && mounted) {
-        unsubscribeNotif = subscribeBroadcastNotifications(uid, userRole, userCreatedAt);
+        unsubscribeNotif = subscribeBroadcastNotifications(uid, userRole, userCreatedAt, clubId);
         unsubscribeMeeting = subscribeMeetingAutoBroadcast(uid, userRole);
 
         // Check for customer absence every 60 seconds after session windows

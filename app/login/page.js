@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -17,6 +17,17 @@ export default function LoginPage() {
   
   const [error, setError]           = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedMobile = localStorage.getItem('vriddhi_saved_mobile');
+        if (savedMobile && !identifier) {
+          setIdentifier(savedMobile);
+        }
+      } catch (_) {}
+    }
+  }, []);
 
   // Forgot password state
   const [showResetModal, setShowResetModal] = useState(false);

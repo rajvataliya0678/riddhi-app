@@ -97,9 +97,9 @@ export default function DiagnosisPage() {
         createdAt: serverTimestamp()
       });
 
-      await updateDoc(doc(db, 'users', uid), {
+      await setDoc(doc(db, 'users', uid), {
         registrationCompleted: true
-      });
+      }, { merge: true });
 
       await refreshProfile();
       router.replace('/dashboard');

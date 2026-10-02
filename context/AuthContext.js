@@ -18,6 +18,30 @@ const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
 
+// Helper to resolve client IP address safely with fallback
+const getClientIp = async () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+    clearTimeout(timeoutId);
+    const data = await res.json();
+    if (data && data.ip) return data.ip;
+  } catch (_) {}
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const res2 = await fetch('https://api64.ipify.org?format=json', { signal: controller.signal });
+    clearTimeout(timeoutId);
+    const data2 = await res2.json();
+    if (data2 && data2.ip) return data2.ip;
+  } catch (_) {}
+
+  return null;
+};
+
 export function AuthContextProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -46,14 +70,15 @@ export function AuthContextProvider({ children }) {
           const parsed = JSON.parse(cached);
           if (parsed && parsed.uid) {
             setUserData(parsed);
-            setLoading(false);
+            // NOTE: Do NOT set loading to false here.
+            // Wait for onAuthStateChanged or persistent device auto-login to verify user session.
           }
         }
       } catch (_) {}
     }
   }, []);
 
-  // Helper to fetch user Firestore document & log app version telemetry
+  // Helper to fetch user Firestore document & log app version / IP telemetry
   const fetchUserData = async (uid) => {
     try {
       const currentUser = auth.currentUser;
@@ -103,6 +128,7 @@ export function AuthContextProvider({ children }) {
         // Ensure UID field & registrationCompleted is set
         data.uid = uid;
         data.registrationCompleted = true;
+        data.clubId = data.clubId || 'main';
         if (isAdminEmail) {
           data.role = 'admin';
         }
@@ -128,11 +154,25 @@ export function AuthContextProvider({ children }) {
         const isNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
         const platformStr = isNative ? 'Android App' : 'Web Browser';
 
-        updateDoc(targetRef, {
-          appVersion: CURRENT_APP_VERSION,
-          platform: platformStr,
-          lastActiveAt: serverTimestamp()
-        }).catch(err => console.warn("App telemetry log failed:", err));
+        // Asynchronously capture IP address & update activity telemetry
+        getClientIp().then(ip => {
+          const telemetryUpdate = {
+            appVersion: CURRENT_APP_VERSION,
+            platform: platformStr,
+            lastActiveAt: serverTimestamp()
+          };
+          if (ip) {
+            telemetryUpdate.lastIpAddress = ip;
+            telemetryUpdate.ipAddress = ip;
+          }
+          updateDoc(targetRef, telemetryUpdate).catch(err => console.warn("App telemetry log failed:", err));
+        }).catch(() => {
+          updateDoc(targetRef, {
+            appVersion: CURRENT_APP_VERSION,
+            platform: platformStr,
+            lastActiveAt: serverTimestamp()
+          }).catch(err => console.warn("App telemetry log failed:", err));
+        });
 
         if (data.preferredLanguage && typeof window !== 'undefined') {
           localStorage.setItem('vriddhi_lang', data.preferredLanguage);
@@ -158,83 +198,9 @@ export function AuthContextProvider({ children }) {
     }
   };
 
-  useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        await fetchUserData(currentUser.uid);
-      } else {
-        setUser(null);
-        updateUserData(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Sign Up function
-  const signUp = async (email, password, name, phone, languageParam = 'en') => {
-    setLoading(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
-
-      const langToUse = languageParam || localLang || 'en';
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('vriddhi_lang', langToUse);
-      }
-      setLocalLang(langToUse);
-
-      const newUserData = {
-        uid,
-        name,
-        email,
-        phone,
-        preferredLanguage: langToUse,
-        role: 'customer',
-        registrationCompleted: false,
-        createdAt: serverTimestamp(),
-      };
-
-      await setDoc(doc(db, 'users', uid), newUserData);
-      setUserData(newUserData);
-      setUser(userCredential.user);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Change Language function
-  const changeLanguage = async (lang) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('vriddhi_lang', lang);
-    }
-    setLocalLang(lang);
-    if (user) {
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          preferredLanguage: lang
-        });
-        setUserData(prev => prev ? { ...prev, preferredLanguage: lang } : null);
-      } catch (err) {
-        console.error('Error updating language preference:', err);
-      }
-    }
-  };
-
-  // Login function
-  const login = async (identifier, password) => {
-    setLoading(true);
+  // Login function with silent background auto-login support
+  const login = async (identifier, password, isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       let emailToUse = identifier.trim();
       let foundUserDoc = null;
@@ -264,7 +230,7 @@ export function AuthContextProvider({ children }) {
       }
 
       if (!emailToUse) {
-        setLoading(false);
+        if (!isSilent) setLoading(false);
         return { success: false, error: 'Please enter a valid mobile number or email.' };
       }
 
@@ -322,9 +288,44 @@ export function AuthContextProvider({ children }) {
         await signOut(auth);
         return { success: false, error: 'આ એકાઉન્ટ સિસ્ટમમાં મળ્યું નથી. કૃપા કરીને એડમિનનો સંપર્ક કરો અથવા સાઇન અપ કરો.' };
       }
+
+      // Save persistent device credentials so the user is NEVER asked to re-login on this device
+      if (typeof window !== 'undefined') {
+        try {
+          const rawPhone = !identifier.includes('@') ? identifier.replace(/[^0-9]/g, '') : (data.phone || '');
+          localStorage.setItem('vriddhi_device_auth', JSON.stringify({
+            identifier: identifier.trim(),
+            password: password,
+            uid,
+            savedPhone: rawPhone,
+            savedAt: new Date().toISOString()
+          }));
+          if (rawPhone) {
+            localStorage.setItem('vriddhi_saved_mobile', rawPhone);
+          }
+        } catch (_) {}
+      }
+
+      // Update mobile and last login timestamp in Firestore
+      const cleanPhone = !identifier.includes('@') ? identifier.replace(/[^0-9]/g, '') : '';
+      const loginUpdates = {
+        lastLoginAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp()
+      };
+      if (cleanPhone && (!data.phone || data.phone !== cleanPhone)) {
+        loginUpdates.phone = cleanPhone;
+        data.phone = cleanPhone;
+        updateUserData({ ...data, phone: cleanPhone });
+      }
+      updateDoc(doc(db, 'users', uid), loginUpdates).catch(() => {});
+
       setUser(userCredential.user);
       return { success: true, userData: data };
     } catch (error) {
+      if (isSilent) {
+        console.warn('Silent device auto-login attempt failed:', error.code || error.message);
+        return { success: false, error: error.message };
+      }
       let errMsg = error.message;
       if (
         error.code === 'auth/invalid-credential' ||
@@ -342,9 +343,73 @@ export function AuthContextProvider({ children }) {
     }
   };
 
+  // Sign Up function
+  const signUp = async (email, password, name, phone, languageParam = 'en') => {
+    setLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+
+      const langToUse = languageParam || localLang || 'en';
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vriddhi_lang', langToUse);
+      }
+      setLocalLang(langToUse);
+
+      const cleanPhone = phone ? String(phone).replace(/[^0-9]/g, '') : '';
+      const newUserData = {
+        uid,
+        name,
+        email,
+        phone: cleanPhone || phone || '',
+        preferredLanguage: langToUse,
+        role: 'customer',
+        clubId: 'main',
+        registrationCompleted: false,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp()
+      };
+
+      await setDoc(doc(db, 'users', uid), newUserData);
+
+      // Save persistent device credentials
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('vriddhi_device_auth', JSON.stringify({
+            identifier: cleanPhone || email.trim(),
+            password: password,
+            uid,
+            savedPhone: cleanPhone,
+            savedAt: new Date().toISOString()
+          }));
+          if (cleanPhone) {
+            localStorage.setItem('vriddhi_saved_mobile', cleanPhone);
+          }
+        } catch (_) {}
+      }
+
+      setUserData(newUserData);
+      setUser(userCredential.user);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout function: Clears device persistence so user is truly signed out
   const logout = async () => {
     setLoading(true);
     try {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('vriddhi_device_auth');
+          localStorage.removeItem('vriddhi_user_cache');
+        } catch (_) {}
+      }
       await signOut(auth);
       setUser(null);
       updateUserData(null);
@@ -354,6 +419,73 @@ export function AuthContextProvider({ children }) {
       setLoading(false);
     }
   };
+
+  // Monitor auth state & perform automatic silent re-login if needed
+  useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        await fetchUserData(currentUser.uid);
+        if (isMounted) setLoading(false);
+      } else {
+        // Firebase Auth session not in memory/cache — check device persistent auto-login
+        let autoLoggedIn = false;
+        if (typeof window !== 'undefined') {
+          try {
+            const rawDeviceAuth = localStorage.getItem('vriddhi_device_auth');
+            if (rawDeviceAuth) {
+              const deviceAuth = JSON.parse(rawDeviceAuth);
+              if (deviceAuth && deviceAuth.identifier && deviceAuth.password) {
+                const res = await login(deviceAuth.identifier, deviceAuth.password, true);
+                if (res && res.success) {
+                  autoLoggedIn = true;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Persistent auto-login check failed:', e);
+          }
+        }
+
+        if (!autoLoggedIn && isMounted) {
+          setUser(null);
+          updateUserData(null);
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Change Language function
+  const changeLanguage = async (lang) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vriddhi_lang', lang);
+    }
+    setLocalLang(lang);
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          preferredLanguage: lang
+        });
+        setUserData(prev => prev ? { ...prev, preferredLanguage: lang } : null);
+      } catch (err) {
+        console.error('Error updating language preference:', err);
+      }
+    }
+  };
+
 
   const refreshProfile = async () => {
     if (user) {

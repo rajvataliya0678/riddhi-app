@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
 import CrmEnquiryModal from './CrmEnquiryModal';
 import { openWhatsAppChat } from '@/lib/whatsapp';
 
 // Quick Reschedule / Schedule Next Meeting Modal Component
-function QuickRescheduleModal({ lead, onClose, onSaved }) {
+function QuickRescheduleModal({ lead, onClose, onSaved, viewingDate, viewingSession }) {
   const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
   const [meetingDate, setMeetingDate] = useState(tomorrowStr);
   const [meetingSession, setMeetingSession] = useState('evening');
@@ -19,12 +19,39 @@ function QuickRescheduleModal({ lead, onClose, onSaved }) {
     setSaving(true);
     try {
       const docRef = doc(db, 'crm_enquiries', lead.id);
+
+      // Preserve existing scheduledSessions
+      const existingSessions = Array.isArray(lead.scheduledSessions) ? [...lead.scheduledSessions] : [];
+
+      // Ensure previous nextMeetingDate is kept in history
+      if (lead.nextMeetingDate) {
+        const oldSession = lead.nextMeetingSession || 'morning';
+        if (!existingSessions.some(s => (typeof s === 'object' ? s.date === lead.nextMeetingDate && (s.session || 'morning') === oldSession : s === lead.nextMeetingDate))) {
+          existingSessions.push({ date: lead.nextMeetingDate, session: oldSession, addedAt: new Date().toISOString() });
+        }
+      }
+
+      // Ensure the session being viewed when rescheduled is kept in history
+      const curDate = viewingDate || lead.currentSessionDate;
+      const curSess = viewingSession || lead.currentSessionType || 'morning';
+      if (curDate) {
+        if (!existingSessions.some(s => (typeof s === 'object' ? s.date === curDate && (s.session || 'morning') === curSess : s === curDate))) {
+          existingSessions.push({ date: curDate, session: curSess, addedAt: new Date().toISOString() });
+        }
+      }
+
+      // Add the new target meeting date/session
+      if (!existingSessions.some(s => (typeof s === 'object' ? s.date === meetingDate && (s.session || 'morning') === meetingSession : s === meetingDate))) {
+        existingSessions.push({ date: meetingDate, session: meetingSession, addedAt: new Date().toISOString() });
+      }
+
       await updateDoc(docRef, {
         nextMeetingDate: meetingDate,
         nextMeetingSession: meetingSession,
+        scheduledSessions: existingSessions,
         updatedAt: serverTimestamp(),
       });
-      onSaved();
+      if (onSaved) onSaved();
       onClose();
     } catch (err) {
       console.error('Error rescheduling lead:', err);
@@ -104,9 +131,87 @@ function QuickRescheduleModal({ lead, onClose, onSaved }) {
   );
 }
 
-export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
+/**
+ * Checks if a lead was scheduled or attended for a specific date & session.
+ * Ensures the prospect is NEVER removed from historical session view.
+ */
+export function isLeadInSession(l, dateStr, sessionType = 'morning') {
+  if (!l || !dateStr) return false;
+  const targetSession = sessionType || 'morning';
+
+  // 1. Current nextMeetingDate match
+  if (l.nextMeetingDate === dateStr) {
+    const s = l.nextMeetingSession || 'morning';
+    if (s === targetSession) return true;
+  }
+
+  // 2. Scheduled sessions list match
+  if (Array.isArray(l.scheduledSessions)) {
+    const matched = l.scheduledSessions.some(entry => {
+      if (typeof entry === 'string') {
+        if (entry === `${dateStr}_${targetSession}`) return true;
+        if (entry === dateStr && targetSession === 'morning') return true;
+        return false;
+      }
+      if (entry && typeof entry === 'object') {
+        const entrySession = entry.session || 'morning';
+        return entry.date === dateStr && entrySession === targetSession;
+      }
+      return false;
+    });
+    if (matched) return true;
+  }
+
+  // 3. Attended sessions list match
+  if (Array.isArray(l.attendedSessions)) {
+    const matched = l.attendedSessions.some(entry => {
+      if (typeof entry === 'string') {
+        if (entry === `${dateStr}_${targetSession}`) return true;
+        if (entry === dateStr && targetSession === 'morning') return true;
+        return false;
+      }
+      if (entry && typeof entry === 'object') {
+        const entrySession = entry.session || 'morning';
+        return entry.date === dateStr && entrySession === targetSession;
+      }
+      return false;
+    });
+    if (matched) return true;
+  }
+
+  // 4. Backward-compatible lastAttendedDate match
+  if (l.lastAttendedDate === dateStr) {
+    const attSession = l.lastAttendedSession || l.nextMeetingSession || 'morning';
+    if (attSession === targetSession) return true;
+  }
+
+  return false;
+}
+
+export default function SessionLeadAttendees({ coachUid, userRole = 'coach', clubId = 'main' }) {
   const [leads, setLeads]               = useState([]);
   const [loading, setLoading]           = useState(true);
+
+  const getTodayStr = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const getYesterdayStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const todayStr = getTodayStr();
+  const yesterdayStr = getYesterdayStr();
+  const [selectedDate, setSelectedDate] = useState(todayStr);
 
   const currentHour = new Date().getHours();
   const defaultSession = currentHour >= 14 ? 'evening' : 'morning';
@@ -116,33 +221,57 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
   const [selectedLeadForEdit, setSelectedLeadForEdit]   = useState(null);
   const [selectedLeadForReschedule, setSelectedLeadForReschedule] = useState(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const isAdmin = userRole === 'admin';
-
+  // Real-time listener for live updates — strictly restricted to the coach's own leads
   useEffect(() => {
-    fetchLeads();
-  }, [coachUid, userRole]);
+    if (!coachUid) {
+      setLeads([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const crmRef = collection(db, 'crm_enquiries');
+    const q = query(crmRef, where('coachId', '==', coachUid));
 
-  const fetchLeads = async () => {
-    if (!coachUid) return;
-    try {
-      setLoading(true);
-      const snap = await getDocs(
-        query(collection(db, 'crm_enquiries'), where('coachId', '==', coachUid))
-      );
+    const unsubscribe = onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setLeads(list);
-    } catch (err) {
-      console.error('Error fetching session lead attendees:', err);
-    } finally {
       setLoading(false);
-    }
+    }, (err) => {
+      console.error('Error listening to session leads:', err);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [coachUid]);
+
+  const fetchLeads = async () => {
+    // onSnapshot listener keeps leads updated in real time
   };
 
-  // Filter leads scheduled for TODAY (excluding converted customers)
-  const todayLeads = leads.filter(l => l.nextMeetingDate === todayStr && l.status !== 'Converted / Active Customer' && l.status !== 'Converted' && !l.isConverted && !l.convertedCustomerUid);
-  const morningLeads = todayLeads.filter(l => (l.nextMeetingSession || 'morning') === 'morning');
-  const eveningLeads = todayLeads.filter(l => l.nextMeetingSession === 'evening');
+  const handleDateOffset = (offsetDays) => {
+    const parts = selectedDate.split('-');
+    const cur = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    cur.setDate(cur.getDate() + offsetDays);
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, '0');
+    const d = String(cur.getDate()).padStart(2, '0');
+    setSelectedDate(`${y}-${m}-${d}`);
+  };
+
+  const formatDisplayDate = (dStr) => {
+    if (dStr === todayStr) return "Today's";
+    if (dStr === yesterdayStr) return "Yesterday's";
+    const parts = dStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dStr;
+  };
+
+  // Zero-loss list: prospects scheduled or attended for a session are NEVER removed, strictly for this coach
+  const myLeads = leads.filter(l => l.coachId === coachUid && (l.clubId || 'main') === clubId);
+  const morningLeads = myLeads.filter(l => isLeadInSession(l, selectedDate, 'morning'));
+  const eveningLeads = myLeads.filter(l => isLeadInSession(l, selectedDate, 'evening'));
 
   const currentList = activeSession === 'morning' ? morningLeads : eveningLeads;
 
@@ -167,20 +296,36 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
         { from: lead.status || 'New Lead', to: nextStatus, timestamp: new Date().toISOString() }
       ];
 
+      // Record this attendance in attendedSessions and scheduledSessions
+      const existingAttended = Array.isArray(lead.attendedSessions) ? [...lead.attendedSessions] : [];
+      if (!existingAttended.some(s => (typeof s === 'object' ? s.date === selectedDate && (s.session || 'morning') === activeSession : s === `${selectedDate}_${activeSession}`))) {
+        existingAttended.push({ date: selectedDate, session: activeSession, attendedAt: new Date().toISOString() });
+      }
+
+      const existingScheduled = Array.isArray(lead.scheduledSessions) ? [...lead.scheduledSessions] : [];
+      if (!existingScheduled.some(s => (typeof s === 'object' ? s.date === selectedDate && (s.session || 'morning') === activeSession : s === selectedDate))) {
+        existingScheduled.push({ date: selectedDate, session: activeSession, addedAt: new Date().toISOString() });
+      }
+
       await updateDoc(docRef, {
         status: nextStatus,
-        lastAttendedDate: todayStr,
+        lastAttendedDate: selectedDate,
+        lastAttendedSession: activeSession,
+        attendedSessions: existingAttended,
+        scheduledSessions: existingScheduled,
         statusHistory: newHistory,
         updatedAt: serverTimestamp(),
       });
 
-      fetchLeads();
-
-      // Open schedule modal for next meeting
+      // Open schedule modal for next meeting while retaining current session context
       setSelectedLeadForReschedule({
         ...lead,
         status: nextStatus,
         modalTitle,
+        currentSessionDate: selectedDate,
+        currentSessionType: activeSession,
+        scheduledSessions: existingScheduled,
+        attendedSessions: existingAttended,
       });
     } catch (err) {
       console.error('Error updating lead stage on attended:', err);
@@ -190,10 +335,47 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
   const handleCrmSave = async (updatedData, leadId) => {
     if (leadId) {
       const docRef = doc(db, 'crm_enquiries', leadId);
-      await updateDoc(docRef, { ...updatedData, updatedAt: serverTimestamp() });
+      const leadDoc = leads.find(l => l.id === leadId);
+      const updatePayload = { ...updatedData, updatedAt: serverTimestamp() };
+
+      // Ensure scheduledSessions preserves selectedDate & activeSession and any existing sessions
+      const existingSessions = Array.isArray(updatedData.scheduledSessions) 
+        ? [...updatedData.scheduledSessions] 
+        : Array.isArray(leadDoc?.scheduledSessions) 
+          ? [...leadDoc.scheduledSessions] 
+          : [];
+
+      // Ensure current viewing date/session is kept
+      if (selectedDate) {
+        if (!existingSessions.some(s => (typeof s === 'object' ? s.date === selectedDate && (s.session || 'morning') === activeSession : s === selectedDate))) {
+          existingSessions.push({ date: selectedDate, session: activeSession, addedAt: new Date().toISOString() });
+        }
+      }
+
+      // If new nextMeetingDate is specified in updatedData, add it too
+      if (updatedData.nextMeetingDate) {
+        const nextSess = updatedData.nextMeetingSession || 'morning';
+        if (!existingSessions.some(s => (typeof s === 'object' ? s.date === updatedData.nextMeetingDate && (s.session || 'morning') === nextSess : s === updatedData.nextMeetingDate))) {
+          existingSessions.push({ date: updatedData.nextMeetingDate, session: nextSess, addedAt: new Date().toISOString() });
+        }
+      }
+
+      updatePayload.scheduledSessions = existingSessions;
+
+      if (updatedData.statusChanged) {
+        const currentHistory = leadDoc?.statusHistory || [];
+        updatePayload.statusHistory = [
+          ...currentHistory,
+          {
+            status: updatedData.status,
+            note: `Changed from "${updatedData.oldStatus}" to "${updatedData.status}"`,
+            changedAt: new Date().toISOString(),
+          }
+        ];
+      }
+      await updateDoc(docRef, updatePayload);
     }
     setSelectedLeadForEdit(null);
-    fetchLeads();
   };
 
   return (
@@ -203,7 +385,7 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 18px',
+          padding: '12px 16px',
           background: 'linear-gradient(135deg, #fef3c7, #e0f2fe)',
           borderBottom: '1px solid var(--border-color)',
           flexWrap: 'wrap', gap: '8px'
@@ -211,37 +393,99 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '1.2rem' }}>👥</span>
             <div>
-              <h3 style={{ fontSize: '0.92rem', fontWeight: '800', margin: 0 }}>Today's Session CRM Prospects</h3>
+              <h3 style={{ fontSize: '0.92rem', fontWeight: '800', margin: 0 }}>
+                {formatDisplayDate(selectedDate)} Session CRM Prospects
+              </h3>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>
-                Leads scheduled to join today's live Zoom sessions
+                Leads scheduled to join live Zoom sessions
               </p>
             </div>
           </div>
 
-          {/* Session Toggle Tabs (Auto-switched by time) */}
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <button
-              type="button"
-              onClick={() => setActiveSession('morning')}
-              style={{
-                padding: '3px 9px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
-                background: activeSession === 'morning' ? '#0284c7' : '#e0f2fe',
-                color: activeSession === 'morning' ? 'white' : '#0369a1',
-              }}
-            >
-              🌅 Morning ({morningLeads.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSession('evening')}
-              style={{
-                padding: '3px 9px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
-                background: activeSession === 'evening' ? '#7e22ce' : '#faf5ff',
-                color: activeSession === 'evening' ? 'white' : '#6b21a8',
-              }}
-            >
-              🌇 Evening ({eveningLeads.length})
-            </button>
+          {/* Right side controls: Date Picker + Session Toggle Tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+
+            {/* Date Navigation & Calendar Picker */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '3px',
+              background: '#ffffff', padding: '2px 6px', borderRadius: '8px',
+              border: '1px solid var(--border-color)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}>
+              <button
+                type="button"
+                onClick={() => handleDateOffset(-1)}
+                title="Previous Day"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-main)',
+                  padding: '2px 3px', lineHeight: 1
+                }}
+              >
+                ◀
+              </button>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                style={{
+                  border: 'none', background: 'transparent', fontSize: '0.75rem',
+                  fontWeight: '700', color: 'var(--text-main)', cursor: 'pointer',
+                  outline: 'none', padding: '0 2px'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => handleDateOffset(1)}
+                title="Next Day"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-main)',
+                  padding: '2px 3px', lineHeight: 1
+                }}
+              >
+                ▶
+              </button>
+              {selectedDate !== todayStr && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(todayStr)}
+                  style={{
+                    fontSize: '0.65rem', fontWeight: '800', padding: '2px 5px',
+                    borderRadius: '5px', background: '#eff6ff', color: '#1d4ed8',
+                    border: '1px solid #bfdbfe', cursor: 'pointer'
+                  }}
+                  title="Reset to Today"
+                >
+                  Today
+                </button>
+              )}
+            </div>
+
+            {/* Session Toggle Tabs */}
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setActiveSession('morning')}
+                style={{
+                  padding: '3px 9px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
+                  background: activeSession === 'morning' ? '#0284c7' : '#e0f2fe',
+                  color: activeSession === 'morning' ? 'white' : '#0369a1',
+                }}
+              >
+                🌅 Morning ({morningLeads.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSession('evening')}
+                style={{
+                  padding: '3px 9px', borderRadius: '99px', fontSize: '0.68rem', fontWeight: '800', border: 'none', cursor: 'pointer',
+                  background: activeSession === 'evening' ? '#7e22ce' : '#faf5ff',
+                  color: activeSession === 'evening' ? 'white' : '#6b21a8',
+                }}
+              >
+                🌇 Evening ({eveningLeads.length})
+              </button>
+            </div>
           </div>
         </div>
 
@@ -257,7 +501,7 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                 {activeSession === 'morning' ? '🌅' : '🌇'}
               </div>
               <p style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '4px', fontSize: '0.88rem' }}>
-                No CRM leads scheduled for today's {activeSession === 'morning' ? 'Morning (11:00 AM)' : 'Evening (7:45 PM)'} session
+                No CRM leads scheduled for {formatDisplayDate(selectedDate)} {activeSession === 'morning' ? 'Morning (11:00 AM)' : 'Evening (7:45 PM)'} session
               </p>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 Set "Schedule Next Meeting" in CRM lead details to track attendee prospects here.
@@ -265,7 +509,19 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
             </div>
           ) : (
             currentList.map((lead, idx) => {
-              const isAttendedToday = lead.lastAttendedDate === todayStr;
+              const isAttendedThisSession = (
+                (Array.isArray(lead.attendedSessions) && lead.attendedSessions.some(s => (
+                  typeof s === 'object' 
+                    ? s.date === selectedDate && (s.session || 'morning') === activeSession 
+                    : s === `${selectedDate}_${activeSession}` || s === selectedDate
+                ))) ||
+                (lead.lastAttendedDate === selectedDate && (lead.lastAttendedSession || lead.nextMeetingSession || 'morning') === activeSession)
+              );
+
+              const isRescheduledFromThis = Boolean(
+                lead.nextMeetingDate && 
+                (lead.nextMeetingDate !== selectedDate || (lead.nextMeetingSession || 'morning') !== activeSession)
+              );
 
               return (
                 <div
@@ -280,23 +536,33 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                     background: 'var(--card-bg)',
                   }}
                 >
-                  {/* Row 1: Avatar + Name + Stage Badge */}
+                  {/* Row 1: Avatar + Name + Stage Badge + Status Badges */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                      <div style={{
-                        width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
-                        background: activeSession === 'morning'
-                          ? 'linear-gradient(135deg, #0284c7, #2563eb)'
-                          : 'linear-gradient(135deg, #7e22ce, #db2777)',
-                        color: 'white', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: '0.88rem', fontWeight: '800',
-                      }}>
+                    <div
+                      onClick={() => setSelectedLeadForEdit(lead)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1, cursor: 'pointer' }}
+                      title={`Click to open lead details for ${lead.name}`}
+                    >
+                      <div
+                        style={{
+                          width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+                          background: activeSession === 'morning'
+                            ? 'linear-gradient(135deg, #0284c7, #2563eb)'
+                            : 'linear-gradient(135deg, #7e22ce, #db2777)',
+                          color: 'white', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', fontSize: '0.88rem', fontWeight: '800',
+                          cursor: 'pointer',
+                          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                        }}
+                        title={`Click to open lead details for ${lead.name}`}
+                      >
                         {lead.name?.charAt(0)?.toUpperCase()}
                       </div>
 
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: '800', fontSize: '0.88rem', color: 'var(--text-main)' }}>
+                          <span style={{ fontWeight: '800', fontSize: '0.88rem', color: 'var(--text-main)', cursor: 'pointer' }}>
                             {lead.name}
                           </span>
                           <span style={{
@@ -308,10 +574,28 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                           }}>
                             {lead.status || 'New Lead'}
                           </span>
+                          {isAttendedThisSession && (
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '99px', fontSize: '0.66rem', fontWeight: '800',
+                              background: '#dcfce7', color: '#15803d', border: '1px solid #86efac',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              ✓ Attended
+                            </span>
+                          )}
+                          {isRescheduledFromThis && (
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '99px', fontSize: '0.66rem', fontWeight: '800',
+                              background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              Next: {lead.nextMeetingDate} ({lead.nextMeetingSession === 'evening' ? 'Eve' : 'Morn'})
+                            </span>
+                          )}
                         </div>
 
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          Scheduled Today ({activeSession === 'morning' ? '🌅 Morning' : '🌇 Evening'})
+                          Scheduled {formatDisplayDate(selectedDate)} ({activeSession === 'morning' ? '🌅 Morning' : '🌇 Evening'})
                         </div>
                       </div>
                     </div>
@@ -355,19 +639,39 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                       </>
                     )}
 
-                    {isAttendedToday ? (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        style={{ padding: '5px 12px', fontSize: '0.74rem', fontWeight: '800', width: 'auto' }}
-                        onClick={() => setSelectedLeadForReschedule({
-                          ...lead,
-                          modalTitle: lead.status === '1 Session' ? 'Schedule 2nd Live Meeting' : 'Schedule Next Session'
-                        })}
-                        title="Schedule next live meeting date and session time"
-                      >
-                        📅 Schedule Next Meeting
-                      </button>
+                    {isAttendedThisSession ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          style={{ padding: '5px 12px', fontSize: '0.74rem', fontWeight: '800', width: 'auto' }}
+                          onClick={() => setSelectedLeadForReschedule({
+                            ...lead,
+                            currentSessionDate: selectedDate,
+                            currentSessionType: activeSession,
+                            modalTitle: lead.status === '1 Session' ? 'Schedule 2nd Live Meeting' : 'Schedule Next Session'
+                          })}
+                          title="Schedule next live meeting date and session time"
+                        >
+                          📅 Schedule Next Meeting
+                        </button>
+                        <button
+                          type="button"
+                          style={{
+                            padding: '5px 10px', fontSize: '0.74rem', fontWeight: '800', borderRadius: '6px',
+                            background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', cursor: 'pointer'
+                          }}
+                          onClick={() => setSelectedLeadForReschedule({
+                            ...lead,
+                            currentSessionDate: selectedDate,
+                            currentSessionType: activeSession,
+                            modalTitle: 'Reschedule Session'
+                          })}
+                          title="Reschedule session date"
+                        >
+                          📅 Reschedule
+                        </button>
+                      </>
                     ) : (
                       <>
                         <button
@@ -386,7 +690,12 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
                             padding: '5px 10px', fontSize: '0.74rem', fontWeight: '800', borderRadius: '6px',
                             background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', cursor: 'pointer'
                           }}
-                          onClick={() => setSelectedLeadForReschedule({ ...lead, modalTitle: 'Reschedule Missed Session' })}
+                          onClick={() => setSelectedLeadForReschedule({
+                            ...lead,
+                            currentSessionDate: selectedDate,
+                            currentSessionType: activeSession,
+                            modalTitle: 'Reschedule Missed Session'
+                          })}
                           title="Reschedule next meeting date if lead missed today"
                         >
                           📅 Reschedule
@@ -407,13 +716,17 @@ export default function SessionLeadAttendees({ coachUid, userRole = 'coach' }) {
           enquiry={selectedLeadForEdit}
           onSave={handleCrmSave}
           onClose={() => setSelectedLeadForEdit(null)}
-          autoCallLogFocus={true}
+          coachUid={coachUid}
+          userRole={userRole}
+          autoCallLogFocus={false}
         />
       )}
 
       {selectedLeadForReschedule && (
         <QuickRescheduleModal
           lead={selectedLeadForReschedule}
+          viewingDate={selectedDate}
+          viewingSession={activeSession}
           onClose={() => setSelectedLeadForReschedule(null)}
           onSaved={fetchLeads}
         />

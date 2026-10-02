@@ -23,7 +23,7 @@ const TEMPLATES = [
   { title: '📋 Reminder',            body: 'Please log your weight for today in the app so your coach can track your progress.' },
 ];
 
-export default function SendNotificationTab({ adminUid }) {
+export default function SendNotificationTab({ adminUid, clubId = 'main' }) {
   const [form, setForm] = useState({ title: '', body: '', audience: 'all', link: '' });
   const [sending, setSending]   = useState(false);
   const [sent, setSent]         = useState(false);
@@ -34,7 +34,7 @@ export default function SendNotificationTab({ adminUid }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   // ── Fetch sent notifications history ─────────────────────
-  useEffect(() => { fetchHistory(); }, []);
+  useEffect(() => { fetchHistory(); }, [clubId]);
 
   const fetchHistory = async () => {
     try {
@@ -42,7 +42,11 @@ export default function SendNotificationTab({ adminUid }) {
       const snap = await getDocs(
         query(collection(db, 'broadcast_notifications'), orderBy('sentAt', 'desc'))
       );
-      setHistory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setHistory(
+        snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(n => (n.clubId || 'main') === clubId)
+      );
     } catch (err) {
       console.error('History fetch error:', err);
     } finally {
@@ -65,6 +69,7 @@ export default function SendNotificationTab({ adminUid }) {
         audience:  form.audience,
         link:      form.link.trim() || '',
         sentBy:    adminUid,
+        clubId:    clubId || 'main',
         sentAt:    serverTimestamp(),
         readBy:    [], // array of UIDs who have seen it
       });

@@ -105,6 +105,7 @@ export default function DashboardPage() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const role = userData?.role || 'customer';
+  const clubId = userData?.clubId || 'main';
   const isCoach = role === 'coach' || role === 'admin';
   const isAdmin = role === 'admin';
 
@@ -123,10 +124,10 @@ export default function DashboardPage() {
         getDocs(query(collection(db, 'weight_history'), where('uid', '==', user.uid))),
       ]);
 
-      let finalDiag = !diagSnap.empty ? diagSnap.docs[0].data() : null;
+      let finalDiag = !diagSnap.empty ? { docId: diagSnap.docs[0].id, ...diagSnap.docs[0].data() } : null;
       if (!finalDiag && userEmail) {
         const diagEmailSnap = await getDocs(query(collection(db, 'diagnosis'), where('email', '==', userEmail)));
-        if (!diagEmailSnap.empty) finalDiag = diagEmailSnap.docs[0].data();
+        if (!diagEmailSnap.empty) finalDiag = { docId: diagEmailSnap.docs[0].id, ...diagEmailSnap.docs[0].data() };
       }
       if (finalDiag) setDiagnosis(finalDiag);
 
@@ -167,6 +168,7 @@ export default function DashboardPage() {
       const count = snap.docs.filter(d => {
         const n = d.data();
         if (n.deleted) return false;
+        if ((n.clubId || 'main') !== clubId) return false;
 
         const sentDate = parseTs(n.sentAt);
         if (userRegDate && sentDate && sentDate.getTime() < (userRegDate.getTime() - 60000)) {
@@ -276,7 +278,7 @@ export default function DashboardPage() {
     <div className="app-shell">
 
       {/* ── NOTIFICATION INIT (permission + broadcast checker) ── */}
-      <NotificationInit uid={user?.uid || ''} userRole={role} userCreatedAt={userData?.createdAt || user?.metadata?.creationTime} userData={userData} />
+      <NotificationInit uid={user?.uid || ''} userRole={role} userCreatedAt={userData?.createdAt || user?.metadata?.creationTime} userData={userData} clubId={clubId} />
 
       {/* ── IN-APP UPDATE PROMPT ── */}
       <UpdatePrompt />
@@ -572,11 +574,11 @@ export default function DashboardPage() {
                 }}
               >
                 {isCoach && (
-                  <CoachTodayTasks coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={userData?.role || 'coach'} />
+                  <CoachTodayTasks coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={userData?.role || 'coach'} clubId={clubId} />
                 )}
-                <TodaysMeetings user={user} userData={userData} userRole={role} />
+                <TodaysMeetings user={user} userData={userData} userRole={role} clubId={clubId} />
                 {isCoach && (
-                  <SessionLeadAttendees coachUid={user?.uid || ''} userRole={userData?.role || 'coach'} />
+                  <SessionLeadAttendees coachUid={user?.uid || ''} userRole={userData?.role || 'coach'} clubId={clubId} />
                 )}
               </div>
 
@@ -759,31 +761,31 @@ export default function DashboardPage() {
           )}
 
           {/* ── MY CUSTOMERS TAB ── */}
-          {activeTab === 'customers' && isCoach && <MyCustomersTab coachUid={user?.uid || ''} userRole={role} />}
+          {activeTab === 'customers' && isCoach && <MyCustomersTab coachUid={user?.uid || ''} userRole={role} clubId={clubId} />}
 
           {/* ── 10-DAY FOLLOW-UP TAB ── */}
-          {activeTab === 'followup' && isCoach && <FollowUpTab coachUid={user?.uid || ''} coachName={userData?.name || ''} />}
+          {activeTab === 'followup' && isCoach && <FollowUpTab coachUid={user?.uid || ''} coachName={userData?.name || ''} clubId={clubId} />}
 
           {/* ── CRM TAB ── */}
-          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} onOpenCallHistory={() => handleSetActiveTab('call_history')} />}
+          {activeTab === 'crm' && isCoach && <CrmTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} clubId={clubId} onOpenCallHistory={() => handleSetActiveTab('call_history')} />}
 
           {/* ── ALL CALL HISTORY TAB ── */}
-          {activeTab === 'call_history' && isCoach && <AllCallHistoryTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} />}
+          {activeTab === 'call_history' && isCoach && <AllCallHistoryTab coachUid={user?.uid || ''} coachName={userData?.name || ''} userRole={role} clubId={clubId} />}
 
           {/* ── CRM ANALYTICS TAB ── */}
-          {activeTab === 'crm_analytics' && isCoach && <CrmAnalyticsTab coachUid={user?.uid || ''} />}
+          {activeTab === 'crm_analytics' && isCoach && <CrmAnalyticsTab coachUid={user?.uid || ''} clubId={clubId} />}
 
           {/* ── MY COACHES TAB ── */}
-          {activeTab === 'my_coaches' && isCoach && <MyCoachesTab coachUid={user?.uid || ''} />}
+          {activeTab === 'my_coaches' && isCoach && <MyCoachesTab coachUid={user?.uid || ''} clubId={clubId} />}
 
           {/* ── ATTENDANCE TAB ── */}
-          {activeTab === 'attendance' && <AttendanceTab user={user} userData={userData} />}
+          {activeTab === 'attendance' && <AttendanceTab user={user} userData={userData} clubId={clubId} />}
 
           {/* ── ADMIN TAB ── */}
-          {activeTab === 'admin' && isAdmin && <AdminTab currentAdminUid={user?.uid || ''} />}
+          {activeTab === 'admin' && isAdmin && <AdminTab currentAdminUid={user?.uid || ''} clubId={clubId} />}
 
           {/* ── SEND NOTIFICATION TAB ── */}
-          {activeTab === 'send_notif' && isAdmin && <SendNotificationTab adminUid={user?.uid || ''} />}
+          {activeTab === 'send_notif' && isAdmin && <SendNotificationTab adminUid={user?.uid || ''} clubId={clubId} />}
         </div>
       </div>
 
@@ -836,6 +838,7 @@ export default function DashboardPage() {
           uid={user?.uid || ''}
           userRole={role}
           userCreatedAt={userData?.createdAt || user?.metadata?.creationTime}
+          clubId={clubId}
           onClose={() => {
             setShowNotifModal(false);
             fetchUnreadNotifCount();

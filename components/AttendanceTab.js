@@ -252,7 +252,7 @@ function PersonAttendanceCard({ name, role, morningMap, eveningMap, trainingMap,
 // ══════════════════════════════════════════════════════════════
 // ── MAIN ATTENDANCE TAB COMPONENT ────────────────────────────
 // ══════════════════════════════════════════════════════════════
-export default function AttendanceTab({ user, userData }) {
+export default function AttendanceTab({ user, userData, clubId = 'main' }) {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [users, setUsers]                         = useState([]);
   const [loading, setLoading]                     = useState(true);
@@ -269,7 +269,7 @@ export default function AttendanceTab({ user, userData }) {
 
   useEffect(() => {
     fetchData();
-  }, [uid, role]);
+  }, [uid, role, clubId]);
 
   const fetchData = async () => {
     try {
@@ -289,7 +289,9 @@ export default function AttendanceTab({ user, userData }) {
       let userList = [];
       if (isCoach) {
         const usersSnap = await getDocs(collection(db, 'users'));
-        userList = usersSnap.docs.map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }));
+        userList = usersSnap.docs
+          .map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }))
+          .filter(u => (u.clubId || 'main') === clubId);
       }
 
       setAttendanceRecords(attList);

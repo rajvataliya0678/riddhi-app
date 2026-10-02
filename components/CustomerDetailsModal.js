@@ -10,7 +10,8 @@ import { formatDate, formatDateTime } from '@/lib/dateUtils';
 const CALL_OUTCOME_OPTIONS = [
   { label: '📞 Called',                 color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd' },
   { label: '📞 Answered & Interested', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
-  { label: '📅 Follow-up Scheduled',  color: '#7e22ce', bg: '#fdf4ff', border: '#e9d5ff' },
+  { label: '📅 Session 1 Scheduled',   color: '#7e22ce', bg: '#fdf4ff', border: '#e9d5ff' },
+  { label: '📅 Session 2 Scheduled',   color: '#9d174d', bg: '#fce7f3', border: '#f472b6' },
   { label: '⏰ Call Back Later',      color: '#b45309', bg: '#fef3c7', border: '#fde68a' },
   { label: '❌ No Answer / Busy',      color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
   { label: '🚫 Not Interested',       color: '#4b5563', bg: '#f3f4f6', border: '#e5e7eb' },
@@ -157,8 +158,16 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
     setTimeout(() => {
       const notesInput = document.getElementById(`cust-call-log-edit-notes-${newLogId}`);
       if (notesInput) {
-        notesInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        notesInput.focus();
+        const modalContainer = notesInput.closest('.modal-card') || notesInput.closest('.detail-modal-card');
+        if (modalContainer) {
+          const topPos = notesInput.offsetTop - 80;
+          modalContainer.scrollTo({ top: Math.max(0, topPos), behavior: 'smooth' });
+        }
+        try {
+          notesInput.focus({ preventScroll: true });
+        } catch (_) {
+          notesInput.focus();
+        }
       }
     }, 300);
   };
@@ -177,6 +186,12 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
   };
 
   const handleSaveEditedLog = async (logId) => {
+    if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, window.scrollY);
+    }
     const updatedLogs = callLogs.map(log => {
       if (log.id === logId) {
         return {
@@ -410,7 +425,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                   className="form-input"
                   value={newCallOutcome}
                   onChange={e => setNewCallOutcome(e.target.value)}
-                  style={{ fontSize: '0.82rem', fontWeight: '700' }}
+                  style={{ fontWeight: '700' }}
                 >
                   {CALL_OUTCOME_OPTIONS.map(opt => (
                     <option key={opt.label} value={opt.label}>{opt.label}</option>
@@ -424,7 +439,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                   className="form-input"
                   value={formatDateTime(new Date())}
                   readOnly
-                  style={{ fontSize: '0.82rem', background: '#f3f4f6' }}
+                  style={{ background: '#f3f4f6' }}
                 />
               </div>
             </div>
@@ -437,7 +452,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                 placeholder="Record customer's response, diet questions, or next follow-up notes..."
                 value={newCallNotes}
                 onChange={e => setNewCallNotes(e.target.value)}
-                style={{ fontSize: '0.82rem', resize: 'vertical' }}
+                style={{ resize: 'vertical' }}
               />
             </div>
 
@@ -496,7 +511,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                           className="form-input"
                           value={editingOutcome}
                           onChange={e => setEditingOutcome(e.target.value)}
-                          style={{ fontSize: '0.8rem', fontWeight: '700', padding: '4px 8px' }}
+                          style={{ fontWeight: '700', padding: '6px 8px' }}
                         >
                           {CALL_OUTCOME_OPTIONS.map(opt => (
                             <option key={opt.label} value={opt.label}>{opt.label}</option>
@@ -513,7 +528,7 @@ export default function CustomerDetailsModal({ customer, onClose, autoCallLogFoc
                           placeholder="Type customer's answer or notes here..."
                           value={editingNotes}
                           onChange={e => setEditingNotes(e.target.value)}
-                          style={{ fontSize: '0.82rem', resize: 'vertical' }}
+                          style={{ resize: 'vertical' }}
                         />
                       </div>
 

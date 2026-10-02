@@ -18,13 +18,13 @@ function parseTimestamp(ts) {
   return null;
 }
 
-export default function NotificationModal({ uid, userRole, userCreatedAt, onClose, onReadUpdated }) {
+export default function NotificationModal({ uid, userRole, userCreatedAt, clubId = 'main', onClose, onReadUpdated }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchNotifications();
-  }, [uid, userRole, userCreatedAt]);
+  }, [uid, userRole, userCreatedAt, clubId]);
 
   const fetchNotifications = async () => {
     try {
@@ -39,6 +39,7 @@ export default function NotificationModal({ uid, userRole, userCreatedAt, onClos
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(n => {
           if (n.deleted) return false;
+          if ((n.clubId || 'main') !== (clubId || 'main')) return false;
 
           // Sent time filter: ONLY show notifications sent AFTER user registered
           const sentDate = parseTimestamp(n.sentAt);

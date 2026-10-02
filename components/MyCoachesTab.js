@@ -5,7 +5,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import CustomerDetailsModal from './CustomerDetailsModal';
 
-export default function MyCoachesTab({ coachUid }) {
+export default function MyCoachesTab({ coachUid, clubId = 'main' }) {
   const [coaches, setCoaches]           = useState([]);
   const [customers, setCustomers]       = useState([]);
   const [enquiries, setEnquiries]       = useState([]);
@@ -20,7 +20,7 @@ export default function MyCoachesTab({ coachUid }) {
 
   useEffect(() => {
     fetchAllData();
-  }, [coachUid]);
+  }, [coachUid, clubId]);
 
   const fetchAllData = async () => {
     try {
@@ -40,7 +40,9 @@ export default function MyCoachesTab({ coachUid }) {
         getDocs(query(collection(db, 'meeting_attendance'), where('date', '>=', sevenDaysAgoStr)))
       ]);
 
-      const allUsers = usersSnap.docs.map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }));
+      const allUsers = usersSnap.docs
+        .map(d => ({ id: d.id, uid: d.data().uid || d.id, ...d.data() }))
+        .filter(u => (u.clubId || 'main') === clubId);
       const coachList = allUsers.filter(u => u.role === 'coach' || u.role === 'club_owner' || u.role === 'admin');
       const customerList = allUsers.filter(u => u.role === 'customer' || !u.role);
 
@@ -51,7 +53,9 @@ export default function MyCoachesTab({ coachUid }) {
       });
 
       const wList = weightSnap.docs.map(d => d.data());
-      const crmList = crmSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const crmList = crmSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(c => (c.clubId || 'main') === clubId);
       const fuList = fuSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
       const attMap = {};

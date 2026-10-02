@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { logCrmCall } from '@/lib/logCrmCall';
@@ -13,13 +13,14 @@ const OUTCOME_OPTIONS = [
   'All',
   '📞 Called',
   '📞 Answered & Interested',
-  '📅 Follow-up Scheduled',
+  '📅 Session 1 Scheduled',
+  '📅 Session 2 Scheduled',
   '⏰ Call Back Later',
   '❌ No Answer / Busy',
   '🚫 Not Interested',
 ];
 
-export default function AllCallHistoryTab({ coachUid, coachName = '', userRole = 'coach' }) {
+export default function AllCallHistoryTab({ coachUid, coachName = '', userRole = 'coach', clubId = 'main' }) {
   const [enquiries, setEnquiries]         = useState([]);
   const [loading, setLoading]             = useState(true);
   const [searchQuery, setSearchQuery]     = useState('');
@@ -29,11 +30,16 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
   const [selectedLeadModal, setSelectedLeadModal] = useState(null);
   const listContainerRef = useRef(null);
   const datePickerRef    = useRef(null);
+  const loadMoreRef      = useRef(null);
+
   const [editingLogKey, setEditingLogKey] = useState(null);
   const [editOutcome, setEditOutcome]     = useState('📞 Called');
   const [editCallType, setEditCallType]   = useState('Follow-up');
   const [editNotes, setEditNotes]         = useState('');
   const [savingLog, setSavingLog]         = useState(false);
+
+  // Progressive infinite scroll limit (prevents mobile DOM lock)
+  const [visibleCount, setVisibleCount]   = useState(30);
 
   const isAdmin = userRole === 'admin';
 
@@ -45,7 +51,9 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
     const q = query(crmRef, where('coachId', '==', coachUid));
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const list = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(e => (e.clubId || 'main') === clubId);
       setEnquiries(list);
       setLoading(false);
     }, (err) => {
@@ -54,131 +62,192 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
     });
 
     return () => unsubscribe();
-  }, [coachUid, isAdmin]);
+  }, [coachUid, isAdmin, clubId]);
 
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [searchQuery, outcomeFilter, dateFilter, customDate]);
 
-  // Combine ALL call logs across all leads into a single time-wise array
-  const allCallLogs = [];
-  enquiries.forEach(e => {
-    const logs = e.callLogs || [];
-    logs.forEach((log, idx) => {
-      allCallLogs.push({
-        ...log,
-        logIndex: idx,
-        leadId: e.id,
-        leadName: e.name || 'Unknown Prospect',
-        phone: e.phone || '',
-        leadStatus: e.status || 'New Lead',
-        leadStaffName: e.staffName || e.coachName || coachName,
-        leadObj: e,
-        sortTime: log.calledAt ? new Date(log.calledAt).getTime() : 0,
+  // Combine ALL call logs across all leads into a single time-wise array (Memoized)
+  const allCallLogs = useMemo(() => {
+    const logs = [];
+    enquiries.forEach(e => {
+      const eLogs = e.callLogs || [];
+      eLogs.forEach((log, idx) => {
+        let sortTime = 0;
+        if (log.calledAt) {
+          const t = new Date(log.calledAt).getTime();
+          if (!isNaN(t)) sortTime = t;
+        }
+        logs.push({
+          ...log,
+          logIndex: idx,
+          leadId: e.id,
+          leadName: e.name || 'Unknown Prospect',
+          phone: e.phone || '',
+          leadStatus: e.status || 'New Lead',
+          leadStaffName: e.staffName || e.coachName || coachName,
+          leadObj: e,
+          sortTime,
+        });
       });
     });
-  });
+    logs.sort((a, b) => b.sortTime - a.sortTime);
+    return logs;
+  }, [enquiries, coachName]);
 
-  // Sort newest first (like mobile phone call history!)
-  allCallLogs.sort((a, b) => b.sortTime - a.sortTime);
+  // Exact Date Calculations for 6 Categories (Memoized)
+  const statCounts = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const date = now.getDate();
 
-  // Exact Date Calculations for 6 Categories
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const date = now.getDate();
+    const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
 
-  // 1. Today
-  const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    const yest = new Date(now);
+    yest.setDate(date - 1);
+    const yesterdayStr = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
 
-  // 2. Yesterday
-  const yest = new Date(now);
-  yest.setDate(date - 1);
-  const yesterdayStr = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+    const currentDayOfWeek = now.getDay();
+    const distanceToMonday = (currentDayOfWeek + 6) % 7;
+    const startOfThisWeek = new Date(now);
+    startOfThisWeek.setDate(date - distanceToMonday);
+    startOfThisWeek.setHours(0, 0, 0, 0);
 
-  // 3. This Week (Monday 00:00 to now)
-  const currentDayOfWeek = now.getDay();
-  const distanceToMonday = (currentDayOfWeek + 6) % 7;
-  const startOfThisWeek = new Date(now);
-  startOfThisWeek.setDate(date - distanceToMonday);
-  startOfThisWeek.setHours(0, 0, 0, 0);
+    const startOfLastWeek = new Date(startOfThisWeek);
+    startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+    const endOfLastWeek = new Date(startOfThisWeek);
+    endOfLastWeek.setMilliseconds(-1);
 
-  // 4. Last Week (Monday 00:00 of prev week to Sunday 23:59 of prev week)
-  const startOfLastWeek = new Date(startOfThisWeek);
-  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
-  const endOfLastWeek = new Date(startOfThisWeek);
-  endOfLastWeek.setMilliseconds(-1);
+    const startOfThisMonth = new Date(year, month, 1, 0, 0, 0, 0);
+    const startOfLastMonth = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const endOfLastMonth = new Date(year, month, 0, 23, 59, 59, 999);
 
-  // 5. This Month (1st 00:00 of current month to now)
-  const startOfThisMonth = new Date(year, month, 1, 0, 0, 0, 0);
+    let todayCount = 0;
+    let yesterdayCount = 0;
+    let thisWeekCount = 0;
+    let lastWeekCount = 0;
+    let thisMonthCount = 0;
+    let lastMonthCount = 0;
 
-  // 6. Last Month (1st 00:00 of prev month to last day 23:59 of prev month)
-  const startOfLastMonth = new Date(year, month - 1, 1, 0, 0, 0, 0);
-  const endOfLastMonth = new Date(year, month, 0, 23, 59, 59, 999);
-
-  // Count variables for 6 cards
-  let todayCount = 0;
-  let yesterdayCount = 0;
-  let thisWeekCount = 0;
-  let lastWeekCount = 0;
-  let thisMonthCount = 0;
-  let lastMonthCount = 0;
-
-  allCallLogs.forEach(log => {
-    if (!log.calledAt) return;
-    const logDate = new Date(log.calledAt);
-    const logDateStr = logDate.toISOString().split('T')[0];
-
-    if (logDateStr === todayStr) todayCount++;
-    if (logDateStr === yesterdayStr) yesterdayCount++;
-
-    if (logDate >= startOfThisWeek && logDate <= now) thisWeekCount++;
-    if (logDate >= startOfLastWeek && logDate <= endOfLastWeek) lastWeekCount++;
-
-    if (logDate >= startOfThisMonth && logDate <= now) thisMonthCount++;
-    if (logDate >= startOfLastMonth && logDate <= endOfLastMonth) lastMonthCount++;
-  });
-
-  // Filter call logs list
-  const filteredLogs = allCallLogs.filter(log => {
-    // Search query filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      const matchName = log.leadName.toLowerCase().includes(q);
-      const matchPhone = log.phone.includes(q);
-      const matchStaff = (log.callerName || log.leadStaffName || '').toLowerCase().includes(q);
-      const matchNotes = (log.notes || '').toLowerCase().includes(q);
-      if (!matchName && !matchPhone && !matchStaff && !matchNotes) return false;
-    }
-
-    // Outcome filter
-    if (outcomeFilter !== 'All') {
-      const out = log.outcome || '📞 Called';
-      const cleanOpt = outcomeFilter.replace('📞 ', '').replace('📅 ', '').replace('⏰ ', '').replace('❌ ', '').replace('🚫 ', '').toLowerCase();
-      if (!out.toLowerCase().includes(cleanOpt)) {
-        return false;
-      }
-    }
-
-    // Date filter
-    if (dateFilter !== 'all' && log.calledAt) {
+    allCallLogs.forEach(log => {
+      if (!log.calledAt) return;
       const logDate = new Date(log.calledAt);
+      if (isNaN(logDate.getTime())) return;
       const logYear = logDate.getFullYear();
       const logMonth = String(logDate.getMonth() + 1).padStart(2, '0');
       const logDay = String(logDate.getDate()).padStart(2, '0');
       const logDateStr = `${logYear}-${logMonth}-${logDay}`;
 
-      if (dateFilter === 'custom') {
-        if (logDateStr !== customDate) return false;
-      } else {
-        if (dateFilter === 'today' && logDateStr !== todayStr) return false;
-        if (dateFilter === 'yesterday' && logDateStr !== yesterdayStr) return false;
-        if (dateFilter === 'this_week' && !(logDate >= startOfThisWeek && logDate <= now)) return false;
-        if (dateFilter === 'last_week' && !(logDate >= startOfLastWeek && logDate <= endOfLastWeek)) return false;
-        if (dateFilter === 'this_month' && !(logDate >= startOfThisMonth && logDate <= now)) return false;
-        if (dateFilter === 'last_month' && !(logDate >= startOfLastMonth && logDate <= endOfLastMonth)) return false;
-      }
-    }
+      if (logDateStr === todayStr) todayCount++;
+      if (logDateStr === yesterdayStr) yesterdayCount++;
 
-    return true;
-  });
+      if (logDate >= startOfThisWeek && logDate <= now) thisWeekCount++;
+      if (logDate >= startOfLastWeek && logDate <= endOfLastWeek) lastWeekCount++;
+
+      if (logDate >= startOfThisMonth && logDate <= now) thisMonthCount++;
+      if (logDate >= startOfLastMonth && logDate <= endOfLastMonth) lastMonthCount++;
+    });
+
+    return {
+      todayStr,
+      yesterdayStr,
+      startOfThisWeek,
+      startOfLastWeek,
+      endOfLastWeek,
+      startOfThisMonth,
+      startOfLastMonth,
+      endOfLastMonth,
+      now,
+      todayCount,
+      yesterdayCount,
+      thisWeekCount,
+      lastWeekCount,
+      thisMonthCount,
+      lastMonthCount,
+    };
+  }, [allCallLogs]);
+
+  // Filter call logs list (Memoized)
+  const filteredLogs = useMemo(() => {
+    const {
+      todayStr,
+      yesterdayStr,
+      startOfThisWeek,
+      startOfLastWeek,
+      endOfLastWeek,
+      startOfThisMonth,
+      startOfLastMonth,
+      endOfLastMonth,
+      now,
+    } = statCounts;
+
+    return allCallLogs.filter(log => {
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        const matchName = (log.leadName || '').toLowerCase().includes(q);
+        const matchPhone = (log.phone || '').includes(q);
+        const matchStaff = (log.callerName || log.leadStaffName || '').toLowerCase().includes(q);
+        const matchNotes = (log.notes || '').toLowerCase().includes(q);
+        if (!matchName && !matchPhone && !matchStaff && !matchNotes) return false;
+      }
+
+      // Outcome filter
+      if (outcomeFilter !== 'All') {
+        const out = log.outcome || '📞 Called';
+        const cleanOpt = outcomeFilter.replace('📞 ', '').replace('📅 ', '').replace('⏰ ', '').replace('❌ ', '').replace('🚫 ', '').toLowerCase();
+        if (!out.toLowerCase().includes(cleanOpt)) {
+          return false;
+        }
+      }
+
+      // Date filter
+      if (dateFilter !== 'all' && log.calledAt) {
+        const logDate = new Date(log.calledAt);
+        if (isNaN(logDate.getTime())) return false;
+        const logYear = logDate.getFullYear();
+        const logMonth = String(logDate.getMonth() + 1).padStart(2, '0');
+        const logDay = String(logDate.getDate()).padStart(2, '0');
+        const logDateStr = `${logYear}-${logMonth}-${logDay}`;
+
+        if (dateFilter === 'custom') {
+          if (logDateStr !== customDate) return false;
+        } else {
+          if (dateFilter === 'today' && logDateStr !== todayStr) return false;
+          if (dateFilter === 'yesterday' && logDateStr !== yesterdayStr) return false;
+          if (dateFilter === 'this_week' && !(logDate >= startOfThisWeek && logDate <= now)) return false;
+          if (dateFilter === 'last_week' && !(logDate >= startOfLastWeek && logDate <= endOfLastWeek)) return false;
+          if (dateFilter === 'this_month' && !(logDate >= startOfThisMonth && logDate <= now)) return false;
+          if (dateFilter === 'last_month' && !(logDate >= startOfLastMonth && logDate <= endOfLastMonth)) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allCallLogs, statCounts, searchQuery, outcomeFilter, dateFilter, customDate]);
+
+  // Progressive slice for 60fps rendering & instant scrolling
+  const visibleLogs = useMemo(() => {
+    return filteredLogs.slice(0, visibleCount);
+  }, [filteredLogs, visibleCount]);
+
+  // Auto load more when scrolling near bottom
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0] && entries[0].isIntersecting) {
+          setVisibleCount(prev => Math.min(prev + 30, filteredLogs.length));
+        }
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [filteredLogs.length, visibleCount]);
 
   const handleLeadSaved = async (updatedData, leadId, keepOpen = false) => {
     if (leadId) {
@@ -240,26 +309,30 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
     }
   };
 
+  const {
+    todayCount,
+    yesterdayCount,
+    thisWeekCount,
+    lastWeekCount,
+    thisMonthCount,
+    lastMonthCount,
+  } = statCounts;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
       
-      {/* ── STICKY FROZEN CONTROLS (stat cards + search + filter) ── */}
+      {/* ── CONTROLS HEADER (stat cards + search + filter) ── */}
       <div style={{
-        flexShrink: 0,
         background: 'var(--bg-main)',
-        paddingTop: '16px',
         paddingBottom: '12px',
-        paddingLeft: '32px',
-        paddingRight: '32px',
         borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px',
-        boxShadow: '0 4px 16px rgba(15,23,42,0.06)',
+        gap: '12px',
       }}>
 
-        {/* ── 6 CALL STAT COUNTER CARDS (compact) ─────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+        {/* ── 6 CALL STAT COUNTER CARDS (compact & responsive) ─────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(105px, 1fr))', gap: '8px' }}>
           {[
             { id: 'today',      label: "Today's",   count: todayCount,     color: '#16a34a', selBg: '#f0fdf4', selBorder: '#16a34a' },
             { id: 'yesterday',  label: 'Yesterday', count: yesterdayCount, color: '#0284c7', selBg: '#f0f9ff', selBorder: '#0284c7' },
@@ -433,8 +506,8 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
         </div>
       </div>
 
-      {/* ── CALL LOGS TIMELINE LIST (scrollable) ─────────────────── */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', padding: '16px 32px 32px 32px' }}>
+      {/* ── CALL LOGS TIMELINE LIST ─────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
             ⏳ Loading call history timeline...
@@ -450,24 +523,26 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
             </p>
           </div>
         ) : (
-          <div ref={listContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '14px', overflowAnchor: 'auto' }}>
-            {filteredLogs.map((log, idx) => {
+          <div ref={listContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {visibleLogs.map((log, idx) => {
               const formattedDate = formatDateTime(log.calledAt);
 
               const outcomeText = log.outcome || '📞 Called';
               const callerNameStr = log.callerName || log.leadStaffName || 'Staff';
 
               let badgeStyle = { bg: '#e0f2fe', color: '#0369a1', border: '#bae6fd' };
-              if (outcomeText.includes('Answered') || outcomeText.includes('Interested')) {
+              if (outcomeText.includes('Not Interested')) {
+                badgeStyle = { bg: '#f3f4f6', color: '#4b5563', border: '#e5e7eb' };
+              } else if (outcomeText.includes('Answered') || outcomeText.includes('Interested')) {
                 badgeStyle = { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' };
-              } else if (outcomeText.includes('Follow-up') || outcomeText.includes('Scheduled')) {
-                badgeStyle = { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' };
+              } else if (outcomeText.includes('Session 1') || outcomeText.includes('Follow-up') || outcomeText.includes('Scheduled')) {
+                badgeStyle = { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff' };
+              } else if (outcomeText.includes('Session 2')) {
+                badgeStyle = { bg: '#fce7f3', color: '#9d174d', border: '#f472b6' };
               } else if (outcomeText.includes('No Answer') || outcomeText.includes('Busy')) {
                 badgeStyle = { bg: '#fef2f2', color: '#dc2626', border: '#fca5a5' };
               } else if (outcomeText.includes('Later') || outcomeText.includes('Back')) {
-                badgeStyle = { bg: '#fffbeb', color: '#b45309', border: '#fde68a' };
-              } else if (outcomeText.includes('Not Interested')) {
-                badgeStyle = { bg: '#f3f4f6', color: '#4b5563', border: '#e5e7eb' };
+                badgeStyle = { bg: '#fef3c7', color: '#b45309', border: '#fde68a' };
               }
 
               const uniqueLogKey = log.id || `${log.leadId}-${log.logIndex}-${log.calledAt}`;
@@ -737,6 +812,34 @@ export default function AllCallHistoryTab({ coachUid, coachName = '', userRole =
                 </div>
               );
             })}
+
+            {/* Progressive Infinite Scroll Sentinel & Load More button */}
+            {visibleCount < filteredLogs.length && (
+              <div ref={loadMoreRef} style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(prev => Math.min(prev + 30, filteredLogs.length))}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: '10px',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    fontWeight: '800',
+                    fontSize: '0.84rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(37,99,235,0.2)',
+                  }}
+                >
+                  👇 Load More Calls ({filteredLogs.length - visibleCount} more)
+                </button>
+              </div>
+            )}
+            {filteredLogs.length > 30 && visibleCount >= filteredLogs.length && (
+              <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: '700' }}>
+                ✓ All {filteredLogs.length} call logs loaded
+              </div>
+            )}
           </div>
         )}
       </div>

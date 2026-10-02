@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { User, Dumbbell, Clock4, Settings2, X, UtensilsCrossed } from 'lucide-react';
@@ -20,6 +20,7 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('female');
   const [height, setHeight] = useState('');
+  const [initialWeight, setInitialWeight] = useState('');
   const [goalWeight, setGoalWeight] = useState('');
   const [fitnessGoal, setFitnessGoal] = useState('Weight Loss');
   const [medicalHistory, setMedicalHistory] = useState('');
@@ -43,6 +44,7 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
       setAge(diagnosis.age?.toString() || '');
       setGender(diagnosis.gender || 'female');
       setHeight(diagnosis.height?.toString() || '');
+      setInitialWeight(diagnosis.initialWeight?.toString() || '');
       setGoalWeight(diagnosis.goalWeight?.toString() || '');
       setFitnessGoal(diagnosis.fitnessGoal || 'Weight Loss');
       setMedicalHistory(diagnosis.medicalHistory || '');
@@ -60,6 +62,8 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
 
     const ageNum = parseInt(age);
     const heightNum = parseFloat(height);
+    const initWeightNum = parseFloat(initialWeight);
+    const goalWeightNum = parseFloat(goalWeight);
 
     if (age && (isNaN(ageNum) || ageNum <= 0 || ageNum > 120)) {
       setError('Enter a valid age (1–120).'); return;
@@ -67,33 +71,89 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
     if (height && (isNaN(heightNum) || heightNum < 50 || heightNum > 250)) {
       setError('Enter a valid height (50–250 cm).'); return;
     }
+    if (initialWeight && (isNaN(initWeightNum) || initWeightNum < 10 || initWeightNum > 300)) {
+      setError('Enter a valid starting weight (10–300 kg).'); return;
+    }
+    if (goalWeight && (isNaN(goalWeightNum) || goalWeightNum < 10 || goalWeightNum > 300)) {
+      setError('Enter a valid goal weight (10–300 kg).'); return;
+    }
 
     setSaving(true);
     try {
-      // 1. Update users collection
-      await updateDoc(doc(db, 'users', user.uid), {
+      // 1. Update users collection (using setDoc merge to safely handle both existing and new user records)
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
         name: name.trim(),
         phone: phone.trim(),
-        preferredLanguage: preferredLang,
-      });
+        preferredLanguage: preferredLang || 'en',
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
 
-      // 2. Update diagnosis collection
-      await setDoc(doc(db, 'diagnosis', user.uid), {
+      // 2. Prepare diagnosis collection payload without any undefined values
+      const diagPayload = {
         uid: user.uid,
-        age: ageNum || diagnosis?.age,
-        gender,
-        height: heightNum || diagnosis?.height,
-        initialWeight: diagnosis?.initialWeight,
-        goalWeight: goalWeight ? parseFloat(goalWeight) : null,
-        fitnessGoal,
-        medicalHistory: medicalHistory.trim(),
+        gender: gender || 'female',
+        fitnessGoal: fitnessGoal || 'Weight Loss',
+        medicalHistory: (medicalHistory || '').trim(),
         preferredTimes: {
-          breakfast: breakfastTime,
-          lunch: lunchTime,
-          dinner: dinnerTime,
+          breakfast: breakfastTime || '08:00',
+          lunch: lunchTime || '13:00',
+          dinner: dinnerTime || '20:00',
         },
-        submittedAt: diagnosis?.submittedAt,
-      });
+        updatedAt: serverTimestamp(),
+      };
+
+      if (!isNaN(ageNum) && ageNum > 0) {
+        diagPayload.age = ageNum;
+      } else if (diagnosis?.age) {
+        diagPayload.age = diagnosis.age;
+      }
+
+      if (!isNaN(heightNum) && heightNum > 0) {
+        diagPayload.height = heightNum;
+      } else if (diagnosis?.height) {
+        diagPayload.height = diagnosis.height;
+      }
+
+      if (!isNaN(initWeightNum) && initWeightNum > 0) {
+        diagPayload.initialWeight = initWeightNum;
+      } else if (diagnosis?.initialWeight) {
+        diagPayload.initialWeight = diagnosis.initialWeight;
+      }
+
+      if (!isNaN(goalWeightNum) && goalWeightNum > 0) {
+        diagPayload.goalWeight = goalWeightNum;
+      } else if (diagnosis?.goalWeight) {
+        diagPayload.goalWeight = diagnosis.goalWeight;
+      }
+
+      if (diagnosis?.submittedAt) {
+        diagPayload.submittedAt = diagnosis.submittedAt;
+      } else {
+        diagPayload.submittedAt = serverTimestamp();
+      }
+
+      const targetDocId = diagnosis?.docId || user.uid;
+      await setDoc(doc(db, 'diagnosis', targetDocId), diagPayload, { merge: true });
+
+      // If starting weight was entered and user has no weight history yet, add the first entry
+      if (!isNaN(initWeightNum) && initWeightNum > 0) {
+        try {
+          const weightSnap = await getDocs(query(collection(db, 'weight_history'), where('uid', '==', user.uid)));
+          if (weightSnap.empty) {
+            const today = new Date();
+            const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            await addDoc(collection(db, 'weight_history'), {
+              uid: user.uid,
+              weight: initWeightNum,
+              date: todayDateStr,
+              createdAt: serverTimestamp(),
+            });
+          }
+        } catch (e) {
+          console.warn('Could not auto-add initial weight history:', e);
+        }
+      }
 
       setSuccess('Profile & Settings updated successfully!');
       setTimeout(() => {
@@ -101,8 +161,8 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
         onClose();
       }, 800);
     } catch (err) {
-      console.error(err);
-      setError('Failed to save. Please try again.');
+      console.error('Error saving profile:', err);
+      setError(err?.message ? `Failed to save: ${err.message}` : 'Failed to save. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -212,16 +272,23 @@ export default function ProfileModal({ user, userData, diagnosis, onClose, onSav
                   onChange={e => setHeight(e.target.value)} placeholder="170" min="50" max="250" />
               </div>
               <div className="form-group">
+                <label className="form-label" htmlFor="edit-initial-weight">Starting Weight (kg)</label>
+                <input id="edit-initial-weight" type="number" step="0.1" className="form-input" value={initialWeight}
+                  onChange={e => setInitialWeight(e.target.value)} placeholder="70.0" min="10" max="300" />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
                 <label className="form-label" htmlFor="edit-goal-weight">Goal Weight (kg)</label>
                 <input id="edit-goal-weight" type="number" step="0.1" className="form-input" value={goalWeight}
                   onChange={e => setGoalWeight(e.target.value)} placeholder="65.0" min="10" max="300" />
               </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="edit-fitness-goal">Primary Fitness Goal</label>
-              <select id="edit-fitness-goal" className="form-select" value={fitnessGoal} onChange={e => setFitnessGoal(e.target.value)}>
-                {FITNESS_GOALS.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-fitness-goal">Primary Fitness Goal</label>
+                <select id="edit-fitness-goal" className="form-select" value={fitnessGoal} onChange={e => setFitnessGoal(e.target.value)}>
+                  {FITNESS_GOALS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
             </div>
             <div className="form-group">
               <label className="form-label" htmlFor="edit-medical">Medical History / Health Conditions</label>

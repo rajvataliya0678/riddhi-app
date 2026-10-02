@@ -14,7 +14,7 @@ const STATUS_OPTIONS = [
   'Not Interested', 'Inactive',
 ];
 
-export default function FollowUpTab({ coachUid, coachName }) {
+export default function FollowUpTab({ coachUid, coachName, clubId = 'main' }) {
   const [customers, setCustomers] = useState([]);
   const [followupsMap, setFollowupsMap] = useState({}); // { customerId: [followup docs] }
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ export default function FollowUpTab({ coachUid, coachName }) {
 
       const profileList = profilesSnap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => c.role !== 'coach' && c.role !== 'admin');
+        .filter(c => c.role !== 'coach' && c.role !== 'admin' && (c.clubId || 'main') === clubId);
 
       const allFollowups = followupsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -264,6 +264,7 @@ export default function FollowUpTab({ coachUid, coachName }) {
         <NewCustomerModal
           coachUid={coachUid}
           coachName={coachName}
+          clubId={clubId}
           onClose={() => setShowNewCustomerModal(false)}
           onSaved={fetchData}
         />
@@ -276,6 +277,7 @@ export default function FollowUpTab({ coachUid, coachName }) {
           followups={followupsMap[selectedCustomer.id] || []}
           coachUid={coachUid}
           coachName={coachName}
+          clubId={clubId}
           onClose={closeForm}
           onSaved={() => {
             fetchData();
