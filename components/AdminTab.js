@@ -46,6 +46,14 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
     selectedMemberUids: [],
   });
 
+  // Transfer / Reverse User to Club Modal State
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferTargetUser, setTransferTargetUser] = useState(null);
+  const [transferTargetClubId, setTransferTargetClubId] = useState('');
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferError, setTransferError] = useState('');
+  const [transferSuccess, setTransferSuccess] = useState('');
+
   // Listen to clubs collection
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'clubs'), (snap) => {
@@ -72,7 +80,9 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
       });
       setRawAllUsers(list);
 
-      const filtered = list.filter(u => (u.clubId || 'main') === activeClubId);
+      const filtered = activeClubId === 'ALL'
+        ? list
+        : list.filter(u => (u.clubId || 'main') === activeClubId);
       setUsers(filtered);
       setCoaches(filtered.filter(u => u.role === 'coach' || u.role === 'admin'));
       setPermissionError(false);
@@ -97,7 +107,9 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
         return db2 - da;
       });
       setRawAllUsers(list);
-      const filtered = list.filter(u => (u.clubId || 'main') === activeClubId);
+      const filtered = activeClubId === 'ALL'
+        ? list
+        : list.filter(u => (u.clubId || 'main') === activeClubId);
       setUsers(filtered);
       setCoaches(filtered.filter(u => u.role === 'coach' || u.role === 'admin'));
     } catch (err) {
@@ -210,6 +222,146 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
     setTimeout(() => {
       setSavedUids(prev => { const n = { ...prev }; delete n[uid]; return n; });
     }, 2000);
+  };
+
+  // Open Transfer User Modal
+  const openTransferUserModal = (targetUser) => {
+    setTransferTargetUser(targetUser);
+    const currClub = targetUser.clubId || 'main';
+    // If user is in another club, default to 'main' (reverse to PRV), otherwise pick first subclub or 'main'
+    const defaultTarget = currClub === 'main'
+      ? (clubs.find(c => c.id !== 'main')?.id || 'main')
+      : 'main';
+    setTransferTargetClubId(defaultTarget);
+    setTransferError('');
+    setTransferSuccess('');
+    setShowTransferModal(true);
+  };
+
+  // Handle Transfer / Reverse User execution
+  const handleExecuteTransfer = async (e) => {
+    if (e) e.preventDefault();
+    if (!transferTargetUser || !transferTargetClubId) return;
+
+    const currentClubId = transferTargetUser.clubId || 'main';
+    if (currentClubId === transferTargetClubId) {
+      setTransferError('યુઝર પહેલેથી જ આ ક્લબમાં છે. કૃપા કરીને બીજી ક્લબ પસંદ કરો.');
+      return;
+    }
+
+    setTransferLoading(true);
+    setTransferError('');
+    setTransferSuccess('');
+
+    try {
+      const targetClub = clubs.find(c => c.id === transferTargetClubId) || {
+        id: transferTargetClubId,
+        name: transferTargetClubId === 'main' ? 'PRV' : transferTargetClubId,
+        clubCode: transferTargetClubId === 'main' ? 'PRV' : transferTargetClubId.toUpperCase(),
+      };
+      const targetClubName = targetClub.name || (transferTargetClubId === 'main' ? 'PRV' : targetClub.id);
+      const targetClubCode = targetClub.clubCode || targetClubName.toUpperCase();
+
+      // 1. Update the user document in 'users' collection
+      await updateDoc(doc(db, 'users', transferTargetUser.uid), {
+        clubId: transferTargetClubId,
+        clubName: targetClubName,
+        clubCode: targetClubCode,
+        updatedAt: serverTimestamp(),
+      });
+
+      // 2. Batch update personal data safely (CRM leads, profiles, followups)
+      let currentBatch = writeBatch(db);
+      let opCount = 0;
+
+      const safeBatchUpdate = async (docRef, data) => {
+        currentBatch.update(docRef, data);
+        opCount++;
+        if (opCount >= 400) {
+          await currentBatch.commit();
+          currentBatch = writeBatch(db);
+          opCount = 0;
+        }
+      };
+
+      // a) CRM Enquiries
+      const crmSnap = await getDocs(collection(db, 'crm_enquiries'));
+      for (const cDoc of crmSnap.docs) {
+        const cData = cDoc.data();
+        if (
+          cData.coachId === transferTargetUser.uid ||
+          cData.staffUid === transferTargetUser.uid ||
+          (transferTargetUser.phone && cData.phone === transferTargetUser.phone)
+        ) {
+          await safeBatchUpdate(doc(db, 'crm_enquiries', cDoc.id), {
+            clubId: transferTargetClubId,
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // b) Customer Profiles
+      const profSnap = await getDocs(collection(db, 'customer_profiles'));
+      for (const pDoc of profSnap.docs) {
+        const pData = pDoc.data();
+        if (
+          pDoc.id === transferTargetUser.uid ||
+          pData.uid === transferTargetUser.uid ||
+          (transferTargetUser.phone && pData.phone === transferTargetUser.phone) ||
+          pData.coachId === transferTargetUser.uid
+        ) {
+          await safeBatchUpdate(doc(db, 'customer_profiles', pDoc.id), {
+            clubId: transferTargetClubId,
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // c) Customer Follow-ups
+      const fuSnap = await getDocs(collection(db, 'customer_followups'));
+      for (const fDoc of fuSnap.docs) {
+        const fData = fDoc.data();
+        if (
+          fData.customerUid === transferTargetUser.uid ||
+          fData.coachId === transferTargetUser.uid
+        ) {
+          await safeBatchUpdate(doc(db, 'customer_followups', fDoc.id), {
+            clubId: transferTargetClubId,
+            updatedAt: serverTimestamp(),
+          });
+        }
+      }
+
+      if (opCount > 0) {
+        await currentBatch.commit();
+      }
+
+      // Update state locally so UI updates in real-time
+      setUsers(prev => prev.map(u => u.uid === transferTargetUser.uid ? {
+        ...u,
+        clubId: transferTargetClubId,
+        clubName: targetClubName,
+        clubCode: targetClubCode,
+      } : u));
+      setRawAllUsers(prev => prev.map(u => u.uid === transferTargetUser.uid ? {
+        ...u,
+        clubId: transferTargetClubId,
+        clubName: targetClubName,
+        clubCode: targetClubCode,
+      } : u));
+
+      setTransferSuccess(`${transferTargetUser.name} ને સફળતાપૂર્વક "${targetClubName}" ક્લબમાં શિફ્ટ કરી દેવામાં આવ્યા છે!`);
+      setTimeout(() => {
+        setShowTransferModal(false);
+        setTransferSuccess('');
+        setTransferTargetUser(null);
+      }, 1500);
+    } catch (err) {
+      console.error('Error transferring user to club:', err);
+      setTransferError('ક્લબ ટ્રાન્સફર કરવામાં ભૂલ આવી: ' + (err.message || 'અજ્ઞાત ભૂલ'));
+    } finally {
+      setTransferLoading(false);
+    }
   };
 
   // Apply search + role filter
@@ -472,11 +624,11 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
               border: '1px solid rgba(99, 102, 241, 0.3)',
               padding: '3px 10px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: '800'
             }}>
-              {clubs.find(c => c.id === activeClubId)?.name || (activeClubId === 'main' ? 'PRV' : activeClubId)}
+              {activeClubId === 'ALL' ? '🌐 તમામ ક્લબ્સ (All Clubs)' : (clubs.find(c => c.id === activeClubId)?.name || (activeClubId === 'main' ? 'PRV' : activeClubId))}
             </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Manage all users, roles, coach assignments, and club panel duplication
+            Manage all users, roles, coach assignments, club transfers, and duplication
           </p>
         </div>
 
@@ -494,6 +646,7 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
               {clubs.filter(c => c.id !== 'main').map(c => (
                 <option key={c.id} value={c.id}>🏢 {c.name || c.clubCode || c.id}</option>
               ))}
+              <option value="ALL">🌐 તમામ ક્લબ્સ (All Clubs)</option>
             </select>
           )}
 
@@ -610,7 +763,7 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
                 <th>App Version & Device</th>
                 <th>Assign Coach / Senior Coach</th>
                 <th>Joined</th>
-                <th>Status</th>
+                <th>Club (ક્લબ)</th>
                 <th style={{ width: '60px', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
@@ -747,6 +900,46 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
                         : formatDate(userRow.createdAt)}
                     </td>
 
+                    {/* Club (ક્લબ) */}
+                    <td>
+                      {(() => {
+                        const userClubId = userRow.clubId || 'main';
+                        const userClub = clubs.find(c => c.id === userClubId);
+                        const clubDisplayName = userClub?.name || userRow.clubName || (userClubId === 'main' ? 'PRV' : userClubId);
+                        const isMainClub = userClubId === 'main';
+                        return (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              padding: '3px 8px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '800',
+                              background: isMainClub ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                              color: isMainClub ? '#4f46e5' : '#059669',
+                              border: isMainClub ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                              display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap'
+                            }}>
+                              🏢 {clubDisplayName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTransferUserModal(userRow);
+                              }}
+                              disabled={isSelf}
+                              style={{
+                                background: 'transparent', border: '1px solid var(--border-color)',
+                                borderRadius: '6px', padding: '2px 6px', fontSize: '0.72rem',
+                                color: isSelf ? '#94a3b8' : '#6366f1', cursor: isSelf ? 'not-allowed' : 'pointer',
+                                fontWeight: '700'
+                              }}
+                              title={isSelf ? "પોતાની ક્લબ બદલી શકાતી નથી" : "ક્લબ બદલો / રિવર્સ કરો"}
+                            >
+                              ⇄ બદલો
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </td>
+
                     {/* Actions Menu */}
                     <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                       <button
@@ -777,8 +970,29 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
                           position: 'absolute', right: '10px', top: '40px', zIndex: 99,
                           background: 'var(--card-bg)', border: '1px solid var(--border-color)',
                           borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-                          padding: '6px', minWidth: '160px', textAlign: 'left'
+                          padding: '6px', minWidth: '185px', textAlign: 'left'
                         }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuUid(null);
+                              openTransferUserModal(userRow);
+                            }}
+                            disabled={isSelf}
+                            style={{
+                              width: '100%', padding: '8px 12px', border: 'none', background: 'transparent',
+                              color: isSelf ? '#94a3b8' : '#6366f1', fontWeight: '800', fontSize: '0.8rem',
+                              borderRadius: '6px', cursor: isSelf ? 'not-allowed' : 'pointer',
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              borderBottom: '1px solid var(--border-color)', marginBottom: '4px'
+                            }}
+                            title={isSelf ? "પોતાની ક્લબ બદલી શકાતી નથી" : "બીજી ક્લબમાં ટ્રાન્સફર / રિવર્સ કરો"}
+                            id={`admin-transfer-user-btn-${userRow.uid}`}
+                          >
+                            🔄 ક્લબ બદલો / ટ્રાન્સફર
+                          </button>
+
                           <button
                             type="button"
                             onClick={(e) => handleDeleteUser(userRow.uid, userRow.name, e)}
@@ -804,6 +1018,145 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
           </table>
         </div>
       )}
+
+      {/* ── TRANSFER / REVERSE USER MODAL ── */}
+      {showTransferModal && transferTargetUser && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-card" style={{ maxWidth: '480px', width: '92%' }}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  🔄 ક્લબ ટ્રાન્સફર / રિવર્સ કરો
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: '4px 0 0 0' }}>
+                  સભ્યને કોઈપણ અન્ય ક્લબમાં શિફ્ટ કરો અથવા મૂળ PRV ક્લબમાં રિવર્સ કરો
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!transferLoading) {
+                    setShowTransferModal(false);
+                    setTransferTargetUser(null);
+                  }
+                }}
+                className="modal-close-btn"
+                disabled={transferLoading}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: '20px 24px' }}>
+              {/* Member Summary Card */}
+              <div style={{
+                background: 'var(--bg-secondary)', borderRadius: '12px', padding: '14px 16px',
+                border: '1px solid var(--border-color)', marginBottom: '18px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--text-main)' }}>
+                    {transferTargetUser.name}
+                  </span>
+                  <span className={`role-badge ${getRoleBadgeClass(transferTargetUser.role)}`} style={{ fontSize: '0.72rem' }}>
+                    {transferTargetUser.role === 'admin' ? 'Club Owner' : transferTargetUser.role}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {transferTargetUser.phone && <span>📞 {transferTargetUser.phone}</span>}
+                  {transferTargetUser.email && <span>✉️ {transferTargetUser.email}</span>}
+                  <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>હાલની ક્લબ:</span>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800',
+                      background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1'
+                    }}>
+                      🏢 {clubs.find(c => c.id === (transferTargetUser.clubId || 'main'))?.name || transferTargetUser.clubName || (transferTargetUser.clubId === 'main' || !transferTargetUser.clubId ? 'PRV (મુખ્ય ક્લબ)' : transferTargetUser.clubId)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Target Club Dropdown */}
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontWeight: '700', fontSize: '0.86rem', marginBottom: '8px', color: 'var(--text-main)' }}>
+                  કઈ ક્લબમાં મોકલવા / રિવર્સ કરવા છે? <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  value={transferTargetClubId}
+                  onChange={(e) => setTransferTargetClubId(e.target.value)}
+                  disabled={transferLoading}
+                  className="crm-filter-select"
+                  style={{ width: '100%', padding: '10px 12px', fontSize: '0.9rem', borderRadius: '10px' }}
+                  id="target-club-select"
+                >
+                  <option value="main">🏢 PRV (મુખ્ય પેનલ / રિવર્સ કરો)</option>
+                  {clubs.filter(c => c.id !== 'main').map(c => (
+                    <option key={c.id} value={c.id}>
+                      🏢 {c.name || c.clubCode || c.id} {c.clubCode ? `(${c.clubCode})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Security & Data Guarantee Alert */}
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)',
+                borderRadius: '10px', padding: '12px 14px', marginBottom: '18px', fontSize: '0.8rem',
+                color: '#065f46', lineHeight: 1.5
+              }}>
+                🛡️ <strong>સંપૂર્ણ ડેટા સુરક્ષા:</strong> આ સભ્યને નવી ક્લબમાં ટ્રાન્સફર કરવાથી તેમનો પોતાનો તમામ પર્સનલ ડેટા (પ્રોફાઇલ, CRM લીડ્સ અને ફોલો-અપ્સ) આપમેળે નવી ક્લબમાં સાથે શિફ્ટ થઈ જશે.
+              </div>
+
+              {transferError && (
+                <div className="alert alert-danger" style={{ marginBottom: '16px', fontSize: '0.82rem', padding: '10px 14px', borderRadius: '8px' }}>
+                  ⚠️ {transferError}
+                </div>
+              )}
+
+              {transferSuccess && (
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)',
+                  color: '#047857', padding: '12px', borderRadius: '8px', marginBottom: '16px',
+                  fontWeight: '700', fontSize: '0.85rem', textAlign: 'center'
+                }}>
+                  ✅ {transferSuccess}
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferTargetUser(null);
+                  }}
+                  className="btn btn-outline"
+                  style={{ width: 'auto', padding: '9px 18px' }}
+                  disabled={transferLoading}
+                >
+                  રદ કરો
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteTransfer}
+                  className="btn btn-primary"
+                  style={{
+                    width: 'auto', padding: '9px 22px', fontWeight: '800',
+                    background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                    border: 'none', boxShadow: '0 4px 12px rgba(99,102,241,0.35)'
+                  }}
+                  disabled={transferLoading || !transferTargetClubId || transferTargetClubId === (transferTargetUser.clubId || 'main')}
+                  id="confirm-transfer-btn"
+                >
+                  {transferLoading ? 'ટ્રાન્સફર થઈ રહ્યું છે...' : 'ટ્રાન્સફર / રિવર્સ કરો ➔'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── DUPLICATE CLUB PANEL MODAL ── */}
       {showDuplicateModal && (
         <div className="modal-overlay" style={{ zIndex: 1000 }}>
