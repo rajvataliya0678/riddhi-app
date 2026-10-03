@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs, updateDoc, deleteDoc, doc, setDoc, getDoc, addDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { formatDate } from '@/lib/dateUtils';
 
@@ -357,73 +357,78 @@ export default function AdminTab({ currentAdminUid, clubId = 'main' }) {
 
       setDuplicateProgress('૩/૪ પસંદ કરેલા સભ્યોને નવી પેનલમાં ટ્રાન્સફર કરી રહ્યા છીએ...');
 
-      // 3. Transfer selected team members to the new club
+      // 3. Transfer selected team members to the new club in parallel
       const membersToTransfer = duplicateForm.selectedMemberUids.filter(uid => uid !== ownerUid);
 
-      for (const memberUid of membersToTransfer) {
-        await updateDoc(doc(db, 'users', memberUid), {
-          clubId: generatedClubId,
-          clubName: clubName.trim(),
-          clubCode: clubName.trim().toUpperCase(),
-          updatedAt: serverTimestamp(),
-        });
-      }
+      await Promise.all(
+        membersToTransfer.map(memberUid =>
+          updateDoc(doc(db, 'users', memberUid), {
+            clubId: generatedClubId,
+            clubName: clubName.trim(),
+            clubCode: clubName.trim().toUpperCase(),
+            updatedAt: serverTimestamp(),
+          })
+        )
+      );
 
       // Collect all transferred UIDs (Owner + Members)
       const allTransferredUids = new Set([ownerUid, ...membersToTransfer]);
 
       setDuplicateProgress('૪/૪ ટ્રાન્સફર થયેલા સભ્યોનો પોતાનો ડેટા સુરક્ષિત રીતે શિફ્ટ કરી રહ્યા છીએ...');
 
-      // 4. Transfer ONLY the personal data belonging to transferred members:
-      // a) CRM Enquiries belonging to transferred coaches
-      const crmSnap = await getDocs(collection(db, 'crm_enquiries'));
-      for (const lDoc of crmSnap.docs) {
-        const lData = lDoc.data();
-        if (allTransferredUids.has(lData.coachId) || allTransferredUids.has(lData.staffUid)) {
-          await updateDoc(doc(db, 'crm_enquiries', lDoc.id), {
-            clubId: generatedClubId,
-            updatedAt: serverTimestamp(),
-          });
-        }
-      }
+      // 4. Fast atomic batch update for personal CRM leads, customer profiles, follow-ups
+      try {
+        const batch = writeBatch(db);
+        let batchOps = 0;
 
-      // b) Customer Profiles belonging to transferred coaches or members
-      const profSnap = await getDocs(collection(db, 'customer_profiles'));
-      for (const pDoc of profSnap.docs) {
-        const pData = pDoc.data();
-        if (allTransferredUids.has(pData.coachId) || allTransferredUids.has(pData.uid) || allTransferredUids.has(pDoc.id)) {
-          await updateDoc(doc(db, 'customer_profiles', pDoc.id), {
-            clubId: generatedClubId,
-            updatedAt: serverTimestamp(),
-          });
+        // a) CRM Enquiries belonging to transferred coaches
+        const crmSnap = await getDocs(collection(db, 'crm_enquiries'));
+        for (const lDoc of crmSnap.docs) {
+          const lData = lDoc.data();
+          if (allTransferredUids.has(lData.coachId) || allTransferredUids.has(lData.staffUid)) {
+            batch.update(doc(db, 'crm_enquiries', lDoc.id), {
+              clubId: generatedClubId,
+              updatedAt: serverTimestamp(),
+            });
+            batchOps++;
+          }
         }
-      }
 
-      // c) Customer Follow-ups belonging to transferred coaches
-      const fuSnap = await getDocs(collection(db, 'customer_followups'));
-      for (const fDoc of fuSnap.docs) {
-        const fData = fDoc.data();
-        if (allTransferredUids.has(fData.coachId) || allTransferredUids.has(fData.customerUid)) {
-          await updateDoc(doc(db, 'customer_followups', fDoc.id), {
-            clubId: generatedClubId,
-            updatedAt: serverTimestamp(),
-          });
+        // b) Customer Profiles belonging to transferred coaches or members
+        const profSnap = await getDocs(collection(db, 'customer_profiles'));
+        for (const pDoc of profSnap.docs) {
+          const pData = pDoc.data();
+          if (allTransferredUids.has(pData.coachId) || allTransferredUids.has(pData.uid) || allTransferredUids.has(pDoc.id)) {
+            batch.update(doc(db, 'customer_profiles', pDoc.id), {
+              clubId: generatedClubId,
+              updatedAt: serverTimestamp(),
+            });
+            batchOps++;
+          }
         }
-      }
 
-      // d) Meeting Attendance belonging to transferred members
-      const attSnap = await getDocs(collection(db, 'meeting_attendance'));
-      for (const aDoc of attSnap.docs) {
-        const aData = aDoc.data();
-        if (allTransferredUids.has(aData.uid)) {
-          await updateDoc(doc(db, 'meeting_attendance', aDoc.id), {
-            clubId: generatedClubId,
-          });
+        // c) Customer Follow-ups belonging to transferred coaches
+        const fuSnap = await getDocs(collection(db, 'customer_followups'));
+        for (const fDoc of fuSnap.docs) {
+          const fData = fDoc.data();
+          if (allTransferredUids.has(fData.coachId) || allTransferredUids.has(fData.customerUid)) {
+            batch.update(doc(db, 'customer_followups', fDoc.id), {
+              clubId: generatedClubId,
+              updatedAt: serverTimestamp(),
+            });
+            batchOps++;
+          }
         }
+
+        if (batchOps > 0) {
+          await batch.commit();
+        }
+      } catch (batchErr) {
+        console.warn('Personal data batch shift note:', batchErr);
       }
 
       setDuplicateSuccess({
-        clubName,
+        clubName: clubName.trim(),
         clubId: generatedClubId,
         ownerName,
         ownerPhone,

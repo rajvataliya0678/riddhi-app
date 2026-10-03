@@ -42,7 +42,7 @@ export default function FollowUpTab({ coachUid, coachName, clubId = 'main' }) {
 
       const profileList = profilesSnap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => c.role !== 'coach' && c.role !== 'admin' && (c.clubId || 'main') === clubId);
+        .filter(c => c.role !== 'coach' && c.role !== 'admin');
 
       const allFollowups = followupsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 

@@ -294,7 +294,13 @@ export default function CrmTab({ coachUid, coachName = '', userRole = 'coach', o
     const handleSnap = (snap) => {
       let list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       // Filter leads by club
-      list = list.filter(item => (item.clubId || 'main') === clubId);
+      list = list.filter(item => {
+        // A coach always sees their own assigned leads
+        if (userRole !== 'admin' && item.coachId === coachUid) return true;
+        // Direct club match
+        if ((item.clubId || 'main') === clubId) return true;
+        return false;
+      });
       list.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
         const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
