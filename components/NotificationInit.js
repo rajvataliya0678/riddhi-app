@@ -23,6 +23,7 @@ import {
   createNotificationChannel,
   registerNotificationActionTypes,
   setupActionListener,
+  scheduleMeetingReminders,
 } from '@/lib/meetingNotifications';
 
 // Helper: Robust timestamp parser for Firestore Timestamps, Date objects, ISO strings, etc.
@@ -105,84 +106,35 @@ function subscribeBroadcastNotifications(uid, userRole, userCreatedAt, clubId = 
   return unsubscribe;
 }
 
-// ── Real-Time Auto Meeting Notification Listener ────────────────────────────────
-function subscribeMeetingAutoBroadcast(uid, userRole) {
+// ── Real-Time Meeting Alarm Scheduler (Exact OS Native Scheduling) ─────────────
+function subscribeMeetingAutoBroadcast(uid, userRole, userData, clubId = 'main') {
   if (!uid) return () => {};
 
   const q = query(collection(db, 'meetings'));
   const todayStr = new Date().toISOString().split('T')[0];
-  const notifiedMeetings = new Set();
-  let currentDocs = [];
-
-  const checkAndNotify = () => {
-    if (!currentDocs || currentDocs.length === 0) return;
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
-    currentDocs.forEach(d => {
-      const m = { id: d.id, ...d.data() };
-      if (!m.time) return;
-
-      const isToday = m.recurrence === 'daily' || m.date === todayStr;
-      if (!isToday) return;
-
-      // Check target audience
-      let canSee = false;
-      if (m.visibleTo === 'customers' || m.visibleTo === 'all' || !m.visibleTo) canSee = true;
-      if (m.visibleTo === 'coaches' && (userRole === 'coach' || userRole === 'admin')) canSee = true;
-      if (!canSee) return;
-
-      let hours = 0, minutes = 0;
-      const ampmMatch = m.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
-      if (ampmMatch) {
-        hours = parseInt(ampmMatch[1]);
-        minutes = parseInt(ampmMatch[2]);
-        const period = ampmMatch[3].toUpperCase();
-        if (period === 'PM' && hours !== 12) hours += 12;
-        if (period === 'AM' && hours === 12) hours = 0;
-      } else {
-        const parts = m.time.split(':');
-        hours = parseInt(parts[0]) || 0;
-        minutes = parseInt(parts[1]) || 0;
-      }
-
-      const meetingMinutes = hours * 60 + minutes;
-      const key = `${m.id}_${todayStr}_${hours}_${minutes}`;
-
-      // Trigger if meeting time has arrived (within 0 to 5 mins window) and not yet notified
-      if (nowMinutes >= meetingMinutes && nowMinutes <= meetingMinutes + 5 && !notifiedMeetings.has(key)) {
-        notifiedMeetings.add(key);
-
-        if (Capacitor.isNativePlatform()) {
-          LocalNotifications.schedule({
-            notifications: [{
-              id: 30000 + (Math.abs(d.id.hashCode ? d.id.hashCode() : 1) % 10000),
-              title: 'Your session is starting 🎥',
-              body: `${m.title || 'Live Session'} is starting now. Tap Join to enter!`,
-              sound: 'session_reminder',
-              channelId: 'meeting_reminders',
-              actionTypeId: 'MEETING_ACTIONS',
-              extra: { meetingUrl: m.meetingUrl || '' },
-              schedule: { at: new Date(Date.now() + 100) },
-            }]
-          }).catch(err => console.warn('[AutoMeetingNotif] Schedule error:', err));
-        }
-      }
-    });
-  };
 
   const unsubscribe = onSnapshot(q, (snap) => {
-    currentDocs = snap.docs;
-    checkAndNotify();
+    try {
+      const allMeetings = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const filtered = allMeetings.filter(m => {
+        if ((m.clubId || 'main') !== (clubId || 'main')) return false;
+        const isApplicable = m.recurrence === 'daily' || m.date === todayStr;
+        if (!isApplicable) return false;
+
+        // Check target audience
+        if (m.visibleTo === 'customers' || m.visibleTo === 'all' || !m.visibleTo) return true;
+        if (m.visibleTo === 'coaches' && (userRole === 'coach' || userRole === 'admin')) return true;
+        return false;
+      });
+
+      // Schedule native OS alarms for all meetings at exact scheduled time
+      scheduleMeetingReminders(filtered, { uid }, userData);
+    } catch (err) {
+      console.warn('[NotificationInit] Meeting schedule error:', err);
+    }
   }, (err) => console.warn('[NotificationInit] Meeting snapshot error:', err));
 
-  // Check every 10 seconds for exact minute match without re-subscribing!
-  const timer = setInterval(checkAndNotify, 10000);
-
-  return () => {
-    unsubscribe();
-    clearInterval(timer);
-  };
+  return unsubscribe;
 }
 
 // ── Absence Notification: Customer missed session → notify their Coach ──────────
@@ -278,7 +230,7 @@ export default function NotificationInit({ uid, userRole, userCreatedAt, userDat
       // Subscribe to real-time instant broadcast notifications & auto meeting notifications
       if (uid && mounted) {
         unsubscribeNotif = subscribeBroadcastNotifications(uid, userRole, userCreatedAt, clubId);
-        unsubscribeMeeting = subscribeMeetingAutoBroadcast(uid, userRole);
+        unsubscribeMeeting = subscribeMeetingAutoBroadcast(uid, userRole, userData, clubId);
 
         // Check for customer absence every 60 seconds after session windows
         // (only relevant for 'customer' role; coaches/admins skip silently)
@@ -302,7 +254,7 @@ export default function NotificationInit({ uid, userRole, userCreatedAt, userDat
       if (unsubscribeMeeting) unsubscribeMeeting();
       if (absenceTimer) clearInterval(absenceTimer);
     };
-  }, [uid, userRole, userCreatedAt, userData]);
+  }, [uid, userRole, userCreatedAt, userData, clubId]);
 
   return null;
 }
